@@ -10,7 +10,10 @@ export default defineConfig({
     name: 'AI Writing Assistant',
     description: 'AI writing assistant with controllable insertion into the editor you are already in.',
     version: '0.1.0',
-    permissions: ['storage', 'activeTab', 'clipboardWrite', 'tabs', 'identity'],
+    // No 'tabs' permission: tabs.query/sendMessage work without it (only URL/
+    // title access needs it) and captureVisibleTab is covered by activeTab —
+    // requesting it would only add a store-review warning surface (WR-17).
+    permissions: ['storage', 'activeTab', 'clipboardWrite', 'identity'],
     // Universal insertion is the product's single purpose; the backend origin
     // is needed for API/SSE. Narrow-permission rationale lives in PRIVACY.md.
     host_permissions: ['<all_urls>', 'http://localhost:8787/*', 'http://127.0.0.1:8787/*'],
