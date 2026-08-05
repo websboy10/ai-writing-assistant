@@ -8,3 +8,4 @@ build/
 .wxt/
 *.traineddata
 test-results/
+.chrome-profile/
