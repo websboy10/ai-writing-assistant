@@ -104,7 +104,7 @@ try {
     'HELLO FROM THE EXTENSION. This sentence exists so progressive insertion takes long enough to exercise pause, resume, stop and undo deterministically. ' +
     'It keeps going with a second sentence to make sure there is plenty of text left after the pause point. And a third one for good measure, because timing matters.';
   await host.locator('button', { hasText: 'Edit' }).first().click();
-  const editBox = host.locator('textarea.border-indigo-400');
+  const editBox = host.locator('textarea.awa-edit');
   await editBox.waitFor({ timeout: 5_000 });
   await editBox.fill(LONG_TEXT);
   await host.locator('button', { hasText: 'Save' }).click();

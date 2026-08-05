@@ -44,20 +44,20 @@ export function HistoryView() {
     <div className="h-full space-y-2 overflow-y-auto px-3 py-3">
       {s.error && <Banner kind="error" text={s.error} />}
       {s.history.length === 0 && (
-        <p className="mt-8 text-center text-[13px] text-zinc-400">No conversations yet. They'll appear here once you chat.</p>
+        <p className="mt-8 text-center text-[13px] text-graphite">No conversations yet. They'll appear here once you chat.</p>
       )}
       {s.history.map((h) => (
-        <div key={h.id} className="group flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 hover:border-indigo-300 dark:border-zinc-700">
+        <div key={h.id} className="group flex items-center gap-2 rounded-md border border-hairline px-3 py-2 hover:border-ink">
           <button onClick={() => void open(h.id)} className="min-w-0 flex-1 text-left" disabled={busy === h.id}>
             <div className="truncate font-medium">{h.title || 'Untitled'}</div>
-            <div className="text-[11.5px] text-zinc-400">
+            <div className="text-[11.5px] text-graphite">
               {new Date(h.updatedAt).toLocaleString()} · {h.messageCount} messages
             </div>
           </button>
           <button
             onClick={() => void remove(h.id)}
             disabled={busy === h.id}
-            className="rounded px-1.5 py-1 text-[12px] text-zinc-400 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+            className="rounded px-1.5 py-1 text-[12px] text-graphite underline-offset-2 opacity-0 transition group-hover:opacity-100 hover:text-ink hover:underline"
             title="Delete conversation (removes stored content)"
           >
             {busy === h.id ? '…' : 'Delete'}

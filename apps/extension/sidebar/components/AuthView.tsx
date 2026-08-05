@@ -58,8 +58,15 @@ export function AuthView() {
 
   return (
     <div className="flex h-full flex-col justify-center gap-3 px-6">
-      <h2 className="text-lg font-semibold">
-        {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create your account' : 'Reset password'}
+      <p className="awa-eyebrow">
+        {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'New account' : 'Reset password'}
+      </p>
+      <h2 className="font-draft text-[22px] leading-snug" style={{ fontFamily: 'Charter, Georgia, serif' }}>
+        {mode === 'signin'
+          ? 'Pick up where you left off.'
+          : mode === 'signup'
+            ? 'Start drafting anywhere.'
+            : 'Get back into your account.'}
       </h2>
 
       {error && <Banner kind="error" text={error} />}
@@ -70,7 +77,7 @@ export function AuthView() {
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="rounded-lg border border-zinc-300 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-zinc-600 dark:bg-zinc-800"
+        className="rounded-md border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
       />
       {mode !== 'reset' && (
         <input
@@ -79,14 +86,14 @@ export function AuthView() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && void submit()}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 outline-none focus:border-indigo-500 dark:border-zinc-600 dark:bg-zinc-800"
+          className="rounded-md border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
         />
       )}
 
       <button
         onClick={() => void submit()}
         disabled={busy || !email || (mode !== 'reset' && password.length < 6)}
-        className="rounded-lg bg-indigo-600 py-2 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+        className="rounded-md bg-ink py-2 font-medium text-paper transition-opacity hover:opacity-85 disabled:opacity-40"
       >
         {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset email'}
       </button>
@@ -95,24 +102,24 @@ export function AuthView() {
         <button
           onClick={() => void google()}
           disabled={busy}
-          className="rounded-lg border border-zinc-300 py-2 font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+          className="rounded-md border border-hairline py-2 font-medium hover:border-ink disabled:opacity-40"
         >
           Continue with Google
         </button>
       )}
 
-      <div className="flex justify-between text-[12px] text-zinc-500">
+      <div className="flex justify-between text-[12px] text-graphite">
         {mode === 'signin' ? (
           <>
-            <button className="hover:underline" onClick={() => setMode('signup')}>
+            <button className="underline-offset-2 hover:text-ink hover:underline" onClick={() => setMode('signup')}>
               Create account
             </button>
-            <button className="hover:underline" onClick={() => setMode('reset')}>
+            <button className="underline-offset-2 hover:text-ink hover:underline" onClick={() => setMode('reset')}>
               Forgot password?
             </button>
           </>
         ) : (
-          <button className="hover:underline" onClick={() => setMode('signin')}>
+          <button className="underline-offset-2 hover:text-ink hover:underline" onClick={() => setMode('signin')}>
             ← Back to sign in
           </button>
         )}
@@ -122,12 +129,14 @@ export function AuthView() {
 }
 
 export function Banner({ kind, text }: { kind: 'error' | 'info'; text: string }) {
+  // Monochrome severity: errors get a solid left rule and full-strength ink;
+  // notices stay quiet in graphite. No hue anywhere.
   return (
     <div
-      className={`rounded-lg px-3 py-2 text-[12.5px] ${
+      className={`rounded-r-md px-3 py-2 text-[12.5px] ${
         kind === 'error'
-          ? 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300'
-          : 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300'
+          ? 'border-l-2 border-ink bg-wash font-medium text-ink'
+          : 'border-l-2 border-hairline bg-wash text-graphite'
       }`}
     >
       {text}

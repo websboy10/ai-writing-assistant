@@ -2,7 +2,70 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* The shadow root isolates us from host CSS; these keep our own baseline sane. */
+/*
+ * "Galley" — strict monochrome design system.
+ * Two voices: the machinery speaks mono-uppercase; the draft speaks serif.
+ * All interaction states are weight/inversion, never hue.
+ */
+@theme inline {
+  --color-paper: var(--awa-paper);
+  --color-ink: var(--awa-ink);
+  --color-graphite: var(--awa-graphite);
+  --color-hairline: var(--awa-hairline);
+  --color-wash: var(--awa-wash);
+  --font-machine: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --font-draft: Charter, Georgia, Cambria, 'Times New Roman', serif;
+}
+
 :host {
   all: initial;
+}
+
+.awa-root {
+  --awa-paper: #ffffff;
+  --awa-ink: #111111;
+  --awa-graphite: #575757;
+  --awa-hairline: #e5e5e5;
+  --awa-wash: #f6f6f6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.awa-root.dark {
+  --awa-paper: #0c0c0c;
+  --awa-ink: #f2f2f2;
+  --awa-graphite: #a3a3a3;
+  --awa-hairline: #262626;
+  --awa-wash: #171717;
+}
+
+/* The signature block caret. Steady for reduced-motion users. */
+@keyframes awa-caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.awa-caret {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: var(--awa-ink);
+  vertical-align: -2px;
+  animation: awa-caret 1.1s steps(1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .awa-caret { animation: none; }
+}
+
+/* Machine voice: eyebrows, labels, controls. */
+.awa-eyebrow {
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--awa-graphite);
+}
+
+/* Visible keyboard focus, monochrome. */
+.awa-root :focus-visible {
+  outline: 2px solid var(--awa-ink);
+  outline-offset: 1px;
 }

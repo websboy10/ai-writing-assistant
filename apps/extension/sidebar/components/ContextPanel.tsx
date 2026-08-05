@@ -112,40 +112,40 @@ export function ContextPanel() {
         setDragOver(false);
         if (e.dataTransfer.files.length) void addFiles(e.dataTransfer.files);
       }}
-      className={`space-y-2 px-3 pb-3 ${dragOver ? 'rounded-lg outline-2 outline-dashed outline-indigo-400' : ''}`}
+      className={`space-y-2 px-3 pb-3 ${dragOver ? 'outline-2 outline-dashed outline-ink' : ''}`}
     >
       {/* attached items (CTX-08) */}
       {s.context.map((c) => (
-        <div key={c.id} className="flex items-center gap-2 rounded-lg bg-zinc-100 px-2.5 py-1.5 text-[12.5px] dark:bg-zinc-800">
+        <div key={c.id} className="flex items-center gap-2 rounded-md bg-wash px-2.5 py-1.5 text-[12.5px]">
           <span className="text-[14px]">{iconFor(c)}</span>
           <span className="min-w-0 flex-1 truncate" title={c.name}>
             {c.name}
           </span>
-          <span className="text-zinc-400">{c.chars.toLocaleString()} ch</span>
-          <button onClick={() => s.removeContext(c.id)} className="font-bold text-zinc-400 hover:text-red-500" title="Remove">
+          <span className="text-graphite">{c.chars.toLocaleString()} ch</span>
+          <button onClick={() => s.removeContext(c.id)} className="font-bold text-graphite hover:text-ink" title="Remove">
             ×
           </button>
         </div>
       ))}
 
       {s.contextBusy && (
-        <div className="flex items-center gap-2 text-[12px] text-zinc-500">
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+        <div className="flex items-center gap-2 text-[12px] text-graphite">
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-ink border-t-transparent" />
           {s.contextBusy}
         </div>
       )}
 
       <div className="flex flex-wrap gap-1.5 text-[12px]">
-        <button onClick={() => fileInput.current?.click()} className="rounded-md border border-zinc-300 px-2 py-1 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800">
+        <button onClick={() => fileInput.current?.click()} className="rounded border border-hairline px-2 py-1 hover:border-ink">
           + File
         </button>
-        <button onClick={() => void screenshot()} className="rounded-md border border-zinc-300 px-2 py-1 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800">
+        <button onClick={() => void screenshot()} className="rounded border border-hairline px-2 py-1 hover:border-ink">
           + Screenshot
         </button>
-        <button onClick={() => setPasteOpen((v) => !v)} className="rounded-md border border-zinc-300 px-2 py-1 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800">
+        <button onClick={() => setPasteOpen((v) => !v)} className="rounded border border-hairline px-2 py-1 hover:border-ink">
           + Paste text
         </button>
-        <span className="self-center text-[11px] text-zinc-400">or drag files here</span>
+        <span className="self-center text-[11px] text-graphite">or drag files here</span>
       </div>
 
       {pasteOpen && (
@@ -155,9 +155,9 @@ export function ContextPanel() {
             onChange={(e) => setPasteText(e.target.value)}
             rows={4}
             placeholder="Paste text to use as context…"
-            className="w-full rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-[12.5px] dark:border-zinc-600 dark:bg-zinc-800"
+            className="w-full rounded-md border border-hairline bg-paper px-2.5 py-1.5 text-[12.5px] outline-none placeholder:text-graphite focus:border-ink"
           />
-          <button onClick={addPaste} disabled={!pasteText.trim()} className="rounded-md bg-indigo-600 px-2.5 py-1 text-[12px] text-white disabled:opacity-40">
+          <button onClick={addPaste} disabled={!pasteText.trim()} className="rounded bg-ink px-2.5 py-1 text-[12px] text-paper hover:opacity-85 disabled:opacity-40">
             Attach
           </button>
         </div>
