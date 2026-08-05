@@ -198,7 +198,9 @@ function TargetHint() {
 function MessageBubble({ m }: { m: UiMessage }) {
   const s = useStore();
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(m.content);
+  // Seeded when Edit is clicked, not at mount — streamed messages mount with
+  // empty content, so a mount-time seed would make Save erase the response.
+  const [draft, setDraft] = useState('');
   const [copied, setCopied] = useState(false);
 
   if (m.role === 'user') {
@@ -264,7 +266,13 @@ function MessageBubble({ m }: { m: UiMessage }) {
           <button onClick={() => void copy()} className="rounded-md border border-zinc-300 px-2 py-1 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800">
             {copied ? 'Copied ✓' : 'Copy'}
           </button>
-          <button onClick={() => setEditing(true)} className="rounded-md border border-zinc-300 px-2 py-1 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800">
+          <button
+            onClick={() => {
+              setDraft(m.content);
+              setEditing(true);
+            }}
+            className="rounded-md border border-zinc-300 px-2 py-1 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+          >
             Edit
           </button>
         </div>
