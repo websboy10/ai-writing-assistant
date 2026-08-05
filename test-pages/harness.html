@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Insertion Test Harness</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    section { margin-bottom: 1.5rem; }
+    label { display: block; font-weight: 600; margin-bottom: .35rem; }
+    textarea, input[type="text"] { width: 100%; font-size: 15px; padding: .5rem; box-sizing: border-box; }
+    #editor { border: 1px solid #bbb; border-radius: 6px; min-height: 90px; padding: .6rem; font-size: 15px; }
+    #editor:focus { outline: 2px solid #4f46e5; }
+    .note { color: #666; font-size: 12.5px; }
+  </style>
+</head>
+<body>
+  <h1>Insertion Test Harness</h1>
+
+  <section>
+    <label for="plain">1. Plain textarea</label>
+    <textarea id="plain" rows="4" placeholder="Plain textarea target"></textarea>
+  </section>
+
+  <section>
+    <label for="controlled">2. Framework-controlled input (React-style revert trap)</label>
+    <input type="text" id="controlled" placeholder="Controlled input target" />
+    <p class="note">
+      This input mimics React's controlled-value behavior: any value change that does not
+      arrive via a trusted-looking <code>input</code> event is reverted on the next frame.
+      Text inserted naively will vanish.
+    </p>
+  </section>
+
+  <section>
+    <label>3. Contenteditable rich-text editor</label>
+    <div id="editor" contenteditable="true"><p>Existing paragraph. </p></div>
+  </section>
+
+  <script>
+    // Framework-controlled input simulation: state lives in JS; DOM writes
+    // that bypass the event system get reverted, exactly like React reverts
+    // direct .value assignment.
+    (function () {
+      const el = document.getElementById('controlled');
+      let state = '';
+      el.addEventListener('input', (e) => { state = el.value; });
+      setInterval(() => { if (el.value !== state) el.value = state; }, 50); // "re-render"
+      window.__controlledState = () => state;
+    })();
+  </script>
+</body>
+</html>

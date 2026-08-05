@@ -11,7 +11,7 @@ to exactly one roadmap phase.
 
 ### Sidebar & Workspace
 
-- [ ] **SIDE-01**: User can open the assistant sidebar on any webpage via a floating button
+- [x] **SIDE-01**: User can open the assistant sidebar on any webpage via a floating button
 - [ ] **SIDE-02**: User can open and close the sidebar with a keyboard shortcut
 - [ ] **SIDE-03**: User can collapse the sidebar without losing the current conversation
 - [ ] **SIDE-04**: User can resize the sidebar and the width persists across pages
@@ -26,70 +26,70 @@ to exactly one roadmap phase.
 - [ ] **AUTH-03**: User can reset a forgotten password via an emailed link
 - [ ] **AUTH-04**: User stays signed in across browser restarts until they sign out
 - [ ] **AUTH-05**: User can sign out from the sidebar
-- [ ] **AUTH-06**: Unauthenticated requests to the AI backend are rejected
+- [x] **AUTH-06**: Unauthenticated requests to the AI backend are rejected
 
 ### AI Chat
 
-- [ ] **CHAT-01**: User can send a message and see the response stream in token by token
+- [x] **CHAT-01**: User can send a message and see the response stream in token by token
 - [ ] **CHAT-02**: Assistant remembers earlier messages within the current session
 - [ ] **CHAT-03**: User can stop a response mid-generation
 - [ ] **CHAT-04**: A response that is interrupted by extension or network failure resumes or reports the failure — it never stalls silently
 - [ ] **CHAT-05**: User can start a new conversation, clearing session context
-- [ ] **CHAT-06**: User can edit the generated response in the sidebar before using it
-- [ ] **CHAT-07**: User can copy the generated response to the clipboard
+- [x] **CHAT-06**: User can edit the generated response in the sidebar before using it
+- [x] **CHAT-07**: User can copy the generated response to the clipboard
 
 ### Prompt Operations
 
-- [ ] **PROM-01**: User can apply a built-in operation to selected page text or to their own input: summarize, rewrite, expand, simplify, explain, translate, continue
+- [x] **PROM-01**: User can apply a built-in operation to selected page text or to their own input: summarize, rewrite, expand, simplify, explain, translate, continue
 - [ ] **PROM-02**: User can capture the text they have selected on the page as the subject of an operation
-- [ ] **PROM-03**: Requests are assembled from discrete sections — system instructions, user request, attached context, conversation history, style and format preferences — rather than one concatenated string
+- [x] **PROM-03**: Requests are assembled from discrete sections — system instructions, user request, attached context, conversation history, style and format preferences — rather than one concatenated string
 - [ ] **PROM-04**: User can set tone and length preferences that apply to generated output
 
 ### Insertion Engine
 
-- [ ] **INST-01**: User can insert the generated response into a plain input or textarea, including framework-controlled fields where the text must survive the next re-render
+- [x] **INST-01**: User can insert the generated response into a plain input or textarea, including framework-controlled fields where the text must survive the next re-render
 - [ ] **INST-02**: User can insert the generated response into a rich-text editor built on contenteditable — verified against Gmail, LinkedIn, Slack and Notion
 - [ ] **INST-03**: User can insert the generated response into a Google Doc at the cursor position
-- [ ] **INST-04**: The extension detects which kind of editor is focused and selects the correct insertion method without the user choosing
-- [ ] **INST-05**: User can insert the whole response instantly
-- [ ] **INST-06**: User can insert the response progressively at a configurable pace
-- [ ] **INST-07**: User can pause an in-progress insertion and resume it from the same point
-- [ ] **INST-08**: User can stop an in-progress insertion, leaving the partially inserted text in place
-- [ ] **INST-09**: User can undo an insertion — complete or partial — in a single step
+- [x] **INST-04**: The extension detects which kind of editor is focused and selects the correct insertion method without the user choosing
+- [x] **INST-05**: User can insert the whole response instantly
+- [x] **INST-06**: User can insert the response progressively at a configurable pace
+- [x] **INST-07**: User can pause an in-progress insertion and resume it from the same point
+- [x] **INST-08**: User can stop an in-progress insertion, leaving the partially inserted text in place
+- [x] **INST-09**: User can undo an insertion — complete or partial — in a single step
 - [ ] **INST-10**: Insertion continues correctly when the AI response has already finished, and stopping insertion does not abort generation
 - [ ] **INST-11**: Inserted text is verified as present after writing; if the editor rejected or reverted it, the user is told and offered clipboard fallback
-- [ ] **INST-12**: If the user types into the target editor during progressive insertion, the document is not corrupted
+- [x] **INST-12**: If the user types into the target editor during progressive insertion, the document is not corrupted
 - [ ] **INST-13**: The Google Docs adapter self-tests on load and falls back to clipboard with a visible message if the mechanism has broken
 - [ ] **INST-14**: User can configure insertion pacing — characters or words per second, and pauses at sentence and paragraph boundaries
 
 ### Context & Files
 
-- [ ] **CTX-01**: User can attach a PDF and have its text used as context
-- [ ] **CTX-02**: User can attach a Word document (.docx) and have its text used as context
-- [ ] **CTX-03**: User can attach a plain text or Markdown file and have its content used as context
-- [ ] **CTX-04**: User can attach an image and have text extracted from it by OCR
+- [x] **CTX-01**: User can attach a PDF and have its text used as context
+- [x] **CTX-02**: User can attach a Word document (.docx) and have its text used as context
+- [x] **CTX-03**: User can attach a plain text or Markdown file and have its content used as context
+- [x] **CTX-04**: User can attach an image and have text extracted from it by OCR
 - [ ] **CTX-05**: User can capture a screenshot of the current page and have text extracted from it by OCR
 - [ ] **CTX-06**: User can paste text directly into the context panel
 - [ ] **CTX-07**: User can drag and drop files onto the sidebar to attach them
 - [ ] **CTX-08**: User can see everything currently attached as context and remove individual items
 - [ ] **CTX-09**: Multiple attached sources are combined into one coherent prompt
-- [ ] **CTX-10**: Files that are too large, malformed, or of an unsupported type are rejected with a specific reason
-- [ ] **CTX-11**: Extraction that fails or times out reports the failure rather than silently attaching nothing
+- [x] **CTX-10**: Files that are too large, malformed, or of an unsupported type are rejected with a specific reason
+- [x] **CTX-11**: Extraction that fails or times out reports the failure rather than silently attaching nothing
 
 ### History
 
-- [ ] **HIST-01**: User can see their past conversations and reopen one
+- [x] **HIST-01**: User can see their past conversations and reopen one
 - [ ] **HIST-02**: Conversations persist across devices for a signed-in user
-- [ ] **HIST-03**: User can delete a conversation, and deletion removes stored content
+- [x] **HIST-03**: User can delete a conversation, and deletion removes stored content
 
 ### Trust, Quotas & Compliance
 
-- [ ] **QUOT-01**: Per-user usage limits are enforced on the server before every AI call, atomically
-- [ ] **QUOT-02**: User can see their real usage against their limit, expressed in concrete numbers
-- [ ] **QUOT-03**: A user who reaches their limit is told clearly, with a stated reset time — never a silent failure
-- [ ] **QUOT-04**: The AI provider key is never present in extension code or network traffic reaching the browser
-- [ ] **QUOT-05**: Real user content is routed only to paid endpoints with model training and prompt publication disabled; the policy is enforced server-side and cannot be overridden by the client
-- [ ] **QUOT-06**: When the chosen model is unavailable or rate-limited, the request falls back through an ordered chain of alternatives rather than failing
+- [x] **QUOT-01**: Per-user usage limits are enforced on the server before every AI call, atomically
+- [x] **QUOT-02**: User can see their real usage against their limit, expressed in concrete numbers
+- [x] **QUOT-03**: A user who reaches their limit is told clearly, with a stated reset time — never a silent failure
+- [x] **QUOT-04**: The AI provider key is never present in extension code or network traffic reaching the browser
+- [x] **QUOT-05**: Real user content is routed only to paid endpoints with model training and prompt publication disabled; the policy is enforced server-side and cannot be overridden by the client
+- [x] **QUOT-06**: When the chosen model is unavailable or rate-limited, the request falls back through an ordered chain of alternatives rather than failing
 - [ ] **QUOT-07**: Every user-visible failure states what went wrong and what to do next — no indefinite spinners, no silent stalls
 - [ ] **QUOT-08**: The extension requests the narrowest host permissions that support its function, and ships with a privacy policy describing exactly what data is collected and why
 

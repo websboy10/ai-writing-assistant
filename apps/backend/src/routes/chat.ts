@@ -24,7 +24,16 @@ export function chatRoutes(app: FastifyInstance): void {
     }
 
     // Quota is consumed atomically BEFORE the AI call (QUOT-01).
-    const quota = await rpc<QuotaResult>(user, 'consume_quota', { p_cost: 1 });
+    let quota: QuotaResult;
+    try {
+      quota = await rpc<QuotaResult>(user, 'consume_quota', { p_cost: 1 });
+    } catch (err) {
+      req.log.error(err, 'consume_quota failed');
+      return reply.code(503).send({
+        error: 'Could not verify your usage quota just now — try again in a few seconds.',
+        code: 'upstream_error',
+      });
+    }
     if (!quota.ok) {
       return reply.code(429).send({
         error: `You've used all ${quota.limit} requests for today. Your limit resets at ${quota.resets_at}.`,

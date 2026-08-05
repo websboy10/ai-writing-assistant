@@ -40,12 +40,19 @@ export async function rest(
 }
 
 export async function rpc<T>(user: AuthedUser, fn: string, args: Record<string, unknown> = {}): Promise<T> {
-  const res = await rest(user, `/rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) });
-  if (!res.ok) {
+  // PGRST303 "JWT issued at future": a token used within ~1s of issuance can
+  // hit sub-second clock drift between GoTrue and PostgREST. Transient — one
+  // short retry absorbs it.
+  for (let attempt = 0; ; attempt++) {
+    const res = await rest(user, `/rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) });
+    if (res.ok) return (await res.json()) as T;
     const body = await res.text();
+    if (attempt === 0 && body.includes('PGRST303')) {
+      await new Promise((r) => setTimeout(r, 1200));
+      continue;
+    }
     throw new Error(`rpc ${fn} failed (${res.status}): ${body}`);
   }
-  return (await res.json()) as T;
 }
 
 /** GoTrue passthrough used by the auth proxy routes. */

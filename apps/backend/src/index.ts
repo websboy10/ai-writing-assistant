@@ -20,6 +20,14 @@ await app.register(multipart);
 
 app.get('/api/health', async () => ({ ok: true, name: 'ai-writing-assistant backend' }));
 
+// Local test harness for manual insertion testing (dev convenience).
+app.get('/harness', async (_req, reply) => {
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const html = readFileSync(resolve(process.cwd(), '../../test-pages/harness.html'), 'utf8');
+  reply.type('text/html').send(html);
+});
+
 app.get('/api/usage', async (req, reply) => {
   const user = await verifyUser(req.headers.authorization);
   if (!user) return reply.code(401).send({ error: 'Sign in required', code: 'unauthenticated' });
