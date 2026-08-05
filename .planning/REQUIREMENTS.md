@@ -112,9 +112,9 @@ Deferred. Tracked but not in the current roadmap.
 
 ### Productivity
 
-- **PROD-01**: User can save and reuse their own prompt templates
-- **PROD-02**: User can search conversation history
-- **PROD-03**: User can export a conversation
+- [x] **PROD-01**: User can save and reuse their own prompt templates — *delivered early, 2026-08-05, E2E-verified*
+- [x] **PROD-02**: User can search conversation history — *delivered early, 2026-08-05, E2E-verified*
+- [x] **PROD-03**: User can export a conversation (Markdown) — *delivered early, 2026-08-05, E2E-verified*
 - **PROD-04**: User can save named workspaces
 
 ### Reach

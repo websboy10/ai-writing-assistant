@@ -12,8 +12,8 @@ in, arriving at a pace they can read along with and stop mid-flow.
 
 Phase: 1–6 built in a single autonomous run (operator-directed via /goal)
 Status: Built and machine-verified — awaiting operator walkthrough (see TESTING.md)
-Last activity: 2026-08-05 — Full v1 built, 13/13 automated browser checks pass,
-all API surfaces verified live
+Last activity: 2026-08-05 — Bug sweep (37 findings, 20 fixed), 'Galley' monochrome
+redesign, templates/search/export shipped; 19/19 automated browser checks pass
 
 Progress: [████████░░] ~80% (built + machine-verified; operator UAT and
 real-site verification outstanding)

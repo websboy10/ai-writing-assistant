@@ -5,6 +5,7 @@ import { inserter } from '../inserter';
 import { useStore, type UiMessage } from '../store';
 import { Banner } from './AuthView';
 import { ContextPanel } from './ContextPanel';
+import { TemplatesBar } from './TemplatesBar';
 
 // System serif: web fonts don't load reliably inside a shadow DOM, and an
 // overlay must render instantly. The serif is the assistant's voice (see
@@ -119,6 +120,8 @@ export function ChatView() {
             />
           )}
         </div>
+
+        <TemplatesBar input={input} onApply={(text) => setInput(text)} />
 
         <div className="flex flex-wrap items-center gap-2">
           <button

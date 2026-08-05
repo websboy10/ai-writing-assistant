@@ -55,7 +55,7 @@ interface AwaState {
   set: (partial: Partial<AwaState>) => void;
   loadSession: () => Promise<void>;
   loadUsage: () => Promise<void>;
-  loadHistory: () => Promise<void>;
+  loadHistory: (q?: string) => Promise<void>;
   signOut: () => Promise<void>;
   addContext: (item: ContextItem) => void;
   removeContext: (id: string) => void;
@@ -106,8 +106,9 @@ export const useStore = create<AwaState>((set, get) => ({
     if (res.ok) set({ usage: res.data as UsageInfo });
   },
 
-  loadHistory: async () => {
-    const res = await call({ kind: 'api', path: '/api/conversations' });
+  loadHistory: async (q?: string) => {
+    const path = q?.trim() ? `/api/conversations?q=${encodeURIComponent(q.trim())}` : '/api/conversations';
+    const res = await call({ kind: 'api', path });
     if (res.ok) set({ history: res.data as ConversationSummary[] });
     else set({ error: res.error ?? 'Could not load history' });
   },

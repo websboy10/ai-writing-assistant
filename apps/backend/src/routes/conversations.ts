@@ -6,9 +6,31 @@ export function conversationRoutes(app: FastifyInstance): void {
     const user = await verifyUser(req.headers.authorization);
     if (!user) return reply.code(401).send({ error: 'Sign in required', code: 'unauthenticated' });
 
+    // Search (PROD-02) matches titles AND message bodies. The term is embedded
+    // in a PostgREST ilike pattern — strip its metacharacters (* , . ( ) and
+    // percent-encoding handles the rest) rather than trying to escape them.
+    const { q } = req.query as { q?: string };
+    let idFilter = '';
+    if (q?.trim()) {
+      const term = q.trim().replace(/[*,().\\]/g, ' ').slice(0, 100);
+      const pattern = encodeURIComponent(`*${term}*`);
+      const [byTitle, byContent] = await Promise.all([
+        rest(user, `/conversations?select=id&title=ilike.${pattern}&limit=100`),
+        rest(user, `/messages?select=conversation_id&content=ilike.${pattern}&limit=300`),
+      ]);
+      if (!byTitle.ok || !byContent.ok) {
+        return reply.code(502).send({ error: 'Search failed — try again', code: 'upstream_error' });
+      }
+      const ids = new Set<string>();
+      for (const r of (await byTitle.json()) as { id: string }[]) ids.add(r.id);
+      for (const r of (await byContent.json()) as { conversation_id: string }[]) ids.add(r.conversation_id);
+      if (ids.size === 0) return [];
+      idFilter = `&id=in.(${[...ids].join(',')})`;
+    }
+
     const res = await rest(
       user,
-      '/conversations?select=id,title,updated_at,messages(count)&order=updated_at.desc&limit=100',
+      `/conversations?select=id,title,updated_at,messages(count)&order=updated_at.desc&limit=100${idFilter}`,
     );
     if (!res.ok) return reply.code(502).send({ error: 'Could not load conversations', code: 'upstream_error' });
     const rows = (await res.json()) as { id: string; title: string; updated_at: string; messages: { count: number }[] }[];

@@ -107,7 +107,7 @@ try {
   const editBox = host.locator('textarea.awa-edit');
   await editBox.waitFor({ timeout: 5_000 });
   await editBox.fill(LONG_TEXT);
-  await host.locator('button', { hasText: 'Save' }).click();
+  await host.getByRole('button', { name: 'Save', exact: true }).click();
   ok('assistant response is editable before insertion', true);
 
   console.log('\n— Insertion: plain textarea (progressive + transport controls) —');
@@ -219,6 +219,52 @@ try {
     return /\d+ \/ \d+/.test(hostEl?.shadowRoot?.textContent ?? '');
   });
   ok('real usage numbers visible in header', usageShown);
+
+  console.log('\n— Templates (PROD-01) —');
+  const composer = host.locator('textarea[placeholder*="Message"], textarea[placeholder*="instructions"]').first();
+  await composer.fill('Summarize the attached report for a busy executive.');
+  await host.locator('button', { hasText: 'Save as template' }).click();
+  await host.locator('input[placeholder="Template name"]').fill('Exec summary');
+  await host.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.waitForTimeout(800);
+  await composer.fill('');
+  const tplSelect = host.locator('select[title*="saved template"]');
+  await tplSelect.waitFor({ timeout: 5_000 });
+  await tplSelect.selectOption({ label: 'Exec summary' });
+  await page.waitForTimeout(200);
+  const applied = await composer.inputValue();
+  ok('template saves and applies to composer', applied.includes('busy executive'), `composer="${applied.slice(0, 50)}"`);
+  // cleanup so reruns stay deterministic
+  await host.locator('button', { hasText: 'manage' }).click();
+  await host.locator('button', { hasText: 'Delete' }).first().click();
+  await page.waitForTimeout(400);
+
+  console.log('\n— History search (PROD-02) —');
+  await host.locator('button', { hasText: 'History' }).click();
+  const searchBox = host.locator('input[placeholder*="Search titles"]');
+  await searchBox.waitFor({ timeout: 5_000 });
+  await searchBox.fill('HELLO FROM THE EXTENSION');
+  await page.waitForTimeout(900);
+  const hits = await host.locator('div.group').count();
+  ok('search finds the conversation by content', hits >= 1, `hits=${hits}`);
+  await searchBox.fill('zzz-no-such-term-qqq');
+  await page.waitForTimeout(900);
+  const noneText = await page.evaluate(() => {
+    const hostEl = document.querySelector('awa-sidebar');
+    return /Nothing matches/.test(hostEl?.shadowRoot?.textContent ?? '');
+  });
+  ok('search shows a specific empty state', noneText);
+  await searchBox.fill('');
+  await page.waitForTimeout(900);
+
+  console.log('\n— Export (PROD-03) —');
+  const row = host.locator('div.group').first();
+  await row.hover();
+  const downloadPromise = page.waitForEvent('download', { timeout: 10_000 });
+  await row.locator('button', { hasText: 'Export' }).click();
+  const download = await downloadPromise;
+  const fname = download.suggestedFilename();
+  ok('conversation exports as a markdown download', fname.endsWith('.md'), `filename=${fname}`);
 } catch (err) {
   failed++;
   failures.push({ name: 'unexpected failure', detail: String(err) });

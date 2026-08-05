@@ -7,6 +7,7 @@ import { authRoutes } from './routes/auth.js';
 import { chatRoutes } from './routes/chat.js';
 import { conversationRoutes } from './routes/conversations.js';
 import { fileRoutes } from './routes/files.js';
+import { templateRoutes } from './routes/templates.js';
 import { verifyUser, rpc } from './supabase.js';
 
 const app = Fastify({ logger: { level: 'info' } });
@@ -45,6 +46,7 @@ authRoutes(app);
 chatRoutes(app);
 conversationRoutes(app);
 fileRoutes(app);
+templateRoutes(app);
 
 app.listen({ port: env.port, host: '127.0.0.1' }).then(
   () => app.log.info(`backend listening on http://127.0.0.1:${env.port}`),
