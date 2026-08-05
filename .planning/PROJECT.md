@@ -8,10 +8,14 @@ screenshots, images — ask it to draft, rewrite, summarize, translate or explai
 then watch the result land directly in whatever editor they're already in, at a
 pace they control and can stop at any moment.
 
-It is aimed at people who write inside web apps all day — email, documents,
-social posts, CMSes — and are tired of the copy-paste round trip through a
-separate chat tab. Built as a public product: hosted backend, user accounts, and
-eventually a subscription.
+It is a general-purpose tool for anyone who writes inside web apps — many
+industries and many use cases are expected. The **first concrete demand signal**
+comes from HR teams writing performance review summaries in Google Docs,
+established by talking to prospective users rather than assumed. That signal sets
+the build *order* — Google Docs leads — but it does not narrow the product.
+
+Built as a public product: hosted backend, user accounts, and eventually a
+subscription.
 
 ## Core Value
 
@@ -30,9 +34,11 @@ uploads, the OCR, the prompt library — is in service of that moment.
 - [ ] Sidebar workspace injected on any page, collapsible, resizable, keyboard-shortcut and floating-button triggered, light/dark
 - [ ] Conversational AI chat with streaming responses and session-scoped memory
 - [ ] Structured prompt assembly from discrete sections (system, request, context, history, style, format)
+- [ ] Text insertion into Google Docs via synthetic keystrokes, proved by spike before build
 - [ ] Text insertion into plain inputs and textareas
 - [ ] Text insertion into contenteditable rich-text editors (LinkedIn, X, Slack, Gmail, Notion, CMSes)
-- [ ] Text insertion into Google Docs via synthetic keystrokes
+- [ ] Visible, specific failure states whenever generation or insertion fails — never a silent stall
+- [ ] Server-enforced model policy: no-training endpoints for real user content
 - [ ] Progressive insertion with live transport controls — pause, resume, stop, undo — and configurable pacing
 - [ ] Instant insertion and copy-to-clipboard as alternatives
 - [ ] Generated response is editable in the sidebar before insertion
@@ -89,6 +95,29 @@ start, because it exposes dozens of models behind one API and the default can
 change in config rather than code. The long-term intent is a subscription, but
 v1's economic protection is per-user quotas, not payment.
 
+**Google Docs leads, because it is where the first real demand is.** The one
+piece of direct user evidence available — HR teams collaborating on performance
+review summaries — points at Google Docs. That is an ordering signal, not a
+positioning decision: the product stays general, and many other industries and
+use cases are expected. Research recommended deferring the Docs adapter to v1.x
+on fragility grounds; that sequencing conclusion is overruled by the user
+evidence. What survives from the research is the risk assessment — Docs is
+canvas-rendered with an undocumented hidden input target and no official API — so
+the mechanism gets proved by a short throwaway experiment before any phase
+commits to building on it.
+
+**Some user content will be sensitive personal data, and that constrains the AI
+provider.** Verified 2026-08-05: OpenRouter's free models are only reachable if
+the account enables "free endpoints that may train on inputs" and "may publish
+prompts". The known first use case — a manager's written assessment of a named
+employee — is personal data under GDPR, and the operator is in Denmark. Other
+use cases will carry comparable sensitivity. Free models are therefore acceptable
+for development and synthetic test content only. Before any real customer content
+passes through, the provider layer must route to paid endpoints with training and
+prompt publication disabled. This makes the provider abstraction a compliance
+boundary, not just a convenience — model policy has to be enforced server-side,
+never chosen client-side.
+
 **Free models are individually unreliable.** Verified 2026-08-05 against the live
 OpenRouter key: of the free models tested, one answered cleanly and another
 returned HTTP 429 on a first, single request. Free tiers are shared and
@@ -136,6 +165,10 @@ or multi-document reasoning is additive — but none of those are built now.
 | Supabase for auth, database and storage | One free service replaces hand-built accounts, sessions, password reset and S3; removes security-sensitive work with no upside to owning. PostgreSQL and Prisma unchanged | — Pending |
 | Private GitHub repo under `websboy10` | Commercial product; repo carries configuration detail not worth indexing | — Pending |
 | Ordered model fallback chain, not a single default | Free OpenRouter models 429 unpredictably; verified live on day one. Silence reads as a broken product | — Pending |
+| Google Docs is built first among the adapters, not last | The only direct user evidence points there. Research recommended deferring Docs; user evidence overrules the sequencing, not the risk assessment | — Pending |
+| Product stays general-purpose, not narrowed to HR | HR-in-Docs is the first demand signal, not the market. Many industries and use cases expected | — Pending |
+| Docs adapter gets a timeboxed proof before it is built on | Canvas-rendered, undocumented, breaks without warning. Proving it early is cheap; discovering it late is not | — Pending |
+| Free models for development only; paid no-training endpoints for real content | OpenRouter free tier requires consenting to prompt training and publication. HR review content is GDPR personal data | — Pending |
 
 ## Evolution
 
