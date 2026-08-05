@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ChatMessage } from '@awa/shared';
 import { call } from '../api';
+import { stopGeneration } from '../chat';
 import { nextId, useStore } from '../store';
 import { Banner } from './AuthView';
 
@@ -9,6 +10,9 @@ export function HistoryView() {
   const [busy, setBusy] = useState<string | null>(null);
 
   async function open(id: string) {
+    // Opening another conversation must end any stream still attached to the
+    // previous one (WR-16).
+    stopGeneration();
     setBusy(id);
     const res = await call({ kind: 'api', path: `/api/conversations/${id}` });
     setBusy(null);

@@ -9,6 +9,7 @@ import type {
 } from '@awa/shared';
 import { DEFAULT_PACING, type PacingConfig, type InsertionState } from '@/insertion';
 import { call } from './api';
+import { stopGeneration } from './chat';
 
 export type View = 'auth' | 'chat' | 'history' | 'settings';
 export type Theme = 'light' | 'dark';
@@ -119,8 +120,12 @@ export const useStore = create<AwaState>((set, get) => ({
   addContext: (item) => set({ context: [...get().context, item] }),
   removeContext: (id) => set({ context: get().context.filter((c) => c.id !== id) }),
 
-  newConversation: () =>
-    set({ conversationId: null, messages: [], error: null, notice: null, insertStatus: null }),
+  newConversation: () => {
+    // A still-running stream would keep generating (and charging quota) into
+    // a conversation the user just left (WR-16).
+    stopGeneration();
+    set({ conversationId: null, messages: [], streaming: false, error: null, notice: null, insertStatus: null });
+  },
 }));
 
 export function setTheme(theme: Theme): void {
