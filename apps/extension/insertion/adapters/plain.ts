@@ -8,13 +8,21 @@ import type { SavedTarget } from '../target';
  * but not the framework's internal state — the next re-render silently reverts
  * it. The fix is the native prototype setter followed by a real bubbling
  * InputEvent, which walks the framework's own onChange path.
+ *
+ * Position safety (research pitfall #3): offsets captured at prepare() go
+ * stale the moment the user edits while paused. Every write and the undo
+ * first re-verify that the inserted-so-far text is still at the tracked
+ * offset — relocating it if it moved, refusing loudly if it's gone — so we
+ * never splice into the wrong place or delete the user's own typing.
  */
 export class PlainAdapter implements InsertionAdapter {
   readonly kind = 'plain' as const;
   private el: HTMLInputElement | HTMLTextAreaElement;
   private insertPos = 0;
-  private inserted = 0;
-  private snapshot: { value: string; selStart: number; selEnd: number } | null = null;
+  /** Exactly what this session has written so far — the undo target. */
+  private insertedText = '';
+  /** Text a user selection replaced at prepare(); restored on undo. */
+  private replacedText = '';
 
   constructor(target: SavedTarget) {
     this.el = target.element as HTMLInputElement | HTMLTextAreaElement;
@@ -27,27 +35,25 @@ export class PlainAdapter implements InsertionAdapter {
 
   prepare(): InsertResult {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The target field is no longer on the page.' };
-    this.snapshot = {
-      value: this.el.value,
-      selStart: this.el.selectionStart ?? 0,
-      selEnd: this.el.selectionEnd ?? 0,
-    };
+    const selStart = this.el.selectionStart ?? 0;
+    const selEnd = this.el.selectionEnd ?? 0;
     this.el.focus();
     // If the user had a selection, the insertion replaces it — like typing.
-    const selStart = this.snapshot.selStart;
-    const selEnd = this.snapshot.selEnd;
+    this.replacedText = selEnd > selStart ? this.el.value.slice(selStart, selEnd) : '';
     if (selEnd > selStart) {
       this.setValue(this.el.value.slice(0, selStart) + this.el.value.slice(selEnd), selStart);
     }
     this.insertPos = selStart;
-    this.inserted = 0;
+    this.insertedText = '';
     return { ok: true, verified: true };
   }
 
   insert(chunk: string): InsertResult {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The target field disappeared mid-insertion.' };
+    const loc = this.locateInserted();
+    if (!loc.ok) return { ok: false, verified: true, reason: loc.reason };
     const v = this.el.value;
-    const pos = this.insertPos + this.inserted;
+    const pos = this.insertPos + this.insertedText.length;
     const next = v.slice(0, pos) + chunk + v.slice(pos);
     this.setValue(next, pos + chunk.length, chunk);
     // Post-write verification (INST-11): read back what we wrote.
@@ -55,17 +61,54 @@ export class PlainAdapter implements InsertionAdapter {
     if (readBack !== chunk) {
       return { ok: false, verified: true, reason: 'The field rejected the inserted text (it was reverted).' };
     }
-    this.inserted += chunk.length;
+    this.insertedText += chunk;
     return { ok: true, verified: true };
   }
 
-  undoAll(): InsertResult {
-    if (!this.snapshot) return { ok: false, verified: true, reason: 'Nothing to undo.' };
+  verifyIntact(): InsertResult {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The target field is no longer on the page.' };
-    this.setValue(this.snapshot.value, this.snapshot.selStart);
-    const ok = this.el.value === this.snapshot.value;
-    this.inserted = 0;
+    const loc = this.locateInserted();
+    return loc.ok ? { ok: true, verified: true } : { ok: false, verified: true, reason: loc.reason };
+  }
+
+  undoAll(): InsertResult {
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The target field is no longer on the page.' };
+    if (!this.insertedText) return { ok: true, verified: true };
+    const loc = this.locateInserted();
+    if (!loc.ok) {
+      // Never fall back to a snapshot restore here: that would also erase
+      // everything the user typed since the insertion began.
+      return { ok: false, verified: true, reason: loc.reason };
+    }
+    const v = this.el.value;
+    const next = v.slice(0, this.insertPos) + this.replacedText + v.slice(this.insertPos + this.insertedText.length);
+    this.setValue(next, this.insertPos + this.replacedText.length);
+    const ok = this.el.value === next;
+    if (ok) this.insertedText = '';
     return { ok, verified: true, reason: ok ? undefined : 'The field did not accept the undo.' };
+  }
+
+  /**
+   * Re-anchor insertPos to wherever the inserted text now lives. A unique
+   * match after the user's edits is safe to keep working with; anything
+   * ambiguous or missing means our offsets are meaningless — refuse.
+   */
+  private locateInserted(): { ok: boolean; reason?: string } {
+    if (!this.insertedText) return { ok: true };
+    const v = this.el.value;
+    if (v.slice(this.insertPos, this.insertPos + this.insertedText.length) === this.insertedText) {
+      return { ok: true };
+    }
+    const first = v.indexOf(this.insertedText);
+    if (first !== -1 && first === v.lastIndexOf(this.insertedText)) {
+      this.insertPos = first;
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      reason:
+        'The field changed while insertion was paused and the inserted text could not be found again. Remove or keep it manually.',
+    };
   }
 
   private setValue(value: string, caret: number, data?: string): void {

@@ -65,6 +65,13 @@ export class InsertionSession {
 
   resume(): void {
     if (this.state !== 'paused') return;
+    // Pitfall 3: the document may have changed while paused. Never write at
+    // stale offsets — refusing loudly beats corrupting the user's text.
+    const check = this.adapter.verifyIntact?.();
+    if (check && !check.ok) {
+      this.detachGuard();
+      return this.fail(check.reason ?? 'The text changed while paused — resuming is no longer safe.');
+    }
     this.setState('running');
     this.tick();
   }

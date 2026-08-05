@@ -20,6 +20,13 @@ export interface InsertionAdapter {
   insert(chunk: string): InsertResult;
   /** Undo everything this session inserted, as one user-visible step. */
   undoAll(): InsertResult;
+  /**
+   * Confirm the inserted-so-far text is still where the adapter believes it
+   * is. Called before resume — the user may have edited the document while
+   * paused (Pitfall 3), and writing at stale offsets corrupts their text.
+   * Absent on adapters that cannot observe the editor (Google Docs).
+   */
+  verifyIntact?(): InsertResult;
   /** The element that receives user keystrokes (for typing-race detection). */
   eventTarget(): EventTarget | null;
 }

@@ -16,6 +16,12 @@ import type { SavedTarget } from '../target';
  * begins; undoAll() selects [start, start+inserted] by walking text nodes and
  * deletes via execCommand — one user-visible step, expressed through the
  * editor's own pipeline.
+ *
+ * Position safety (research pitfall #3): those offsets go stale if the user
+ * edits while paused. Before writing or deleting we verify the span
+ * [start, start+inserted] still holds the text we inserted (whitespace-
+ * normalized, because editors re-normalize). On mismatch we refuse with a
+ * visible message instead of deleting the user's own text.
  */
 export class ContentEditableAdapter implements InsertionAdapter {
   readonly kind = 'contenteditable' as const;
@@ -23,6 +29,8 @@ export class ContentEditableAdapter implements InsertionAdapter {
   private savedRange: Range | null;
   private startOffset = 0;
   private inserted = 0;
+  /** Exactly what this session has asked the editor to insert so far. */
+  private insertedText = '';
 
   constructor(target: SavedTarget) {
     this.el = target.element;
@@ -51,16 +59,21 @@ export class ContentEditableAdapter implements InsertionAdapter {
     }
     this.startOffset = this.absoluteOffset(sel.getRangeAt(0));
     this.inserted = 0;
+    this.insertedText = '';
     return { ok: true, verified: true };
   }
 
   insert(chunk: string): InsertResult {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor disappeared mid-insertion.' };
-    // Keep focus with the editor — the user may have clicked into our sidebar.
+    const intact = this.verifyIntact();
+    if (!intact.ok) return intact;
     if (document.activeElement !== this.el && !this.el.contains(document.activeElement)) {
       this.el.focus();
-      this.restoreCursor();
     }
+    // Always write at the end of the inserted span, not wherever the cursor
+    // drifted to — the user may have moved it while we were paused, and the
+    // undo range assumes the span is contiguous.
+    this.restoreCursor();
 
     const before = this.textLength();
     let ok = false;
@@ -89,12 +102,33 @@ export class ContentEditableAdapter implements InsertionAdapter {
       return { ok: false, verified: true, reason: 'This editor rejected the inserted text.' };
     }
     this.inserted += after - before;
+    this.insertedText += chunk;
+    return { ok: true, verified: true };
+  }
+
+  verifyIntact(): InsertResult {
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor is no longer on the page.' };
+    if (this.inserted <= 0) return { ok: true, verified: true };
+    const span = (this.el.textContent ?? '').slice(this.startOffset, this.startOffset + this.inserted);
+    if (normalize(span) !== normalize(this.insertedText)) {
+      return {
+        ok: false,
+        verified: true,
+        reason:
+          'The editor content changed while insertion was paused, so continuing or undoing is no longer safe. Remove or keep the inserted text manually.',
+      };
+    }
     return { ok: true, verified: true };
   }
 
   undoAll(): InsertResult {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor is no longer on the page.' };
     if (this.inserted <= 0) return { ok: true, verified: true };
+    // Deleting [start, start+inserted] is only safe while that range still
+    // contains exactly our text — otherwise it would take the user's edits
+    // with it.
+    const intact = this.verifyIntact();
+    if (!intact.ok) return intact;
     const range = this.rangeFromOffsets(this.startOffset, this.startOffset + this.inserted);
     if (!range) return { ok: false, verified: true, reason: 'Could not locate the inserted text to remove it.' };
     const sel = document.getSelection();
@@ -120,7 +154,10 @@ export class ContentEditableAdapter implements InsertionAdapter {
     }
     const removed = before - this.textLength();
     const success = removed >= this.inserted - 2; // whitespace normalization tolerance
-    if (success) this.inserted = 0;
+    if (success) {
+      this.inserted = 0;
+      this.insertedText = '';
+    }
     return {
       ok: success,
       verified: true,
@@ -188,4 +225,9 @@ export class ContentEditableAdapter implements InsertionAdapter {
       sel?.addRange(range);
     }
   }
+}
+
+/** Editors re-normalize whitespace under us — compare content, not spacing. */
+function normalize(s: string): string {
+  return s.replace(/\s+/g, ' ').trim();
 }
