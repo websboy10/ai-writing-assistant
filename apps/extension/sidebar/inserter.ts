@@ -18,6 +18,9 @@ class Inserter {
   private session: InsertionSession | null = null;
 
   init(shadowHost: () => Element | null): void {
+    // SPA remounts call init() again — the old tracker's document-level
+    // capture listeners would otherwise accumulate for the page's lifetime.
+    this.tracker?.destroy();
     this.tracker = new TargetTracker(shadowHost);
   }
 

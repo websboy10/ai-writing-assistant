@@ -32,8 +32,13 @@ export default defineContentScript({
     const observer = new MutationObserver(() => {
       if (!host()) {
         observer.disconnect();
-        ui.mount();
-        observe();
+        // Re-arm even if mount throws — otherwise one failed recovery kills
+        // sidebar recovery for the rest of the page's life.
+        try {
+          ui.mount();
+        } finally {
+          observe();
+        }
       }
     });
     const observe = () =>
