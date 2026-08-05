@@ -6,8 +6,9 @@ walkthrough is the proof that counts.
 
 ## What's already running
 
-- **Backend**: running locally on your Mac (port 8787). If it ever stops, open
-  Terminal in the project folder and run: `pnpm dev:backend`
+- **Backend**: running locally on your Mac (port 8787), detached — it keeps
+  running on its own. If it ever stops: `bash scripts/backend.sh start`
+  (also: `stop` / `status`)
 - **Database & accounts**: hosted on Supabase (free tier, Stockholm region)
 - **AI**: your OpenRouter key, free models for everything not marked as real data
 

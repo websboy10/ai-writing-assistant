@@ -9,3 +9,5 @@ build/
 *.traineddata
 test-results/
 .chrome-profile/
+.backend.log
+.backend.pid
