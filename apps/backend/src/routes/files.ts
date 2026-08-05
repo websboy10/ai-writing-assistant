@@ -35,7 +35,7 @@ export function fileRoutes(app: FastifyInstance): void {
     const mime = file.mimetype ?? '';
 
     try {
-      const parsed = await withTimeout(parse(buffer, name, mime), 60_000);
+      const parsed = await withTimeout(parse(buffer, name, mime), 60_000, (m) => req.log.warn(m));
       if (!parsed.text.trim()) {
         return reply.code(422).send({
           error: `No text could be extracted from "${name}". If it's a scanned document, try uploading it as an image so OCR can read it.`,
@@ -92,10 +92,15 @@ async function parse(buffer: Buffer, name: string, mime: string): Promise<Parsed
     const { createWorker } = await import('tesseract.js');
     const worker = await createWorker('eng');
     try {
-      const { data } = await worker.recognize(buffer);
+      // Race the timeout HERE, not only around the whole parse: if recognize()
+      // never settles, an outer race would return while this finally waits
+      // forever, leaking the worker's threads and WASM memory permanently.
+      // Racing inside means the finally runs at timeout and terminate() kills
+      // the pending recognize.
+      const { data } = await withTimeout(worker.recognize(buffer), 60_000);
       return { name, kind: 'image', text: clean(data.text), chars: 0, truncated: false };
     } finally {
-      await worker.terminate();
+      await worker.terminate().catch(() => {});
     }
   }
 
@@ -116,9 +121,26 @@ function finalize(parsed: ParsedFile): ParsedFile {
   return { ...parsed, text, chars: text.length, truncated };
 }
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(p: Promise<T>, ms: number, log?: (msg: string) => void): Promise<T> {
   return Promise.race([
     p,
-    new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms)),
+    new Promise<never>((_, rej) =>
+      setTimeout(() => {
+        // pdf-parse/mammoth cannot be cancelled — the loser keeps pinning the
+        // event loop. Observe when it finally settles so that is at least
+        // visible in the logs instead of an unexplained stall.
+        const timedOutAt = Date.now();
+        p.then(
+          () => log?.(`timed-out parse settled ${Date.now() - timedOutAt} ms after its ${ms} ms budget`),
+          (err) =>
+            log?.(
+              `timed-out parse failed ${Date.now() - timedOutAt} ms after its ${ms} ms budget: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            ),
+        );
+        rej(new Error('timeout'));
+      }, ms),
+    ),
   ]);
 }
