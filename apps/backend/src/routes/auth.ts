@@ -7,7 +7,11 @@ import { env } from '../env.js';
  * everything. GoTrue error messages pass through so failures stay specific.
  */
 export function authRoutes(app: FastifyInstance): void {
-  app.post('/api/auth/signup', async (req, reply) => {
+  // Unauthenticated surfaces get a tighter limit than the global one:
+  // credential stuffing on /login and email spam via /signup + /reset (WR-11).
+  const tight = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };
+
+  app.post('/api/auth/signup', tight, async (req, reply) => {
     const { email, password } = req.body as { email?: string; password?: string };
     if (!email || !password) return reply.code(400).send({ error: 'Email and password required', code: 'bad_request' });
     // GoTrue's REST API takes redirects as a query parameter — an `options`
@@ -20,7 +24,7 @@ export function authRoutes(app: FastifyInstance): void {
     return reply.code(res.status).send(body);
   });
 
-  app.post('/api/auth/login', async (req, reply) => {
+  app.post('/api/auth/login', tight, async (req, reply) => {
     const { email, password } = req.body as { email?: string; password?: string };
     if (!email || !password) return reply.code(400).send({ error: 'Email and password required', code: 'bad_request' });
     const res = await gotrue('/token?grant_type=password', {
@@ -48,7 +52,7 @@ export function authRoutes(app: FastifyInstance): void {
     return reply.send({ ok: true });
   });
 
-  app.post('/api/auth/reset', async (req, reply) => {
+  app.post('/api/auth/reset', tight, async (req, reply) => {
     const { email } = req.body as { email?: string };
     if (!email) return reply.code(400).send({ error: 'Email required', code: 'bad_request' });
     const res = await gotrue(`/recover?redirect_to=${encodeURIComponent(`${env.publicUrl}/reset`)}`, {

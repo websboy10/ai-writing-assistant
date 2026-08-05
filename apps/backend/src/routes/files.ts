@@ -10,7 +10,11 @@ import { verifyUser } from '../supabase.js';
  * timeout so a pathological file cannot pin the event loop indefinitely.
  */
 export function fileRoutes(app: FastifyInstance): void {
-  app.post('/api/files', async (req, reply) => {
+  // OCR is the most expensive compute on the box and sits outside the chat
+  // quota — without its own limit one user can pin the CPU for free (WR-11).
+  const limited = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };
+
+  app.post('/api/files', limited, async (req, reply) => {
     const user = await verifyUser(req.headers.authorization);
     if (!user) return reply.code(401).send({ error: 'Sign in required', code: 'unauthenticated' });
 

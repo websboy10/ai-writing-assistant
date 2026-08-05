@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
+import rateLimit from '@fastify/rate-limit';
 import { env } from './env.js';
 import { authRoutes } from './routes/auth.js';
 import { chatRoutes } from './routes/chat.js';
@@ -17,6 +18,11 @@ await app.register(cors, {
   credentials: false,
 });
 await app.register(multipart);
+// IP rate limits are a separate layer from the per-user chat quota (Pitfall 5):
+// the quota protects the AI spend, this protects auth endpoints from brute
+// force and the OCR route from free CPU abuse. Tighter per-route limits live
+// on the auth and file routes.
+await app.register(rateLimit, { max: 60, timeWindow: '1 minute' });
 
 app.get('/api/health', async () => ({ ok: true, name: 'ai-writing-assistant backend' }));
 
@@ -40,6 +46,10 @@ chatRoutes(app);
 conversationRoutes(app);
 fileRoutes(app);
 
-app.listen({ port: env.port, host: '127.0.0.1' }).then(() => {
-  app.log.info(`backend listening on http://127.0.0.1:${env.port}`);
-});
+app.listen({ port: env.port, host: '127.0.0.1' }).then(
+  () => app.log.info(`backend listening on http://127.0.0.1:${env.port}`),
+  (err) => {
+    app.log.error(err, 'listen failed');
+    process.exit(1);
+  },
+);
