@@ -1,5 +1,6 @@
 import {
   adapterFor,
+  DEFAULT_PACING,
   GDocsAdapter,
   InsertionSession,
   isGoogleDocs,
@@ -58,7 +59,17 @@ class Inserter {
     const adapter = adapterFor(target);
     const unverified = adapter.kind === 'gdocs';
 
-    this.session = new InsertionSession(adapter, text, store.pacing, {
+    // Marked text is never replaced — the answer lands on a new line BELOW it
+    // (the adapters collapse the caret to the selection's end).
+    const hasSelection =
+      target.kind === 'gdocs'
+        ? GDocsAdapter.hasSelection()
+        : target.kind === 'plain'
+          ? (target.selEnd ?? 0) > (target.selStart ?? 0)
+          : !!target.range && !target.range.collapsed;
+    const finalText = hasSelection ? `\n${text}` : text;
+
+    this.session = new InsertionSession(adapter, finalText, DEFAULT_PACING, {
       onState: (state, detail) => {
         const s = useStore.getState();
         if (state === 'error') {

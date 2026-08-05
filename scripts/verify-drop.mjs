@@ -61,12 +61,12 @@ const badge = await page.evaluate(() => {
 console.log('badge after drop:', JSON.stringify(badge), '→ context attached:', /1/.test(badge));
 await page.screenshot({ path: 'test-results/drop-badge.png' });
 
-// open modal, confirm the item is in the context list
+// open modal, confirm the item shows as a chip above the composer
 await page.evaluate(() => {
   const hostEl = document.querySelector('awa-sidebar');
   hostEl.shadowRoot.querySelector('button[title*="Skriveassistent"]').click();
 });
-await host.locator('button', { hasText: 'Kontekst' }).click();
+await page.waitForTimeout(500);
 const listed = await page.evaluate(() => {
   const hostEl = document.querySelector('awa-sidebar');
   return /drop-test\.txt/.test(hostEl.shadowRoot.textContent);

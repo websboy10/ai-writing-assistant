@@ -138,13 +138,15 @@ export class InsertionSession {
   };
 
   private delayAfter(chunk: string, next: string | undefined): number {
-    const cps = this.pacing.mode === 'cps' ? this.pacing.rate : this.pacing.rate * 6; // avg word ≈ 6 chars incl. space
-    const base = (chunk.length / Math.max(1, cps)) * 1000;
+    // Letter-by-letter at wpm words/min (5 chars/word), with human jitter —
+    // a metronome-steady 400 ms tick reads as robotic, uneven strokes don't.
+    const base = 60_000 / (Math.max(1, this.pacing.wpm) * 5);
+    const jittered = base * (0.6 + Math.random() * 0.8);
     // Chunks carry LEADING whitespace, so a paragraph break lives at the start
     // of the next chunk and sentence punctuation at the end of this one.
-    if (next && /^\s*\n\s*\n/.test(next)) return base + this.pacing.paragraphPauseMs;
-    if (/[.!?]["')\]]?$/.test(chunk)) return base + this.pacing.sentencePauseMs;
-    return base;
+    if (next && /^\s*\n\s*\n/.test(next)) return jittered + 700;
+    if (/[.!?]["')\]]?$/.test(chunk)) return jittered + 350;
+    return jittered;
   }
 
   private attachGuard(): void {
@@ -183,20 +185,20 @@ export class InsertionSession {
 }
 
 /**
- * Chunk text at word boundaries, whitespace LEADING each word. Trailing
+ * Chunk text one LETTER at a time, whitespace LEADING each letter. Trailing
  * whitespace at a contenteditable block edge gets collapsed by the browser,
  * which jammed words together ("Alphabeta") under trailing-space chunking; a
- * leading space sits between two words the moment it lands, so it survives.
- * Words are the insertion unit: fine enough to read along with, coarse enough
- * to avoid a per-character event flood.
+ * leading space sits between two visible characters the moment the next
+ * letter lands, so it survives. The /u flag keeps surrogate pairs (emoji,
+ * non-Latin scripts) intact as single chunks.
  */
 export function chunkText(text: string): string[] {
   const out: string[] = [];
-  const re = /\s*\S+/g;
+  const re = /\s*\S/gu;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) out.push(m[0]);
-  // Preserve any trailing whitespace so instant-mode inserts the exact text.
-  const matched = out.join('');
-  if (matched.length < text.length) out.push(text.slice(matched.length));
+  // Preserve any trailing whitespace so the full text is inserted exactly.
+  const matched = out.reduce((n, c) => n + c.length, 0);
+  if (matched < text.length) out.push(text.slice(matched));
   return out;
 }

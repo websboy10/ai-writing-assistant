@@ -11,3 +11,4 @@ test-results/
 .chrome-profile/
 .backend.log
 .backend.pid
+.chrome-profile-cft/

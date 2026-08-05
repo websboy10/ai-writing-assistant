@@ -1,6 +1,23 @@
+import { createRequire } from 'node:module';
+import { mkdirSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { MAX_FILE_BYTES, MAX_CONTEXT_CHARS_PER_ITEM, type ParsedFile } from '@awa/shared';
 import { verifyUser } from '../supabase.js';
+
+const require = createRequire(import.meta.url);
+
+// Danish-first OCR: the default 'eng' model turns æ/ø/å into garbage. Language
+// data downloads once and is cached here across restarts.
+const OCR_LANGS = 'dan+eng';
+const TESS_CACHE = path.join(os.tmpdir(), 'awa-tessdata');
+mkdirSync(TESS_CACHE, { recursive: true });
+
+// A "scanned" PDF is one whose pages are images: pdf-parse succeeds but finds
+// (nearly) no embedded text. Below this many characters we OCR instead.
+const SCANNED_PDF_THRESHOLD = 50;
+const MAX_OCR_PAGES = 6;
 
 /**
  * Server-side file parsing (research: MV3 CSP makes client-side parsing a dead
@@ -35,7 +52,9 @@ export function fileRoutes(app: FastifyInstance): void {
     const mime = file.mimetype ?? '';
 
     try {
-      const parsed = await withTimeout(parse(buffer, name, mime), 60_000, (m) => req.log.warn(m));
+      // 120s: a scanned PDF is up to 6 rendered pages of OCR, plus a one-time
+      // language-data download on the very first OCR after a deploy.
+      const parsed = await withTimeout(parse(buffer, name, mime), 120_000, (m) => req.log.warn(m));
       if (!parsed.text.trim()) {
         return reply.code(422).send({
           error: `Der kunne ikke udtrækkes tekst fra "${name}". Er det et scannet dokument, så prøv at uploade det som billede, så OCR kan læse det.`,
@@ -72,7 +91,14 @@ async function parse(buffer: Buffer, name: string, mime: string): Promise<Parsed
     // pdf-parse's index.js runs debug code when imported as ESM; import the lib directly.
     const { default: pdfParse } = await import('pdf-parse/lib/pdf-parse.js');
     const out = await pdfParse(buffer);
-    return { name, kind: 'pdf', text: clean(out.text), chars: 0, truncated: false };
+    const text = clean(out.text);
+    // Scanned PDFs (each page an image) have no embedded text — the single
+    // most common real-world upload failure. Render the pages and OCR them.
+    if (text.length < SCANNED_PDF_THRESHOLD) {
+      const ocrText = await ocrPdfPages(buffer);
+      return { name, kind: 'pdf', text: ocrText, chars: 0, truncated: false };
+    }
+    return { name, kind: 'pdf', text, chars: 0, truncated: false };
   }
 
   if (
@@ -89,22 +115,66 @@ async function parse(buffer: Buffer, name: string, mime: string): Promise<Parsed
   }
 
   if (mime === 'image/png' || mime === 'image/jpeg' || /\.(png|jpe?g)$/.test(lower)) {
-    const { createWorker } = await import('tesseract.js');
-    const worker = await createWorker('eng');
-    try {
+    const text = await ocrBuffers([buffer]);
+    return { name, kind: 'image', text, chars: 0, truncated: false };
+  }
+
+  throw new Error('unsupported');
+}
+
+/** Render a scanned PDF's pages to PNG (pdfjs + napi canvas) and OCR them. */
+async function ocrPdfPages(buffer: Buffer): Promise<string> {
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjsRoot = path.dirname(require.resolve('pdfjs-dist/package.json'));
+  const loadingTask = getDocument({
+    data: new Uint8Array(buffer),
+    cMapUrl: path.join(pdfjsRoot, 'cmaps') + '/',
+    cMapPacked: true,
+    standardFontDataUrl: path.join(pdfjsRoot, 'standard_fonts') + '/',
+  });
+  const doc = await loadingTask.promise;
+  try {
+    const pages: Buffer[] = [];
+    const count = Math.min(doc.numPages, MAX_OCR_PAGES);
+    for (let i = 1; i <= count; i++) {
+      const page = await doc.getPage(i);
+      const viewport = page.getViewport({ scale: 2 });
+      // pdfjs ships a Node canvas factory backed by @napi-rs/canvas.
+      const factory = (doc as unknown as { canvasFactory: { create(w: number, h: number): { canvas: { toBuffer(t: string): Buffer }; context: unknown } } }).canvasFactory;
+      const { canvas, context } = factory.create(viewport.width, viewport.height);
+      await page.render({ canvasContext: context as never, viewport }).promise;
+      pages.push(canvas.toBuffer('image/png'));
+      page.cleanup();
+    }
+    const text = await ocrBuffers(pages);
+    if (doc.numPages > MAX_OCR_PAGES) {
+      return `${text}\n\n[Kun de første ${MAX_OCR_PAGES} af ${doc.numPages} sider er læst.]`;
+    }
+    return text;
+  } finally {
+    await loadingTask.destroy().catch(() => {});
+  }
+}
+
+/** One worker, sequential pages. Timeout races INSIDE so terminate() always runs. */
+async function ocrBuffers(images: Buffer[]): Promise<string> {
+  const { createWorker } = await import('tesseract.js');
+  const worker = await createWorker(OCR_LANGS, undefined, { cachePath: TESS_CACHE });
+  try {
+    const out: string[] = [];
+    for (const img of images) {
       // Race the timeout HERE, not only around the whole parse: if recognize()
       // never settles, an outer race would return while this finally waits
       // forever, leaking the worker's threads and WASM memory permanently.
       // Racing inside means the finally runs at timeout and terminate() kills
       // the pending recognize.
-      const { data } = await withTimeout(worker.recognize(buffer), 60_000);
-      return { name, kind: 'image', text: clean(data.text), chars: 0, truncated: false };
-    } finally {
-      await worker.terminate().catch(() => {});
+      const { data } = await withTimeout(worker.recognize(img), 60_000);
+      if (data.text.trim()) out.push(clean(data.text));
     }
+    return out.join('\n\n');
+  } finally {
+    await worker.terminate().catch(() => {});
   }
-
-  throw new Error('unsupported');
 }
 
 function clean(text: string): string {

@@ -1,6 +1,6 @@
 # How to test the app — 10 minutes
 
-Written 2026-08-05. Plain language. Everything here was already walked through
+Updated 2026-08-06. Plain language. Everything here was already walked through
 in a real browser by automated tests before being handed to you — but your
 walkthrough is the proof that counts.
 
@@ -25,31 +25,37 @@ confirmation email; click the link, then sign in.
 1. **A Chrome window should already be open** with the extension loaded and a
    test page showing. If not, run: `bash scripts/launch-chrome.sh` in the project
    folder.
-2. Find the **black circle with ¶** on the right edge of the page (or press
+2. Find the **round logo button** on the right edge of the page (or press
    **Alt+Shift+A**). Click it — a rounded panel opens attached to the right
-   edge. **Bonus:** drag any PDF/Word/text/image file from Finder toward the
-   circle — it grows as you approach, swallows the file on drop, and shows a
-   count badge. The file is now attached as context.
+   edge. **Bonus:** drag any PDF/Word/text/Markdown/image file from Finder
+   toward the circle — it grows as you approach, swallows the file on drop,
+   and shows a count badge. The file appears as a small chip above the message
+   box; remove it with the ✕ in its corner.
 3. **Sign in** with the test account above.
-4. **Chat**: type anything, press Enter. You should see the reply appear
-   word-by-word. Try the ■ button mid-reply to stop it.
-5. **Insert — the main event**:
-   - Click into the **plain textarea** on the test page
-   - In the sidebar, press **Insert** on the assistant's reply
-   - Watch it type into the field at reading pace
-   - Press **Pause**, then **Resume**, then let it finish
-   - Press **Undo insertion** — the field returns to exactly how it was
+4. **Chat**: type anything, press Enter. The reply appears word-by-word.
+   Try the ■ button mid-reply to stop it.
+5. **Insert — the main event**. Every reply has exactly two insert buttons:
+   - **Indsæt straks** — everything lands at once
+   - **Indsæt langsomt** — letter by letter at human typing tempo (~30 words
+     per minute), so anyone watching the doc sees normal typing
+   - Click into the **plain textarea** on the test page first, then try
+     **Indsæt langsomt**: Pause, Fortsæt, and **Fortryd indsættelse** (the
+     field returns to exactly how it was)
 6. **The trap test**: click into the second field ("framework-controlled") and
-   press **Instant**. The text must stay there. This field actively tries to
-   reject inserted text the way LinkedIn and Gmail do.
-7. **Type-interrupt test**: start an Insert into the textarea, then type a
-   letter yourself mid-insertion. Insertion should pause itself and tell you why.
-8. **Context**: open the **Context** row above the composer → **+ File** →
-   attach any PDF or Word document → ask "summarize the attached document".
-   Also try **+ Screenshot**.
-9. **Operations**: select some text on any webpage → sidebar → **Use page
-   selection** → choose **Rewrite** and a tone → send.
-10. **History**: top of sidebar → History. Reopen an old conversation. Delete one.
+   press **Indsæt straks**. The text must stay there. This field actively tries
+   to reject inserted text the way LinkedIn and Gmail do.
+7. **Type-interrupt test**: start a slow insert, then type a letter yourself
+   mid-insertion. Insertion pauses itself and tells you why.
+8. **Files**: press **+ Fil** → attach any PDF, Word, text, Markdown or image
+   file → ask "opsummér den vedhæftede fil". Scanned PDFs and photos of text
+   work too (they're read with Danish OCR). Also try **+ Skærmbillede**.
+9. **Marked text — two jobs, both offered when you select text on a page**:
+   - **Besvar markeringen** — the assistant answers the marked text, and the
+     answer is inserted on a new line *below* the marked text, never over it
+   - **Brug som kontekst** — the marked text is attached as background
+     knowledge (a chip, like a file)
+10. **History**: top of panel → Historik. Search, export, delete. **Log ud** is
+    the only other button up there — there is no settings page anymore.
 
 ## The Google Docs test — needs your eyes
 
@@ -57,10 +63,10 @@ This is the one thing automation couldn't verify, because it needs a signed-in
 Google account. It matters most — your first users live in Docs.
 
 1. In the test Chrome window, sign in to Google and open any Google Doc
-2. Click where you want text to appear **in the document**
-3. Open the sidebar → generate something → press **Insert**
-4. Tell me what you saw — "it typed into the doc" or "nothing happened" is
-   exactly the level of detail I need
+2. Select a line in the document (e.g. a question someone wrote)
+3. Open the panel → **Besvar markeringen** → send → press **Indsæt langsomt**
+4. Tell me what you saw — "it typed under my selection" or "nothing happened"
+   is exactly the level of detail I need
 
 If Docs insertion isn't working, the extension will say so and offer Copy
 instead — that's designed behavior, not a crash.
@@ -70,7 +76,7 @@ instead — that's designed behavior, not a crash.
 | Thing | Why | When |
 |---|---|---|
 | "Continue with Google" button | Needs the Google credential from `docs/SETUP.md` Job 4 (10 min, your Google account) | Whenever you want it |
-| "contains real data" checkbox with real content | Routes only to paid no-training models. Works now via OpenRouter's trial allowance; needs ~$5 OpenRouter credit before beta users | Before first real user content |
+| Real personal data on paid no-training models | Works now via OpenRouter's trial allowance; needs ~$5 OpenRouter credit before beta users. The checkbox was removed from the UI — before real users, the backend flips to paid-only via config | Before first real user content |
 | Rich-editor insertion on Gmail/LinkedIn/Slack/Notion | Built and passing on an equivalent test editor; needs sign-ins to verify on the real sites — same as the Docs test above | Your walkthrough |
 
 ## One infrastructure note

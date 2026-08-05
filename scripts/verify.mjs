@@ -57,6 +57,8 @@ page.on('console', (m) => {
   if (m.type() === 'error') consoleErrors.push(m.text());
 });
 
+const shadowText = () => page.evaluate(() => document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '');
+
 try {
   console.log('\n— Sidebar injection —');
   await page.goto('http://127.0.0.1:8788/');
@@ -80,29 +82,23 @@ try {
   await host.locator('button', { hasText: 'Log ind' }).click();
   await host.locator('textarea[placeholder*="Skriv til"]').waitFor({ timeout: 15_000 });
   ok('signed in → chat view', true);
+  ok('no settings tab — only Log ud', /Log ud/.test(await shadowText()) && !/Indstillinger/.test(await shadowText()));
   await page.screenshot({ path: `${shotsDir}/02-signed-in.png` });
 
   console.log('\n— Streaming chat (live AI) —');
   await host.locator('textarea[placeholder*="Skriv til"]').fill('Reply with exactly: HELLO FROM THE EXTENSION');
   await host.locator('button', { hasText: '↑' }).click();
-  const assistantBubble = host.locator('div.bg-zinc-100, div.dark\\:bg-zinc-800').last();
-  await page.waitForFunction(
-    () => {
-      const hostEl = document.querySelector('awa-sidebar');
-      const text = hostEl?.shadowRoot?.textContent ?? '';
-      return /HELLO FROM THE EXTENSION/.test(text) || /Insert/.test(text);
-    },
-    { timeout: 60_000 },
-  );
-  const insertBtn = host.locator('button[title*="læsetempo"]').first();
-  await insertBtn.waitFor({ timeout: 30_000 });
+  const insertSlow = host.locator('button[title*="bogstav for bogstav"]').first();
+  const insertNow = host.locator('button[title*="på én gang"]').first();
+  await insertSlow.waitFor({ timeout: 60_000 });
   ok('assistant response streamed and finished', true);
+  ok('exactly two insert modes: Straks + Langsomt', (await insertNow.count()) >= 1 && (await insertSlow.count()) >= 1);
   await page.screenshot({ path: `${shotsDir}/03-chat-response.png` });
 
-  console.log('\n— Edit response (CHAT-06) → deterministic long text for transport tests —');
-  const LONG_TEXT =
-    'HELLO FROM THE EXTENSION. This sentence exists so progressive insertion takes long enough to exercise pause, resume, stop and undo deterministically. ' +
-    'It keeps going with a second sentence to make sure there is plenty of text left after the pause point. And a third one for good measure, because timing matters.';
+  console.log('\n— Edit response (CHAT-06) → deterministic text for transport tests —');
+  // Slow mode is letter-by-letter at ~30 wpm, so keep the text short enough
+  // for a CI-friendly wall clock while still outliving pause/resume clicks.
+  const LONG_TEXT = 'HELLO FROM THE EXTENSION. Pausen skal kunne nå at ske her.';
   await host.locator('button', { hasText: 'Redigér' }).first().click();
   const editBox = host.locator('textarea.awa-edit');
   await editBox.waitFor({ timeout: 5_000 });
@@ -110,9 +106,9 @@ try {
   await host.getByRole('button', { name: 'Gem', exact: true }).click();
   ok('assistant response is editable before insertion', true);
 
-  console.log('\n— Insertion: plain textarea (progressive + transport controls) —');
+  console.log('\n— Insertion: plain textarea (slow letter-by-letter + transport controls) —');
   await page.locator('#plain').click();
-  await insertBtn.click();
+  await insertSlow.click();
   // Pause: the InsertBar re-renders on every progress tick, so a single click
   // can land between renders. Click-until-paused, like a real user would.
   const pauseBtn = host.locator('button', { hasText: 'Pause' });
@@ -121,25 +117,23 @@ try {
   for (let i = 0; i < 5 && !isPaused; i++) {
     await pauseBtn.click().catch(() => {});
     await page.waitForTimeout(250);
-    isPaused = await page.evaluate(() => {
-      const hostEl = document.querySelector('awa-sidebar');
-      return /Fortsæt/.test(hostEl?.shadowRoot?.textContent ?? '');
-    });
+    isPaused = /Fortsæt/.test(await shadowText());
   }
   const pausedVal = await page.locator('#plain').inputValue();
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(900);
   const stillPausedVal = await page.locator('#plain').inputValue();
   ok('pause actually pauses', isPaused && pausedVal === stillPausedVal && pausedVal.length > 0, `"${pausedVal.slice(0, 30)}" vs "${stillPausedVal.slice(0, 30)}"`);
+  const t0 = Date.now();
   await host.locator('button', { hasText: 'Fortsæt' }).click();
   await page.waitForFunction(
-    () => {
-      const hostEl = document.querySelector('awa-sidebar');
-      return /Indsat ✓/.test(hostEl?.shadowRoot?.textContent ?? '');
-    },
-    { timeout: 30_000 },
+    () => /Indsat ✓/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+    { timeout: 120_000 },
   );
+  const elapsed = (Date.now() - t0) / 1000;
   const finalVal = await page.locator('#plain').inputValue();
-  ok('progressive insertion completed into textarea', finalVal === LONG_TEXT, `value="${finalVal.slice(0, 60)}"`);
+  ok('slow insertion completed into textarea, letter-perfect', finalVal === LONG_TEXT, `value="${finalVal.slice(0, 60)}"`);
+  // Human tempo: the post-pause remainder must arrive at seconds-scale, not instantly.
+  ok('slow mode is actually human-paced', elapsed > 3, `remainder took ${elapsed.toFixed(1)}s`);
   await page.screenshot({ path: `${shotsDir}/04-inserted-textarea.png` });
 
   console.log('\n— Undo —');
@@ -147,113 +141,129 @@ try {
   await page.waitForTimeout(300);
   const undoneVal = await page.locator('#plain').inputValue();
   ok('undo restored the textarea', undoneVal === '', `value="${undoneVal.slice(0, 40)}"`);
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+
+  console.log('\n— Marked text: two clearly-stated functions —');
+  await page.locator('#plain').fill('Hvad er status på projektet?');
+  await page.locator('#plain').click();
+  await page.locator('#plain').press('ControlOrMeta+a');
+  await page.waitForTimeout(1400); // selection poll runs every second
+  const selBarText = await shadowText();
+  ok('selection bar appears with both actions', /Du har markeret tekst/.test(selBarText) && /Besvar markeringen/.test(selBarText) && /Brug som kontekst/.test(selBarText));
+  ok('the two functions are explained in words', /svaret skrives lige under markeringen/i.test(selBarText) && /baggrundsviden/.test(selBarText));
+
+  // Function 2: use as context → a small chip with a corner ✕
+  await host.locator('button', { hasText: 'Brug som kontekst' }).click();
+  await page.waitForTimeout(300);
+  ok('selection became a context chip', /Markeret tekst \(/.test(await shadowText()));
+  await host.locator('button[title^="Fjern"]').first().click();
+  await page.waitForTimeout(300);
+  ok('chip removable via corner ✕', !/Markeret tekst \(/.test(await shadowText()));
+
+  console.log('\n— Insertion lands BELOW the marked text, never on it —');
+  // The field still holds a full selection; insert must go under it, not replace it.
+  await insertNow.click();
+  await page.waitForFunction(
+    () => /Indsat ✓/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+    { timeout: 15_000 },
+  );
+  const belowVal = await page.locator('#plain').inputValue();
+  ok(
+    'marked text kept, answer on the line below',
+    belowVal === `Hvad er status på projektet?\n${LONG_TEXT}`,
+    `value="${belowVal.slice(0, 80)}"`,
+  );
+  await host.locator('button', { hasText: 'Fortryd indsættelse' }).click();
+  await page.waitForTimeout(300);
+  ok('undo removes only the answer, marked text stays', (await page.locator('#plain').inputValue()) === 'Hvad er status på projektet?');
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
   console.log('\n— Insertion: framework-controlled input (revert trap) —');
-  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
   await page.locator('#controlled').click();
-  await host.locator('button[title*="på én gang"]').first().click();
+  await insertNow.click();
   await page.waitForTimeout(800); // outlive the 50ms "re-render" loop several times
   const controlledVal = await page.locator('#controlled').inputValue();
   const controlledState = await page.evaluate(() => window.__controlledState());
   ok('text survives framework re-render', controlledVal.length > 10 && controlledVal === controlledState, `dom="${controlledVal.slice(0, 40)}" state="${String(controlledState).slice(0, 40)}"`);
   await page.screenshot({ path: `${shotsDir}/05-controlled-input.png` });
 
-  console.log('\n— Insertion: contenteditable —');
+  console.log('\n— Insertion: contenteditable, below a marked paragraph —');
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
-  await page.locator('#editor').click();
-  // place cursor at end
-  await page.keyboard.press('End');
-  await host.locator('button[title*="læsetempo"]').first().click();
+  const shortText = 'Ord et to.';
+  await host.locator('button', { hasText: 'Redigér' }).first().click();
+  await editBox.waitFor({ timeout: 5_000 });
+  await editBox.fill(shortText);
+  await host.getByRole('button', { name: 'Gem', exact: true }).click();
+  await page.locator('#editor').click({ clickCount: 3 }); // mark the existing paragraph
+  await insertSlow.click();
   await page.waitForFunction(
-    () => {
-      const hostEl = document.querySelector('awa-sidebar');
-      const t = hostEl?.shadowRoot?.textContent ?? '';
-      return /Indsat ✓|Sendt/.test(t);
-    },
-    { timeout: 30_000 },
+    () => /Indsat ✓|Sendt/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+    { timeout: 60_000 },
   );
-  const editorText = await page.locator('#editor').textContent();
-  ok('insertion landed in contenteditable', (editorText ?? '').length > 'Existing paragraph. '.length, `text="${(editorText ?? '').slice(0, 80)}"`);
+  const editorText = (await page.locator('#editor').textContent()) ?? '';
+  ok('marked paragraph survived', editorText.includes('Existing paragraph.'), `text="${editorText.slice(0, 80)}"`);
+  ok('answer landed below it, letters spaced correctly', editorText.includes(shortText), `text="${editorText.slice(0, 80)}"`);
   await page.screenshot({ path: `${shotsDir}/06-contenteditable.png` });
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
   console.log('\n— Typing-race guard —');
-  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
   await page.locator('#plain').click();
-  await host.locator('button[title*="læsetempo"]').first().click();
-  await page.waitForTimeout(400);
+  await page.locator('#plain').press('ControlOrMeta+a');
+  await page.locator('#plain').press('Delete');
+  await insertSlow.click();
+  await page.waitForTimeout(900);
   await page.locator('#plain').press('x'); // user types mid-insertion
-  await page.waitForTimeout(400);
-  const pausedByTyping = await page.evaluate(() => {
-    const hostEl = document.querySelector('awa-sidebar');
-    return /du begyndte at skrive/i.test(hostEl?.shadowRoot?.textContent ?? '');
-  });
-  ok('user typing auto-pauses insertion', pausedByTyping);
+  await page.waitForTimeout(500);
+  ok('user typing auto-pauses insertion', /du begyndte at skrive/i.test(await shadowText()));
   await page.screenshot({ path: `${shotsDir}/07-typing-guard.png` });
 
   console.log('\n— Resume after user typing must not corrupt (CR-03) —');
-  // The user's "x" is now in the document. Resume must either continue safely
-  // or refuse loudly — never interleave or overwrite the user's character.
-  const beforeResume = await page.locator('#plain').inputValue();
-  await host.locator('button', { hasText: 'Resume' }).click().catch(() => {});
+  await host.locator('button', { hasText: 'Fortsæt' }).click().catch(() => {});
   await page.waitForFunction(
-    () => {
-      const hostEl = document.querySelector('awa-sidebar');
-      const t = hostEl?.shadowRoot?.textContent ?? '';
-      return /Indsat ✓|Stoppet|Kopiér|fejl/i.test(t);
-    },
-    { timeout: 30_000 },
+    () => /Indsat ✓|Stoppet|Kopiér|fejl/i.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+    { timeout: 60_000 },
   ).catch(() => {});
   const afterResume = await page.locator('#plain').inputValue();
-  const userCharKept = afterResume.includes('x');
-  ok('user typed character survives resume', userCharKept, `before="${beforeResume.slice(-20)}" after="${afterResume.slice(-30)}"`);
-  // Undo after mixed content: must remove only inserted text or refuse — the "x" stays.
-  await host.locator('button', { hasText: 'Undo insertion' }).click().catch(() => {});
+  ok('user typed character survives resume', afterResume.includes('x'), `after="${afterResume.slice(-30)}"`);
+  await host.locator('button', { hasText: 'Fortryd indsættelse' }).click().catch(() => {});
   await page.waitForTimeout(400);
   const afterUndo = await page.locator('#plain').inputValue();
   ok('undo preserves user typing', afterUndo.includes('x'), `after undo="${afterUndo.slice(0, 40)}"`);
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
-  console.log('\n— Usage counter —');
-  const usageShown = await page.evaluate(() => {
+  console.log('\n— The one output setting: length —');
+  await host.locator('button', { hasText: 'Kortere' }).click();
+  const shorterActive = await page.evaluate(() => {
     const hostEl = document.querySelector('awa-sidebar');
-    return /\d+ \/ \d+/.test(hostEl?.shadowRoot?.textContent ?? '');
+    const btn = [...(hostEl?.shadowRoot?.querySelectorAll('button') ?? [])].find((b) => b.textContent === 'Kortere');
+    return btn?.className.includes('bg-ink') ?? false;
   });
-  ok('real usage numbers visible in header', usageShown);
+  ok('length is a single tap (Kortere/Samme/Længere)', shorterActive);
+  ok('no tone/template/operation controls left', !/Skabelon|Formel|Selvsikker|rigtige data/.test(await shadowText()));
 
-  console.log('\n— Templates (PROD-01) —');
-  const composer = host.locator('textarea[placeholder*="Skriv til"], textarea[placeholder*="instruktioner"]').first();
-  await composer.fill('Summarize the attached report for a busy executive.');
-  await host.locator('button', { hasText: 'Gem som skabelon' }).click();
-  await host.locator('input[placeholder="Skabelonnavn"]').fill('Exec summary');
-  await host.getByRole('button', { name: 'Gem', exact: true }).click();
-  await page.waitForTimeout(800);
-  await composer.fill('');
-  const tplSelect = host.locator('select[title*="skabelon"]');
-  await tplSelect.waitFor({ timeout: 5_000 });
-  await tplSelect.selectOption({ label: 'Exec summary' });
-  await page.waitForTimeout(200);
-  const applied = await composer.inputValue();
-  ok('template saves and applies to composer', applied.includes('busy executive'), `composer="${applied.slice(0, 50)}"`);
-  // cleanup so reruns stay deterministic
-  await host.locator('button', { hasText: 'administrér' }).click();
-  await host.locator('button', { hasText: 'Slet' }).first().click();
-  await page.waitForTimeout(400);
+  console.log('\n— Usage counter —');
+  ok('real usage numbers visible in header', /\d+ \/ \d+/.test(await shadowText()));
 
   console.log('\n— History search (PROD-02) —');
   await host.locator('button', { hasText: 'Historik' }).click();
   const searchBox = host.locator('input[placeholder*="Søg i titler"]');
   await searchBox.waitFor({ timeout: 5_000 });
   await searchBox.fill('HELLO FROM THE EXTENSION');
-  await page.waitForTimeout(900);
-  const hits = await host.locator('div.group').count();
+  // Poll instead of a fixed sleep — content search fans out across messages
+  // server-side and can take a couple of seconds.
+  let hits = 0;
+  for (let i = 0; i < 20 && hits === 0; i++) {
+    await page.waitForTimeout(500);
+    hits = await host.locator('div.group').count();
+  }
   ok('search finds the conversation by content', hits >= 1, `hits=${hits}`);
   await searchBox.fill('zzz-no-such-term-qqq');
-  await page.waitForTimeout(900);
-  const noneText = await page.evaluate(() => {
-    const hostEl = document.querySelector('awa-sidebar');
-    return /Intet matcher/.test(hostEl?.shadowRoot?.textContent ?? '');
-  });
-  ok('search shows a specific empty state', noneText);
+  let emptyShown = false;
+  for (let i = 0; i < 10 && !emptyShown; i++) {
+    await page.waitForTimeout(500);
+    emptyShown = /Intet matcher/.test(await shadowText());
+  }
+  ok('search shows a specific empty state', emptyShown);
   await searchBox.fill('');
   await page.waitForTimeout(900);
 
@@ -265,6 +275,11 @@ try {
   const download = await downloadPromise;
   const fname = download.suggestedFilename();
   ok('conversation exports as a markdown download', fname.endsWith('.md'), `filename=${fname}`);
+
+  console.log('\n— Log ud —');
+  await host.locator('button', { hasText: 'Log ud' }).click();
+  await host.locator('input[type="email"]').waitFor({ timeout: 10_000 });
+  ok('sign out returns to the sign-in form', true);
 } catch (err) {
   failed++;
   failures.push({ name: 'unexpected failure', detail: String(err) });

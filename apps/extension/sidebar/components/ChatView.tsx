@@ -1,11 +1,10 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { OPERATION_LABELS, type PromptOperation } from '@awa/shared';
 import { sendChat, stopGeneration } from '../chat';
+import { newContextId } from '../ingest';
 import { inserter } from '../inserter';
 import { useStore, type UiMessage } from '../store';
 import { Banner } from './AuthView';
-import { ContextPanel } from './ContextPanel';
-import { TemplatesBar } from './TemplatesBar';
+import { ContextChips } from './ContextPanel';
 
 // System serif: web fonts don't load reliably inside a shadow DOM, and an
 // overlay must render instantly. The serif is the assistant's voice (see
@@ -16,8 +15,9 @@ const MONO = { fontFamily: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
 export function ChatView() {
   const s = useStore();
   const [input, setInput] = useState('');
-  const [selectionSnapshot, setSelectionSnapshot] = useState('');
-  const [showContext, setShowContext] = useState(false);
+  // The marked text the next question is ABOUT (function 1 of a selection).
+  const [selSubject, setSelSubject] = useState('');
+  const [liveSelection, setLiveSelection] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickBottom = useRef(true);
 
@@ -26,22 +26,35 @@ export function ChatView() {
     if (el && stickBottom.current) el.scrollTo({ top: el.scrollHeight });
   }, [s.messages, s.streaming]);
 
+  // Watch what's marked on the page so the two selection actions can offer
+  // themselves the moment there is something to act on.
+  useEffect(() => {
+    const t = setInterval(() => {
+      const text = inserter.selectionText();
+      setLiveSelection((prev) => (prev === text ? prev : text));
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
   function send() {
     const text = input.trim();
-    if (!text && !selectionSnapshot) return;
-    sendChat(text || `Udfør "${OPERATION_LABELS[s.operation]}" på emneteksten.`, selectionSnapshot || undefined);
+    if (!text && !selSubject) return;
+    sendChat(text || 'Besvar den markerede tekst.', selSubject || undefined);
     setInput('');
+    setSelSubject('');
   }
 
-  function captureSelection() {
-    const text = inserter.selectionText();
-    if (text) {
-      setSelectionSnapshot(text);
-    } else {
-      s.set({
-        notice: 'Der er ikke markeret noget på siden. Markér teksten først, og tryk så på "Brug markeret tekst".',
-      });
-    }
+  function useSelectionAsContext() {
+    const text = liveSelection || inserter.selectionText();
+    if (!text) return;
+    s.addContext({
+      id: newContextId(),
+      name: `Markeret tekst (${text.length.toLocaleString('da-DK')} tegn)`,
+      kind: 'selection',
+      text,
+      chars: text.length,
+      truncated: false,
+    });
   }
 
   return (
@@ -61,7 +74,7 @@ export function ChatView() {
               En blank side — klar når du er.
             </p>
             <p className="text-[12px] text-graphite">
-              Spørg om hvad som helst — eller vælg en handling nedenfor og peg den på markeret tekst eller vedhæftede filer.
+              Spørg om hvad som helst. Træk filer til knappen i kanten, eller markér tekst på siden.
             </p>
           </div>
         )}
@@ -73,89 +86,67 @@ export function ChatView() {
         {s.insertStatus && <InsertBar />}
       </div>
 
-      {/* context */}
-      <div className="border-t border-hairline">
-        <button
-          onClick={() => setShowContext((v) => !v)}
-          className="awa-eyebrow flex w-full items-center justify-between px-4 py-2 hover:bg-wash"
-        >
-          <span>
-            Kontekst{s.context.length > 0 && <b className="text-ink"> · {s.context.length}</b>}
-          </span>
-          <span>{showContext ? '−' : '+'}</span>
-        </button>
-        {showContext && <ContextPanel />}
-      </div>
-
       {/* composer */}
       <div className="space-y-2 border-t border-hairline p-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <MachineSelect
-            value={s.operation}
-            onChange={(v) => s.set({ operation: v as PromptOperation })}
-            options={Object.entries(OPERATION_LABELS).map(([k, label]) => [k, label] as [string, string])}
-          />
-          <MachineSelect
-            value={s.prefs.tone ?? 'neutral'}
-            onChange={(v) => s.set({ prefs: { ...s.prefs, tone: v as never } })}
-            options={[
-              ['neutral', 'Neutral'],
-              ['formal', 'Formel'],
-              ['friendly', 'Venlig'],
-              ['confident', 'Selvsikker'],
-              ['casual', 'Afslappet'],
-            ]}
-            title="Tone"
-          />
-          <MachineSelect
-            value={s.prefs.length ?? 'same'}
-            onChange={(v) => s.set({ prefs: { ...s.prefs, length: v as never } })}
-            options={[
-              ['shorter', 'Kortere'],
-              ['same', 'Samme længde'],
-              ['longer', 'Længere'],
-            ]}
-            title="Længde"
-          />
-          {s.operation === 'translate' && (
-            <input
-              value={s.prefs.language ?? ''}
-              onChange={(e) => s.set({ prefs: { ...s.prefs, language: e.target.value } })}
-              placeholder="Målsprog"
-              className="w-28 rounded-lg border border-hairline bg-paper px-2 py-1 text-[12px] outline-none placeholder:text-graphite focus:border-ink"
-            />
-          )}
-        </div>
-
-        <TemplatesBar input={input} onApply={(text) => setInput(text)} />
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={captureSelection}
-            className="rounded-full border border-dashed border-graphite px-2.5 py-1 text-[12px] text-graphite hover:border-ink hover:text-ink"
-          >
-            Brug markeret tekst
-          </button>
-          {selectionSnapshot && (
+        {/* Marked text on the page: its two jobs, clearly stated (PROM-02) */}
+        {liveSelection && !selSubject && (
+          <div className="space-y-1.5 rounded-xl border border-hairline p-2.5">
+            <p className="awa-eyebrow !text-ink">Du har markeret tekst · {liveSelection.length.toLocaleString('da-DK')} tegn</p>
+            <div className="flex flex-wrap gap-1.5 text-[12px]">
+              <button
+                onClick={() => setSelSubject(liveSelection)}
+                className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
+                title="Assistenten besvarer den markerede tekst, og svaret skrives på en ny linje lige under den"
+              >
+                Besvar markeringen
+              </button>
+              <button
+                onClick={useSelectionAsContext}
+                className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
+                title="Teksten vedhæftes som baggrundsviden, assistenten kan trække på"
+              >
+                Brug som kontekst
+              </button>
+            </div>
+            <p className="text-[11px] leading-snug text-graphite">
+              <b>Besvar:</b> svaret skrives lige under markeringen. <b>Kontekst:</b> teksten vedhæftes som baggrundsviden.
+            </p>
+          </div>
+        )}
+        {selSubject && (
+          <div className="flex flex-wrap items-center gap-2">
             <span className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 text-[12px] text-paper">
-              {selectionSnapshot.length} tegn
-              <button onClick={() => setSelectionSnapshot('')} className="font-bold">
+              Besvarer markeringen · {selSubject.length.toLocaleString('da-DK')} tegn
+              <button onClick={() => setSelSubject('')} className="font-bold" title="Glem markeringen">
                 ×
               </button>
             </span>
-          )}
-          <label
-            className="ml-auto flex items-center gap-1.5 text-[11.5px] text-graphite"
-            title="Rigtige persondata kører kun på betalte modeller uden træning (håndhæves på serveren)"
-          >
-            <input
-              type="checkbox"
-              checked={s.containsRealData}
-              onChange={(e) => s.set({ containsRealData: e.target.checked })}
-              className="accent-current"
-            />
-            indeholder rigtige data
-          </label>
+            <span className="text-[11px] text-graphite">Svaret indsættes under markeringen.</span>
+          </div>
+        )}
+
+        <ContextChips />
+
+        {/* the one output setting: length */}
+        <div className="flex items-center gap-1.5">
+          <span className="awa-eyebrow">Længde</span>
+          {(
+            [
+              ['shorter', 'Kortere'],
+              ['same', 'Samme'],
+              ['longer', 'Længere'],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => s.set({ prefs: { ...s.prefs, length: k } })}
+              className={`rounded-full px-2.5 py-0.5 text-[11.5px] transition-colors ${
+                (s.prefs.length ?? 'same') === k ? 'bg-ink text-paper' : 'border border-hairline hover:border-ink'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-end gap-2">
@@ -169,7 +160,7 @@ export function ChatView() {
               }
             }}
             rows={2}
-            placeholder={s.operation === 'chat' ? 'Skriv til assistenten…' : `Valgfrie instruktioner til "${OPERATION_LABELS[s.operation]}"…`}
+            placeholder={selSubject ? 'Hvad skal jeg gøre med markeringen?' : 'Skriv til assistenten…'}
             className="min-h-[42px] flex-1 resize-y rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
           />
           {s.streaming ? (
@@ -183,7 +174,7 @@ export function ChatView() {
           ) : (
             <button
               onClick={send}
-              disabled={!input.trim() && !selectionSnapshot}
+              disabled={!input.trim() && !selSubject}
               className="rounded-xl bg-ink px-3 py-2 font-medium text-paper hover:opacity-85 disabled:opacity-40"
             >
               ↑
@@ -198,34 +189,6 @@ export function ChatView() {
         </div>
       </div>
     </div>
-  );
-}
-
-function MachineSelect({
-  value,
-  onChange,
-  options,
-  title,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: [string, string][];
-  title?: string;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      title={title}
-      className="rounded-lg border border-hairline bg-paper px-2 py-1 text-[11px] text-ink outline-none focus:border-ink"
-      style={MONO}
-    >
-      {options.map(([k, label]) => (
-        <option key={k} value={k}>
-          {label}
-        </option>
-      ))}
-    </select>
   );
 }
 
@@ -305,18 +268,18 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
       {!m.streaming && m.content && !editing && (
         <div className="flex flex-wrap gap-1.5 pl-3 text-[12px]">
           <button
-            onClick={() => inserter.start(m.content, 'progressive')}
-            className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
-            title="Indsæt på siden i læsetempo — sæt på pause eller stop når som helst"
-          >
-            Indsæt
-          </button>
-          <button
             onClick={() => inserter.start(m.content, 'instant')}
-            className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
+            className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
             title="Indsæt det hele på én gang"
           >
-            Straks
+            Indsæt straks
+          </button>
+          <button
+            onClick={() => inserter.start(m.content, 'progressive')}
+            className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
+            title="Skriver bogstav for bogstav i menneskeligt tempo (ca. 30 ord i minuttet) — sæt på pause eller stop når som helst"
+          >
+            Indsæt langsomt
           </button>
           <button onClick={() => void copy()} className="rounded-full border border-hairline px-3 py-1 hover:border-ink">
             {copied ? 'Kopieret ✓' : 'Kopiér'}

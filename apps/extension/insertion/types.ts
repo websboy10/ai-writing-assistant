@@ -31,20 +31,16 @@ export interface InsertionAdapter {
   eventTarget(): EventTarget | null;
 }
 
+/**
+ * One knob, no settings UI: slow mode types letter by letter at a human tempo.
+ * 30 words/minute (the standard 5-chars-per-word measure → 2.5 letters/sec)
+ * is deliberately unhurried — the user reads along as if a person were typing.
+ */
 export interface PacingConfig {
-  mode: 'cps' | 'wps';
-  /** characters or words per second */
-  rate: number;
-  sentencePauseMs: number;
-  paragraphPauseMs: number;
+  wpm: number;
 }
 
-export const DEFAULT_PACING: PacingConfig = {
-  mode: 'cps',
-  rate: 40,
-  sentencePauseMs: 250,
-  paragraphPauseMs: 500,
-};
+export const DEFAULT_PACING: PacingConfig = { wpm: 30 };
 
 export type InsertionState = 'idle' | 'running' | 'paused' | 'stopped' | 'done' | 'error';
 

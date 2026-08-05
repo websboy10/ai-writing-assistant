@@ -60,6 +60,19 @@ export class GDocsAdapter implements InsertionAdapter {
     return { ok: true };
   }
 
+  /**
+   * Docs mirrors the current document selection into the hidden input iframe
+   * (that's how native copy works) — non-empty body text means text is marked.
+   */
+  static hasSelection(): boolean {
+    try {
+      const doc = document.querySelector<HTMLIFrameElement>('iframe.docs-texteventtarget-iframe')?.contentDocument;
+      return !!doc?.body?.textContent?.trim();
+    } catch {
+      return false;
+    }
+  }
+
   eventTarget(): EventTarget | null {
     return this.targetDoc() ?? null;
   }
@@ -70,6 +83,23 @@ export class GDocsAdapter implements InsertionAdapter {
     this.chunksInserted = 0;
     // Make sure the doc has keyboard focus (the user may be in our sidebar).
     this.iframe()?.contentWindow?.focus();
+    // A marked selection must not be replaced by the paste — ArrowRight
+    // collapses it to its end (same synthetic-keystroke channel as undo).
+    if (GDocsAdapter.hasSelection()) {
+      const el = this.targetEl();
+      if (el) {
+        const init: KeyboardEventInit = {
+          key: 'ArrowRight',
+          code: 'ArrowRight',
+          keyCode: 39,
+          which: 39,
+          bubbles: true,
+          cancelable: true,
+        };
+        el.dispatchEvent(new KeyboardEvent('keydown', init));
+        el.dispatchEvent(new KeyboardEvent('keyup', init));
+      }
+    }
     return { ok: true, verified: false };
   }
 

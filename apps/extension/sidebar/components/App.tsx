@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+// Inlined as a data URI: the content script renders inside host pages, where
+// chrome-extension:// image URLs would need web_accessible_resources.
+import logo from '../assets/logo.png?inline';
 import { useStore } from '../store';
 import { addFilesToContext } from '../ingest';
 import { AuthView } from './AuthView';
 import { ChatView } from './ChatView';
 import { HistoryView } from './HistoryView';
-import { SettingsView } from './SettingsView';
 
 const SERIF = { fontFamily: 'Charter, Georgia, serif' };
 
@@ -89,12 +91,12 @@ export function App() {
           onDragLeave={() => setDragState((s) => (s === 'hover' ? 'attract' : s))}
           onDrop={(e) => void handleDrop(e)}
           title="AI Skriveassistent (Alt+Shift+A) — slip filer her for at vedhæfte dem"
-          className={`fixed right-3 top-[42%] z-[2147483646] flex h-12 w-12 items-center justify-center rounded-full bg-ink text-[19px] leading-none text-paper shadow-xl shadow-black/25 transition-all duration-200 ease-out hover:scale-110 ${scale} ${
+          className={`fixed right-3 top-[42%] z-[2147483646] flex h-12 w-12 items-center justify-center rounded-full border border-hairline bg-paper text-[19px] leading-none text-ink shadow-xl shadow-black/25 transition-all duration-200 ease-out hover:scale-110 ${scale} ${
             dragState !== 'idle' ? 'ring-4 ring-ink/25' : ''
           } ${justDropped ? 'ring-4 ring-ink/40' : ''}`}
           style={SERIF}
         >
-          {justDropped ? '✓' : dragState !== 'idle' ? '+' : '¶'}
+          {justDropped ? '✓' : dragState !== 'idle' ? '+' : <img src={logo} alt="" className="h-7 w-7" />}
           {context.length > 0 && !justDropped && dragState === 'idle' && (
             <span className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full border-2 border-paper bg-ink px-1 py-px font-sans text-[9px] font-bold text-paper">
               {context.length}
@@ -107,9 +109,7 @@ export function App() {
       {open && (
         <aside className="fixed right-0 top-1/2 z-[2147483646] flex h-[min(86vh,700px)] w-[400px] max-w-[92vw] -translate-y-1/2 flex-col overflow-hidden rounded-l-[26px] border border-r-0 border-hairline bg-paper/95 text-[14px] text-ink shadow-2xl shadow-black/30 backdrop-blur-xl">
           <header className="flex items-center gap-2 border-b border-hairline px-4 py-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-[14px] text-paper" style={SERIF}>
-              ¶
-            </span>
+            <img src={logo} alt="" className="h-7 w-7" />
             <span className="awa-eyebrow whitespace-nowrap !text-ink">Assistent</span>
             {usage && (
               <span
@@ -131,7 +131,12 @@ export function App() {
                       void useStore.getState().loadHistory();
                     }}
                   />
-                  <TabButton label="⚙" active={view === 'settings'} onClick={() => set({ view: 'settings' })} title="Indstillinger" />
+                  <TabButton
+                    label="Log ud"
+                    active={false}
+                    onClick={() => void useStore.getState().signOut()}
+                    title={`Log ud (${email})`}
+                  />
                 </>
               )}
               {/* Collapse keeps state (SIDE-03) — store lives outside the tree */}
@@ -146,7 +151,7 @@ export function App() {
           </header>
 
           <div className="min-h-0 flex-1">
-            {!email ? <AuthView /> : view === 'history' ? <HistoryView /> : view === 'settings' ? <SettingsView /> : <ChatView />}
+            {!email ? <AuthView /> : view === 'history' ? <HistoryView /> : <ChatView />}
           </div>
         </aside>
       )}

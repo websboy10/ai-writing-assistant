@@ -7,11 +7,11 @@ import type {
   PromptOperation,
   UsageInfo,
 } from '@awa/shared';
-import { DEFAULT_PACING, type PacingConfig, type InsertionState } from '@/insertion';
+import { type InsertionState } from '@/insertion';
 import { call } from './api';
 import { stopGeneration } from './chat';
 
-export type View = 'auth' | 'chat' | 'history' | 'settings';
+export type View = 'auth' | 'chat' | 'history';
 export type Theme = 'light' | 'dark';
 
 export interface UiMessage extends ChatMessage {
@@ -47,7 +47,6 @@ interface AwaState {
   contextBusy: string | null;
   // insertion
   insertStatus: InsertStatus | null;
-  pacing: PacingConfig;
   // usage/history
   usage: UsageInfo | null;
   history: ConversationSummary[];
@@ -80,15 +79,14 @@ export const useStore = create<AwaState>((set, get) => ({
   context: [],
   contextBusy: null,
   insertStatus: null,
-  pacing: DEFAULT_PACING,
   usage: null,
   history: [],
 
   set: (partial) => set(partial),
 
   loadSession: async () => {
-    const [{ theme, pacing }, res] = await Promise.all([
-      chrome.storage.local.get(['theme', 'pacing']) as Promise<{ theme?: Theme; pacing?: PacingConfig }>,
+    const [{ theme }, res] = await Promise.all([
+      chrome.storage.local.get(['theme']) as Promise<{ theme?: Theme }>,
       call({ kind: 'session' }),
     ]);
     const data = res.data as { email: string } | null;
@@ -96,7 +94,6 @@ export const useStore = create<AwaState>((set, get) => ({
       email: data?.email ?? null,
       view: data ? 'chat' : 'auth',
       theme: theme ?? 'light',
-      pacing: pacing ?? DEFAULT_PACING,
     });
     if (data) void get().loadUsage();
   },
@@ -132,9 +129,4 @@ export const useStore = create<AwaState>((set, get) => ({
 export function setTheme(theme: Theme): void {
   useStore.getState().set({ theme });
   void chrome.storage.local.set({ theme });
-}
-
-export function setPacing(pacing: PacingConfig): void {
-  useStore.getState().set({ pacing });
-  void chrome.storage.local.set({ pacing });
 }

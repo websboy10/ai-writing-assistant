@@ -21,8 +21,6 @@ export class PlainAdapter implements InsertionAdapter {
   private insertPos = 0;
   /** Exactly what this session has written so far — the undo target. */
   private insertedText = '';
-  /** Text a user selection replaced at prepare(); restored on undo. */
-  private replacedText = '';
 
   constructor(target: SavedTarget) {
     this.el = target.element as HTMLInputElement | HTMLTextAreaElement;
@@ -35,15 +33,15 @@ export class PlainAdapter implements InsertionAdapter {
 
   prepare(): InsertResult {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The target field is no longer on the page.' };
-    const selStart = this.el.selectionStart ?? 0;
-    const selEnd = this.el.selectionEnd ?? 0;
     this.el.focus();
-    // If the user had a selection, the insertion replaces it — like typing.
-    this.replacedText = selEnd > selStart ? this.el.value.slice(selStart, selEnd) : '';
-    if (selEnd > selStart) {
-      this.setValue(this.el.value.slice(0, selStart) + this.el.value.slice(selEnd), selStart);
+    // A marked selection is never replaced — the answer lands BELOW it, so
+    // the caret goes to the selection's end (the inserter prefixes a newline).
+    this.insertPos = this.el.selectionEnd ?? this.el.value.length;
+    try {
+      this.el.setSelectionRange(this.insertPos, this.insertPos);
+    } catch {
+      /* some input types disallow selection */
     }
-    this.insertPos = selStart;
     this.insertedText = '';
     return { ok: true, verified: true };
   }
@@ -81,8 +79,8 @@ export class PlainAdapter implements InsertionAdapter {
       return { ok: false, verified: true, reason: loc.reason };
     }
     const v = this.el.value;
-    const next = v.slice(0, this.insertPos) + this.replacedText + v.slice(this.insertPos + this.insertedText.length);
-    this.setValue(next, this.insertPos + this.replacedText.length);
+    const next = v.slice(0, this.insertPos) + v.slice(this.insertPos + this.insertedText.length);
+    this.setValue(next, this.insertPos);
     const ok = this.el.value === next;
     if (ok) this.insertedText = '';
     return { ok, verified: true, reason: ok ? undefined : 'The field did not accept the undo.' };

@@ -47,8 +47,12 @@ export class ContentEditableAdapter implements InsertionAdapter {
     const sel = document.getSelection();
     if (!sel) return { ok: false, verified: true, reason: 'Could not access the page selection.' };
     if (this.savedRange && this.el.contains(this.savedRange.startContainer)) {
+      // A marked selection is never replaced — collapse to its END so the
+      // answer lands below it (the inserter prefixes a newline).
+      const r = this.savedRange.cloneRange();
+      r.collapse(false);
       sel.removeAllRanges();
-      sel.addRange(this.savedRange);
+      sel.addRange(r);
     } else if (sel.rangeCount === 0 || !this.el.contains(sel.getRangeAt(0).startContainer)) {
       // No usable cursor — put it at the end of the editor.
       const r = document.createRange();
@@ -57,6 +61,8 @@ export class ContentEditableAdapter implements InsertionAdapter {
       sel.removeAllRanges();
       sel.addRange(r);
     }
+    // A live (unsaved) selection must not be replaced either.
+    if (!sel.isCollapsed) sel.collapseToEnd();
     this.startOffset = this.absoluteOffset(sel.getRangeAt(0));
     this.inserted = 0;
     this.insertedText = '';

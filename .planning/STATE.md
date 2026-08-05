@@ -62,6 +62,24 @@ specific rejection messages for oversized/malformed/unsupported files
   security-definer RPCs cover v1's needs with less machinery
 - Phases built together rather than sequentially — operator's /goal directive
   ("build the entire app, don't ask questions") supersedes phase-by-phase flow
+- 2026-08-06 simplification pass (operator directive "idiot friendly"):
+  settings page removed (only Log ud remains), tone/operation/templates/
+  real-data controls removed from UI, insertion reduced to two modes —
+  Straks (instant) and Langsomt (letter-by-letter at ~30 wpm, hardcoded).
+  Templates backend routes kept but unused by the UI.
+- **Compliance note**: the "contains real data" checkbox is gone from the UI;
+  all requests now go out as contentClass 'synthetic' (free models). BEFORE
+  real users: flip the backend to treat everything as 'real' (paid,
+  no-training chain) via env/config — server-side enforcement unchanged.
+- Marked text now has two explicit functions (answer-below vs. context);
+  insertion NEVER replaces a selection — adapters collapse to selection end
+  and the answer is prefixed with a newline
+- Scanned PDFs OCR'd server-side (pdfjs render → tesseract dan+eng, max 6
+  pages); all OCR now Danish+English. New backend deps: pdfjs-dist,
+  @napi-rs/canvas (needs a Vercel-compat check at deploy time; tessdata
+  cache lives in os.tmpdir())
+- Logo/icon generated via kie.ai (nano-banana), monochrome knot mark;
+  manifest icons in apps/extension/public/icon, inline data-URI in the UI
 
 ### Pending Todos
 
@@ -79,7 +97,8 @@ specific rejection messages for oversized/malformed/unsupported files
 
 ## Session Continuity
 
-Last session: 2026-08-05
-Stopped at: Full build complete, verification green, TESTING.md written,
-Chrome launched with extension for operator walkthrough
+Last session: 2026-08-06
+Stopped at: Simplification pass complete (2-mode insertion, marked-text dual
+functions, chips UI, no settings, kie.ai logo, scanned-PDF + Danish OCR fix),
+31/31 E2E green + drop flow green, TESTING.md updated
 Resume file: None
