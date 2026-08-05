@@ -143,17 +143,74 @@ Explicitly excluded. Documented to prevent scope creep.
 
 ## Traceability
 
-Populated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _pending roadmap_ | — | Pending |
+| SIDE-01 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| SIDE-02 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| SIDE-03 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| SIDE-04 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| SIDE-05 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| SIDE-06 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| SIDE-07 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| AUTH-01 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| AUTH-02 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| AUTH-03 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| AUTH-04 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| AUTH-05 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| AUTH-06 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| CHAT-01 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| CHAT-02 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| CHAT-03 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| CHAT-04 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| CHAT-05 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| CHAT-06 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| CHAT-07 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| PROM-01 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| PROM-02 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| PROM-03 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| PROM-04 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| INST-01 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-02 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-03 | Phase 3 — Google Docs Spike & Adapter | Pending |
+| INST-04 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-05 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-06 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-07 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-08 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-09 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-10 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-11 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-12 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| INST-13 | Phase 3 — Google Docs Spike & Adapter | Pending |
+| INST-14 | Phase 2 — Insertion Foundation: Plain Fields & Rich Text | Pending |
+| CTX-01 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-02 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-03 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-04 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-05 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-06 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-07 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-08 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-09 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-10 | Phase 4 — Context & File Pipeline | Pending |
+| CTX-11 | Phase 4 — Context & File Pipeline | Pending |
+| HIST-01 | Phase 5 — Conversation History | Pending |
+| HIST-02 | Phase 5 — Conversation History | Pending |
+| HIST-03 | Phase 5 — Conversation History | Pending |
+| QUOT-01 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| QUOT-02 | Phase 6 — Quota Hardening, Usage Transparency & Trust Polish | Pending |
+| QUOT-03 | Phase 6 — Quota Hardening, Usage Transparency & Trust Polish | Pending |
+| QUOT-04 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| QUOT-05 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| QUOT-06 | Phase 6 — Quota Hardening, Usage Transparency & Trust Polish | Pending |
+| QUOT-07 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
+| QUOT-08 | Phase 6 — Quota Hardening, Usage Transparency & Trust Polish | Pending |
 
 **Coverage:**
 - v1 requirements: 60 total
-- Mapped to phases: 0
-- Unmapped: 60 ⚠️ (roadmap not yet created)
+- Mapped to phases: 60
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-08-05*
-*Last updated: 2026-08-05 after initial definition*
+*Last updated: 2026-08-05 after roadmap creation (60/60 v1 requirements mapped across 6 phases)*
