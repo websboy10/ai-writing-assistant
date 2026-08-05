@@ -10,11 +10,13 @@ export function authRoutes(app: FastifyInstance): void {
   app.post('/api/auth/signup', async (req, reply) => {
     const { email, password } = req.body as { email?: string; password?: string };
     if (!email || !password) return reply.code(400).send({ error: 'Email and password required', code: 'bad_request' });
-    const res = await gotrue('/signup', {
+    // GoTrue's REST API takes redirects as a query parameter — an `options`
+    // field in the JSON body is a supabase-js convention it ignores (WR-10).
+    const res = await gotrue(`/signup?redirect_to=${encodeURIComponent(`${env.publicUrl}/confirmed`)}`, {
       method: 'POST',
-      body: JSON.stringify({ email, password, options: { email_redirect_to: `http://localhost:${env.port}/confirmed` } }),
+      body: JSON.stringify({ email, password }),
     });
-    const body = await res.json();
+    const body = await res.json().catch(() => ({ error: `Auth service returned ${res.status}` }));
     return reply.code(res.status).send(body);
   });
 
@@ -25,7 +27,7 @@ export function authRoutes(app: FastifyInstance): void {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    const body = await res.json();
+    const body = await res.json().catch(() => ({ error: `Auth service returned ${res.status}` }));
     return reply.code(res.status).send(body);
   });
 
@@ -36,7 +38,7 @@ export function authRoutes(app: FastifyInstance): void {
       method: 'POST',
       body: JSON.stringify({ refresh_token }),
     });
-    const body = await res.json();
+    const body = await res.json().catch(() => ({ error: `Auth service returned ${res.status}` }));
     return reply.code(res.status).send(body);
   });
 
@@ -49,9 +51,9 @@ export function authRoutes(app: FastifyInstance): void {
   app.post('/api/auth/reset', async (req, reply) => {
     const { email } = req.body as { email?: string };
     if (!email) return reply.code(400).send({ error: 'Email required', code: 'bad_request' });
-    const res = await gotrue('/recover', {
+    const res = await gotrue(`/recover?redirect_to=${encodeURIComponent(`${env.publicUrl}/reset`)}`, {
       method: 'POST',
-      body: JSON.stringify({ email, options: { redirect_to: `http://localhost:${env.port}/reset` } }),
+      body: JSON.stringify({ email }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -94,9 +96,9 @@ if (!token) { msg.textContent = 'This link is invalid or expired. Request a new 
 document.getElementById('go').onclick = async () => {
   const pw = document.getElementById('pw').value;
   if (pw.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; msg.className='err'; return; }
-  const res = await fetch(${JSON.stringify(env.supabaseUrl)} + '/auth/v1/user', {
+  const res = await fetch(${js(env.supabaseUrl)} + '/auth/v1/user', {
     method: 'PUT',
-    headers: { apikey: ${JSON.stringify(env.supabaseAnonKey)}, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    headers: { apikey: ${js(env.supabaseAnonKey)}, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
     body: JSON.stringify({ password: pw }),
   });
   if (res.ok) { msg.textContent = 'Password updated. Return to the extension and sign in.'; msg.className='ok'; }
@@ -104,6 +106,11 @@ document.getElementById('go').onclick = async () => {
 };
 </script>`);
   });
+}
+
+/** JSON string literal safe to embed in an inline <script> ("</script>" cannot break out). */
+function js(v: string): string {
+  return JSON.stringify(v).replace(/</g, '\\u003c');
 }
 
 function page(title: string, text: string): string {

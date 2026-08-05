@@ -6,8 +6,13 @@ function required(name: string): string {
   return v;
 }
 
+const port = Number(process.env.PORT ?? 8787);
+
 export const env = {
-  port: Number(process.env.PORT ?? 8787),
+  port,
+  // Where auth emails (confirmation/recovery) send users. Must be set to the
+  // deployed backend URL in production — the localhost default only works in dev.
+  publicUrl: (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/+$/, ''),
   supabaseUrl: required('SUPABASE_URL'),
   supabaseAnonKey: required('SUPABASE_ANON_KEY'),
   openrouterKey: required('OPENROUTER_API_KEY'),
