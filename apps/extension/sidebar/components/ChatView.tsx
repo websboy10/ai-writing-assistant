@@ -116,7 +116,7 @@ export function ChatView() {
               value={s.prefs.language ?? ''}
               onChange={(e) => s.set({ prefs: { ...s.prefs, language: e.target.value } })}
               placeholder="Target language"
-              className="w-28 rounded border border-hairline bg-paper px-1.5 py-1 text-[12px] outline-none placeholder:text-graphite focus:border-ink"
+              className="w-28 rounded-lg border border-hairline bg-paper px-2 py-1 text-[12px] outline-none placeholder:text-graphite focus:border-ink"
             />
           )}
         </div>
@@ -126,12 +126,12 @@ export function ChatView() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={captureSelection}
-            className="rounded border border-dashed border-graphite px-2 py-1 text-[12px] text-graphite hover:border-ink hover:text-ink"
+            className="rounded-full border border-dashed border-graphite px-2.5 py-1 text-[12px] text-graphite hover:border-ink hover:text-ink"
           >
             Use page selection
           </button>
           {selectionSnapshot && (
-            <span className="flex items-center gap-1.5 rounded bg-ink px-2 py-1 text-[12px] text-paper">
+            <span className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 text-[12px] text-paper">
               {selectionSnapshot.length} chars
               <button onClick={() => setSelectionSnapshot('')} className="font-bold">
                 ×
@@ -164,12 +164,12 @@ export function ChatView() {
             }}
             rows={2}
             placeholder={s.operation === 'chat' ? 'Message the assistant…' : `Optional instructions for "${OPERATION_LABELS[s.operation]}"…`}
-            className="min-h-[42px] flex-1 resize-y rounded-md border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
+            className="min-h-[42px] flex-1 resize-y rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
           />
           {s.streaming ? (
             <button
               onClick={stopGeneration}
-              className="rounded-md border border-ink px-3 py-2 font-medium text-ink hover:bg-ink hover:text-paper"
+              className="rounded-xl border border-ink px-3 py-2 font-medium text-ink hover:bg-ink hover:text-paper"
               title="Stop generating"
             >
               ■
@@ -178,7 +178,7 @@ export function ChatView() {
             <button
               onClick={send}
               disabled={!input.trim() && !selectionSnapshot}
-              className="rounded-md bg-ink px-3 py-2 font-medium text-paper hover:opacity-85 disabled:opacity-40"
+              className="rounded-xl bg-ink px-3 py-2 font-medium text-paper hover:opacity-85 disabled:opacity-40"
             >
               ↑
             </button>
@@ -211,7 +211,7 @@ function MachineSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       title={title}
-      className="rounded border border-hairline bg-paper px-1.5 py-1 text-[11px] text-ink outline-none focus:border-ink"
+      className="rounded-lg border border-hairline bg-paper px-2 py-1 text-[11px] text-ink outline-none focus:border-ink"
       style={MONO}
     >
       {options.map(([k, label]) => (
@@ -254,7 +254,7 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
   const [copied, setCopied] = useState(false);
 
   if (m.role === 'user') {
-    return <div className="ml-10 whitespace-pre-wrap rounded-md bg-wash px-3 py-2 text-[13px]">{m.content}</div>;
+    return <div className="ml-10 whitespace-pre-wrap rounded-xl bg-wash px-3 py-2 text-[13px]">{m.content}</div>;
   }
 
   function saveEdit() {
@@ -278,14 +278,14 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={Math.min(14, Math.max(4, draft.split('\n').length + 1))}
-            className="awa-edit w-full rounded-md border border-ink bg-paper px-3 py-2 text-[14.5px] leading-relaxed outline-none"
+            className="awa-edit w-full rounded-xl border border-ink bg-paper px-3 py-2 text-[14.5px] leading-relaxed outline-none"
             style={SERIF}
           />
           <div className="flex gap-1.5 text-[12px]">
-            <button onClick={saveEdit} className="rounded bg-ink px-2.5 py-1 text-paper hover:opacity-85">
+            <button onClick={saveEdit} className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85">
               Save
             </button>
-            <button onClick={() => setEditing(false)} className="rounded border border-hairline px-2.5 py-1 hover:border-ink">
+            <button onClick={() => setEditing(false)} className="rounded-full border border-hairline px-3 py-1 hover:border-ink">
               Cancel
             </button>
           </div>
@@ -300,19 +300,19 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
         <div className="flex flex-wrap gap-1.5 pl-3 text-[12px]">
           <button
             onClick={() => inserter.start(m.content, 'progressive')}
-            className="rounded bg-ink px-2.5 py-1 text-paper hover:opacity-85"
+            className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
             title="Insert into the page at a readable pace — pause or stop any time"
           >
             Insert
           </button>
           <button
             onClick={() => inserter.start(m.content, 'instant')}
-            className="rounded border border-hairline px-2.5 py-1 hover:border-ink"
+            className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
             title="Insert everything at once"
           >
             Instant
           </button>
-          <button onClick={() => void copy()} className="rounded border border-hairline px-2.5 py-1 hover:border-ink">
+          <button onClick={() => void copy()} className="rounded-full border border-hairline px-3 py-1 hover:border-ink">
             {copied ? 'Copied ✓' : 'Copy'}
           </button>
           <button
@@ -320,7 +320,7 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
               setDraft(m.content);
               setEditing(true);
             }}
-            className="rounded border border-hairline px-2.5 py-1 hover:border-ink"
+            className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
           >
             Edit
           </button>
@@ -336,7 +336,7 @@ function InsertBar() {
   if (!st) return null;
   const pct = Math.round(st.progress * 100);
   return (
-    <div className="sticky bottom-0 space-y-2 border border-hairline bg-paper p-3 shadow-lg">
+    <div className="sticky bottom-0 space-y-2 rounded-2xl border border-hairline bg-paper p-3 shadow-lg">
       <div className="flex items-baseline justify-between">
         <span className="awa-eyebrow !text-ink">
           {st.state === 'running' && 'Inserting'}
@@ -349,27 +349,27 @@ function InsertBar() {
       </div>
       {st.detail && <div className="text-[12px] text-graphite">{st.detail}</div>}
       {/* The galley line: ink advancing across paper. */}
-      <div className="relative h-[3px] w-full bg-wash">
-        <div className="absolute left-0 top-0 h-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
+      <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-wash">
+        <div className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
       </div>
       <div className="flex items-center gap-1.5 text-[11px]" style={MONO}>
         {st.state === 'running' && (
-          <button onClick={() => inserter.pause()} className="rounded border border-hairline px-2 py-1 hover:border-ink">
+          <button onClick={() => inserter.pause()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
             ⏸ Pause
           </button>
         )}
         {st.state === 'paused' && (
-          <button onClick={() => inserter.resume()} className="rounded border border-hairline px-2 py-1 hover:border-ink">
+          <button onClick={() => inserter.resume()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
             ▶ Resume
           </button>
         )}
         {(st.state === 'running' || st.state === 'paused') && (
-          <button onClick={() => inserter.stop()} className="rounded border border-hairline px-2 py-1 hover:border-ink">
+          <button onClick={() => inserter.stop()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
             ■ Stop
           </button>
         )}
         {(st.state === 'done' || st.state === 'stopped' || st.state === 'paused') && (
-          <button onClick={() => inserter.undo()} className="rounded border border-hairline px-2 py-1 hover:border-ink">
+          <button onClick={() => inserter.undo()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
             ↩ Undo insertion
           </button>
         )}

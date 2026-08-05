@@ -77,7 +77,7 @@ export function AuthView() {
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="rounded-md border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
+        className="rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
       />
       {mode !== 'reset' && (
         <input
@@ -86,14 +86,14 @@ export function AuthView() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && void submit()}
-          className="rounded-md border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
+          className="rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
         />
       )}
 
       <button
         onClick={() => void submit()}
         disabled={busy || !email || (mode !== 'reset' && password.length < 6)}
-        className="rounded-md bg-ink py-2 font-medium text-paper transition-opacity hover:opacity-85 disabled:opacity-40"
+        className="rounded-xl bg-ink py-2 font-medium text-paper transition-opacity hover:opacity-85 disabled:opacity-40"
       >
         {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset email'}
       </button>
@@ -102,7 +102,7 @@ export function AuthView() {
         <button
           onClick={() => void google()}
           disabled={busy}
-          className="rounded-md border border-hairline py-2 font-medium hover:border-ink disabled:opacity-40"
+          className="rounded-xl border border-hairline py-2 font-medium hover:border-ink disabled:opacity-40"
         >
           Continue with Google
         </button>
@@ -133,7 +133,7 @@ export function Banner({ kind, text }: { kind: 'error' | 'info'; text: string })
   // notices stay quiet in graphite. No hue anywhere.
   return (
     <div
-      className={`rounded-r-md px-3 py-2 text-[12.5px] ${
+      className={`rounded-xl px-3 py-2 text-[12.5px] ${
         kind === 'error'
           ? 'border-l-2 border-ink bg-wash font-medium text-ink'
           : 'border-l-2 border-hairline bg-wash text-graphite'

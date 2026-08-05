@@ -71,7 +71,7 @@ export function TemplatesBar({
             const t = templates.find((x) => x.id === e.target.value);
             if (t) onApply(t.instructions);
           }}
-          className="max-w-[150px] rounded border border-hairline bg-paper px-1.5 py-1 text-[11px] text-ink outline-none focus:border-ink"
+          className="max-w-[150px] rounded-lg border border-hairline bg-paper px-2 py-1 text-[11px] text-ink outline-none focus:border-ink"
           style={MONO}
           title="Insert a saved template into the composer"
         >
@@ -90,7 +90,7 @@ export function TemplatesBar({
         <button
           onClick={() => setSaving(true)}
           disabled={!input.trim()}
-          className="rounded border border-hairline px-2 py-1 text-[11px] text-graphite hover:border-ink hover:text-ink disabled:opacity-40"
+          className="rounded-full border border-hairline px-2.5 py-1 text-[11px] text-graphite hover:border-ink hover:text-ink disabled:opacity-40"
           style={MONO}
           title={input.trim() ? 'Save the composer text as a reusable template' : 'Type something first, then save it as a template'}
         >
@@ -107,10 +107,10 @@ export function TemplatesBar({
               if (e.key === 'Escape') setSaving(false);
             }}
             placeholder="Template name"
-            className="w-32 rounded border border-ink bg-paper px-1.5 py-1 text-[11px] outline-none"
+            className="w-32 rounded-lg border border-ink bg-paper px-2 py-1 text-[11px] outline-none"
             style={MONO}
           />
-          <button onClick={() => void save()} disabled={busy || !name.trim()} className="rounded bg-ink px-2 py-1 text-[11px] text-paper disabled:opacity-40" style={MONO}>
+          <button onClick={() => void save()} disabled={busy || !name.trim()} className="rounded-full bg-ink px-2.5 py-1 text-[11px] text-paper disabled:opacity-40" style={MONO}>
             Save
           </button>
           <button onClick={() => setSaving(false)} className="px-1 text-[11px] text-graphite hover:text-ink" style={MONO}>
@@ -136,7 +136,7 @@ function TemplateManager({ templates, onDelete }: { templates: Template[]; onDel
     );
   }
   return (
-    <div className="w-full space-y-1 rounded-md border border-hairline p-2">
+    <div className="w-full space-y-1 rounded-xl border border-hairline p-2">
       {templates.map((t) => (
         <div key={t.id} className="flex items-center gap-2 text-[12px]">
           <span className="min-w-0 flex-1 truncate" title={t.instructions}>

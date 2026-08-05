@@ -90,7 +90,7 @@ export function HistoryView() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search titles and messages…"
-          className="w-full rounded-md border border-hairline bg-paper px-3 py-1.5 text-[13px] outline-none placeholder:text-graphite focus:border-ink"
+          className="w-full rounded-xl border border-hairline bg-paper px-3 py-1.5 text-[13px] outline-none placeholder:text-graphite focus:border-ink"
         />
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3">
@@ -101,7 +101,7 @@ export function HistoryView() {
           </p>
         )}
         {s.history.map((h) => (
-          <div key={h.id} className="group rounded-md border border-hairline px-3 py-2 hover:border-ink">
+          <div key={h.id} className="group rounded-xl border border-hairline px-3 py-2 hover:border-ink">
             <button onClick={() => void open(h.id)} className="block w-full text-left" disabled={busy === h.id}>
               <div className="truncate font-medium">{h.title || 'Untitled'}</div>
               <div className="text-[11.5px] text-graphite">

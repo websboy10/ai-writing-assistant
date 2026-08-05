@@ -25,8 +25,11 @@ confirmation email; click the link, then sign in.
 1. **A Chrome window should already be open** with the extension loaded and a
    test page showing. If not, run: `bash scripts/launch-chrome.sh` in the project
    folder.
-2. Click the **purple pen button** bottom-right of the page (or press
-   **Alt+Shift+A**). The sidebar opens.
+2. Find the **black circle with ¶** on the right edge of the page (or press
+   **Alt+Shift+A**). Click it — a rounded panel opens attached to the right
+   edge. **Bonus:** drag any PDF/Word/text/image file from Finder toward the
+   circle — it grows as you approach, swallows the file on drop, and shows a
+   count badge. The file is now attached as context.
 3. **Sign in** with the test account above.
 4. **Chat**: type anything, press Enter. You should see the reply appear
    word-by-word. Try the ■ button mid-reply to stop it.

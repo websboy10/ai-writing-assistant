@@ -1,91 +1,119 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
+import { addFilesToContext } from '../ingest';
 import { AuthView } from './AuthView';
 import { ChatView } from './ChatView';
 import { HistoryView } from './HistoryView';
 import { SettingsView } from './SettingsView';
 
-const MIN_W = 300;
-const MAX_W = 640;
+const SERIF = { fontFamily: 'Charter, Georgia, serif' };
 
+/**
+ * Shell: a circular button pinned to the right edge at all times.
+ * - Drag files anywhere → it swells to attract the drop; over it → bigger.
+ * - Drop → files land in context, it settles back with a count badge.
+ * - Click → a modal attached to the right edge (left corners rounded).
+ */
 export function App() {
-  const { email, view, theme, usage, set, loadSession } = useStore();
+  const { email, view, theme, usage, context, set, loadSession } = useStore();
   const [open, setOpen] = useState(false);
-  const [width, setWidth] = useState(380);
-  const dragging = useRef(false);
+  // 'idle' → files dragged anywhere on the page → 'attract' → over the button → 'hover'
+  const [dragState, setDragState] = useState<'idle' | 'attract' | 'hover'>('idle');
+  const [justDropped, setJustDropped] = useState(false);
+  const dragDepth = useRef(0);
 
   useEffect(() => {
     void loadSession();
-    void chrome.storage.local.get('sidebarWidth').then(({ sidebarWidth }) => {
-      if (typeof sidebarWidth === 'number') setWidth(sidebarWidth);
-    });
     const onMsg = (msg: { type?: string }) => {
       if (msg?.type === 'toggle-sidebar') setOpen((o) => !o);
     };
     chrome.runtime.onMessage.addListener(onMsg);
-    return () => chrome.runtime.onMessage.removeListener(onMsg);
+
+    // Page-level drag tracking: the button announces itself the moment files
+    // enter the window, so the drop target isn't a 48px needle in a haystack.
+    const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files');
+    const onEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      dragDepth.current++;
+      setDragState((s) => (s === 'hover' ? s : 'attract'));
+    };
+    const onLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setDragState('idle');
+    };
+    const onDrop = () => {
+      dragDepth.current = 0;
+      setDragState('idle');
+    };
+    document.addEventListener('dragenter', onEnter, true);
+    document.addEventListener('dragleave', onLeave, true);
+    document.addEventListener('drop', onDrop, true);
+    return () => {
+      chrome.runtime.onMessage.removeListener(onMsg);
+      document.removeEventListener('dragenter', onEnter, true);
+      document.removeEventListener('dragleave', onLeave, true);
+      document.removeEventListener('drop', onDrop, true);
+    };
   }, [loadSession]);
 
-  useEffect(() => {
-    const move = (e: PointerEvent) => {
-      if (!dragging.current) return;
-      const w = Math.min(MAX_W, Math.max(MIN_W, window.innerWidth - e.clientX));
-      setWidth(w);
-    };
-    const up = () => {
-      if (dragging.current) {
-        dragging.current = false;
-        void chrome.storage.local.set({ sidebarWidth: width });
-      }
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-  }, [width]);
+  async function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepth.current = 0;
+    setDragState('idle');
+    if (!e.dataTransfer.files.length) return;
+    const added = await addFilesToContext(e.dataTransfer.files);
+    if (added > 0) {
+      setJustDropped(true);
+      setTimeout(() => setJustDropped(false), 1600);
+    } else {
+      // A failed ingest sets a specific store error — open so it's seen (QUOT-07).
+      setOpen(true);
+    }
+  }
+
+  const scale =
+    dragState === 'hover' ? 'scale-150' : dragState === 'attract' ? 'scale-125' : justDropped ? 'scale-110' : '';
 
   return (
     <div className={`awa-root ${theme === 'dark' ? 'dark' : ''}`}>
-      {/* Floating mark: pilcrow on ink (SIDE-01) */}
+      {/* The edge circle — present at all times unless the modal replaces it */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          title="AI Writing Assistant (Alt+Shift+A)"
-          className="fixed bottom-6 right-6 z-[2147483646] flex h-11 w-11 items-center justify-center rounded-xl bg-ink font-draft text-[20px] leading-none text-paper shadow-lg transition-transform hover:scale-105"
-          style={{ fontFamily: 'Charter, Georgia, serif' }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragState('hover');
+          }}
+          onDragLeave={() => setDragState((s) => (s === 'hover' ? 'attract' : s))}
+          onDrop={(e) => void handleDrop(e)}
+          title="AI Writing Assistant (Alt+Shift+A) — drop files here to attach them"
+          className={`fixed right-3 top-[42%] z-[2147483646] flex h-12 w-12 items-center justify-center rounded-full bg-ink text-[19px] leading-none text-paper shadow-xl shadow-black/25 transition-all duration-200 ease-out hover:scale-110 ${scale} ${
+            dragState !== 'idle' ? 'ring-4 ring-ink/25' : ''
+          } ${justDropped ? 'ring-4 ring-ink/40' : ''}`}
+          style={SERIF}
         >
-          ¶
+          {justDropped ? '✓' : dragState !== 'idle' ? '+' : '¶'}
+          {context.length > 0 && !justDropped && dragState === 'idle' && (
+            <span className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full border-2 border-paper bg-ink px-1 py-px font-sans text-[9px] font-bold text-paper">
+              {context.length}
+            </span>
+          )}
         </button>
       )}
 
-      {/* Sidebar overlay — never alters host page layout (SIDE-05) */}
+      {/* Right-attached modal: flush right edge, rounded left corners */}
       {open && (
-        <aside
-          style={{ width }}
-          className="fixed right-0 top-0 z-[2147483646] flex h-screen flex-col border-l border-hairline bg-paper text-[14px] text-ink shadow-2xl"
-        >
-          {/* Resize handle (SIDE-04) */}
-          <div
-            onPointerDown={(e) => {
-              dragging.current = true;
-              (e.target as HTMLElement).setPointerCapture(e.pointerId);
-            }}
-            className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-ink/20"
-          />
-
-          <header className="flex items-center gap-2 border-b border-hairline px-3 py-2.5">
-            <span
-              className="flex h-6 w-6 items-center justify-center rounded-md bg-ink text-[13px] text-paper"
-              style={{ fontFamily: 'Charter, Georgia, serif' }}
-            >
+        <aside className="fixed right-0 top-1/2 z-[2147483646] flex h-[min(86vh,700px)] w-[400px] max-w-[92vw] -translate-y-1/2 flex-col overflow-hidden rounded-l-[26px] border border-r-0 border-hairline bg-paper/95 text-[14px] text-ink shadow-2xl shadow-black/30 backdrop-blur-xl">
+          <header className="flex items-center gap-2 border-b border-hairline px-4 py-3">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-[14px] text-paper" style={SERIF}>
               ¶
             </span>
             <span className="awa-eyebrow whitespace-nowrap !text-ink">Assistant</span>
             {usage && (
               <span
-                className="awa-eyebrow ml-1 whitespace-nowrap rounded border border-hairline px-1.5 py-0.5"
+                className="awa-eyebrow ml-0.5 whitespace-nowrap rounded-full border border-hairline px-2 py-0.5"
                 title={`Resets ${new Date(usage.resetsAt).toLocaleString()}`}
               >
                 {usage.used} / {usage.limit}
@@ -103,13 +131,13 @@ export function App() {
                       void useStore.getState().loadHistory();
                     }}
                   />
-                  <TabButton label="Settings" active={view === 'settings'} onClick={() => set({ view: 'settings' })} />
+                  <TabButton label="⚙" active={view === 'settings'} onClick={() => set({ view: 'settings' })} title="Settings" />
                 </>
               )}
-              {/* Collapse keeps state (SIDE-03) — component stays mounted */}
+              {/* Collapse keeps state (SIDE-03) — store lives outside the tree */}
               <button
                 onClick={() => setOpen(false)}
-                className="ml-1 rounded p-1 text-graphite hover:bg-wash hover:text-ink"
+                className="ml-1 rounded-full p-1.5 text-graphite transition-colors hover:bg-wash hover:text-ink"
                 title="Collapse sidebar"
               >
                 ✕
@@ -126,11 +154,22 @@ export function App() {
   );
 }
 
-function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function TabButton({
+  label,
+  active,
+  onClick,
+  title,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  title?: string;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`awa-eyebrow rounded px-2 py-1 transition-colors ${
+      title={title}
+      className={`awa-eyebrow rounded-full px-2.5 py-1 transition-colors ${
         active ? '!text-paper bg-ink' : 'hover:bg-wash hover:!text-ink'
       }`}
     >
