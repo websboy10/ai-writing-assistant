@@ -1,36 +1,30 @@
 -- 0002_refund: give the quota point back when a generation delivered nothing.
 --
--- WHY: consume_quota runs BEFORE the AI call (QUOT-01, correct), but until now
--- there was no compensation when every model failed or policy blocked the
--- request — with free models 429ing routinely, a beta user could burn a whole
--- day's quota on zero output (review WR-06).
+-- WHY: consume_quota runs BEFORE the AI call (QUOT-01, correct), but without
+-- compensation a beta user could burn a whole day's quota on zero output when
+-- free models 429 (review WR-06).
 --
--- This delegates to the existing consume_quota(p_cost int) with a negative
--- cost so the refund stays correct regardless of how the usage table is
--- shaped — consume_quota is the single owner of that schema.
---
--- ASSUMPTION for the applier: consume_quota must accept a negative p_cost and
--- decrement the caller's usage (its quota check `used + p_cost > limit` is
--- trivially satisfied for negative costs). If consume_quota clamps or rejects
--- negative costs, replace the PERFORM below with a direct
--- `update ... set used = greatest(0, used - p_cost)` against the usage table
--- for auth.uid()'s current window.
+-- Applied to the live project 2026-08-05. Direct decrement with a floor at 0
+-- rather than delegating with a negative cost — consume_quota's limit check is
+-- meaningless for refunds and a stray refund must never drive the counter
+-- negative.
 
 create or replace function public.refund_quota(p_cost int default 1)
 returns void
 language plpgsql
-security definer
-set search_path = public
+security definer set search_path = public
 as $$
 begin
-  if p_cost <= 0 then
+  if p_cost <= 0 or auth.uid() is null then
     return;
   end if;
-  perform public.consume_quota(-p_cost);
+  update public.usage_counters
+    set requests = greatest(0, requests - p_cost)
+    where user_id = auth.uid() and day = (now() at time zone 'utc')::date;
 end;
 $$;
 
--- Callable by signed-in users only; the function scopes to auth.uid() via
--- consume_quota, so a user can only ever refund themselves.
+-- Callable by signed-in users only; scoped to auth.uid() so a user can only
+-- ever refund themselves.
 revoke all on function public.refund_quota(int) from public, anon;
 grant execute on function public.refund_quota(int) to authenticated;

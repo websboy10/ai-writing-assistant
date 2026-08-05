@@ -188,8 +188,30 @@ try {
     return /you started typing/i.test(hostEl?.shadowRoot?.textContent ?? '');
   });
   ok('user typing auto-pauses insertion', pausedByTyping);
-  await host.locator('button', { hasText: 'Stop' }).click().catch(() => {});
   await page.screenshot({ path: `${shotsDir}/07-typing-guard.png` });
+
+  console.log('\n— Resume after user typing must not corrupt (CR-03) —');
+  // The user's "x" is now in the document. Resume must either continue safely
+  // or refuse loudly — never interleave or overwrite the user's character.
+  const beforeResume = await page.locator('#plain').inputValue();
+  await host.locator('button', { hasText: 'Resume' }).click().catch(() => {});
+  await page.waitForFunction(
+    () => {
+      const hostEl = document.querySelector('awa-sidebar');
+      const t = hostEl?.shadowRoot?.textContent ?? '';
+      return /Inserted ✓|Stopped|use Copy|fallback|error/i.test(t);
+    },
+    { timeout: 30_000 },
+  ).catch(() => {});
+  const afterResume = await page.locator('#plain').inputValue();
+  const userCharKept = afterResume.includes('x');
+  ok('user typed character survives resume', userCharKept, `before="${beforeResume.slice(-20)}" after="${afterResume.slice(-30)}"`);
+  // Undo after mixed content: must remove only inserted text or refuse — the "x" stays.
+  await host.locator('button', { hasText: 'Undo insertion' }).click().catch(() => {});
+  await page.waitForTimeout(400);
+  const afterUndo = await page.locator('#plain').inputValue();
+  ok('undo preserves user typing', afterUndo.includes('x'), `after undo="${afterUndo.slice(0, 40)}"`);
+  await host.locator('button', { hasText: 'Dismiss' }).click().catch(() => {});
 
   console.log('\n— Usage counter —');
   const usageShown = await page.evaluate(() => {

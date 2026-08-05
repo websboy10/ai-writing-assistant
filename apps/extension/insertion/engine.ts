@@ -134,14 +134,16 @@ export class InsertionSession {
     this.insertedChars += chunk.length;
     this.cb.onProgress(this.insertedChars, this.totalChars);
 
-    this.timer = window.setTimeout(this.tick, this.delayAfter(chunk));
+    this.timer = window.setTimeout(this.tick, this.delayAfter(chunk, this.queue[this.queueIndex]));
   };
 
-  private delayAfter(chunk: string): number {
+  private delayAfter(chunk: string, next: string | undefined): number {
     const cps = this.pacing.mode === 'cps' ? this.pacing.rate : this.pacing.rate * 6; // avg word ≈ 6 chars incl. space
     const base = (chunk.length / Math.max(1, cps)) * 1000;
-    if (/\n\s*\n\s*$/.test(chunk)) return base + this.pacing.paragraphPauseMs;
-    if (/[.!?]["')\]]?\s*$/.test(chunk)) return base + this.pacing.sentencePauseMs;
+    // Chunks carry LEADING whitespace, so a paragraph break lives at the start
+    // of the next chunk and sentence punctuation at the end of this one.
+    if (next && /^\s*\n\s*\n/.test(next)) return base + this.pacing.paragraphPauseMs;
+    if (/[.!?]["')\]]?$/.test(chunk)) return base + this.pacing.sentencePauseMs;
     return base;
   }
 
@@ -181,14 +183,20 @@ export class InsertionSession {
 }
 
 /**
- * Chunk text at word boundaries. Words (with trailing whitespace) are the
- * insertion unit: fine enough to read along with, coarse enough to avoid the
- * per-character event flood the performance research warns about.
+ * Chunk text at word boundaries, whitespace LEADING each word. Trailing
+ * whitespace at a contenteditable block edge gets collapsed by the browser,
+ * which jammed words together ("Alphabeta") under trailing-space chunking; a
+ * leading space sits between two words the moment it lands, so it survives.
+ * Words are the insertion unit: fine enough to read along with, coarse enough
+ * to avoid a per-character event flood.
  */
 export function chunkText(text: string): string[] {
   const out: string[] = [];
-  const re = /\S+\s*/g;
+  const re = /\s*\S+/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) out.push(m[0]);
+  // Preserve any trailing whitespace so instant-mode inserts the exact text.
+  const matched = out.join('');
+  if (matched.length < text.length) out.push(text.slice(matched.length));
   return out;
 }

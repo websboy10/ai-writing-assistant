@@ -110,15 +110,39 @@ export class ContentEditableAdapter implements InsertionAdapter {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor is no longer on the page.' };
     if (this.inserted <= 0) return { ok: true, verified: true };
     const span = (this.el.textContent ?? '').slice(this.startOffset, this.startOffset + this.inserted);
-    if (normalize(span) !== normalize(this.insertedText)) {
-      return {
-        ok: false,
-        verified: true,
-        reason:
-          'The editor content changed while insertion was paused, so continuing or undoing is no longer safe. Remove or keep the inserted text manually.',
-      };
+    if (normalize(span) === normalize(this.insertedText)) return { ok: true, verified: true };
+    // Offsets go stale not only from user edits — the editor's own insertText
+    // normalization can drop/convert whitespace BEFORE our span (observed:
+    // Chrome removes a pre-existing trailing space at the insertion point).
+    // Re-locate our text before declaring the session unsafe.
+    const loc = this.relocate();
+    if (loc) {
+      this.startOffset = loc.start;
+      this.inserted = loc.length;
+      return { ok: true, verified: true };
     }
-    return { ok: true, verified: true };
+    return {
+      ok: false,
+      verified: true,
+      reason:
+        'The editor content changed while insertion was paused, so continuing or undoing is no longer safe. Remove or keep the inserted text manually.',
+    };
+  }
+
+  /**
+   * Find the inserted text in the editor with every whitespace run flexible
+   * (editors collapse spaces, convert to nbsp, drop them at block edges).
+   * Only a UNIQUE match is trusted — zero or several means we can no longer
+   * tell our text from the user's, and the caller must refuse.
+   */
+  private relocate(): { start: number; length: number } | null {
+    const words = this.insertedText.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return null;
+    const pattern = new RegExp(words.map(escapeRe).join('\\s+'), 'g');
+    const hay = this.el.textContent ?? '';
+    const matches = [...hay.matchAll(pattern)];
+    if (matches.length !== 1) return null;
+    return { start: matches[0].index, length: matches[0][0].length };
   }
 
   undoAll(): InsertResult {
@@ -230,4 +254,8 @@ export class ContentEditableAdapter implements InsertionAdapter {
 /** Editors re-normalize whitespace under us — compare content, not spacing. */
 function normalize(s: string): string {
   return s.replace(/\s+/g, ' ').trim();
+}
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
