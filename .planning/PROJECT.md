@@ -99,8 +99,11 @@ or multi-document reasoning is additive — but none of those are built now.
   background page, strict CSP in extension pages. Rules out several common
   bundling and eval-based patterns.
 - **Tech stack**: React + TypeScript + Vite + Tailwind for the extension UI;
-  Node + TypeScript backend; PostgreSQL + Prisma; S3-compatible object storage.
-  Specified by the operator up front.
+  Node + TypeScript backend; PostgreSQL + Prisma. Specified by the operator up
+  front.
+- **Managed services**: Supabase provides PostgreSQL, authentication and file
+  storage; Vercel hosts the backend. Both on free tiers — beta must cost nothing
+  to run.
 - **AI provider**: OpenRouter, cheapest/free models initially, behind a provider
   abstraction so the model is a config value.
 - **Budget**: Shared API key funds all beta usage. Per-user quotas are a
@@ -123,6 +126,8 @@ or multi-document reasoning is additive — but none of those are built now.
 | No billing in v1 | Beta users on the operator's key; quotas provide the economic protection billing would | — Pending |
 | Hosted backend with accounts from Phase 1 | The API key cannot ship inside a public extension, so a backend proxy is required from the first AI call | — Pending |
 | Code editors deferred | Monaco/CodeMirror each need bespoke adapters and aren't where prose gets written | — Pending |
+| Supabase for auth, database and storage | One free service replaces hand-built accounts, sessions, password reset and S3; removes security-sensitive work with no upside to owning. PostgreSQL and Prisma unchanged | — Pending |
+| Private GitHub repo under `websboy10` | Commercial product; repo carries configuration detail not worth indexing | — Pending |
 
 ## Evolution
 
