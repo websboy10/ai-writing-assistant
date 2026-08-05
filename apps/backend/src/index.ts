@@ -37,7 +37,7 @@ app.get('/harness', async (_req, reply) => {
 
 app.get('/api/usage', async (req, reply) => {
   const user = await verifyUser(req.headers.authorization);
-  if (!user) return reply.code(401).send({ error: 'Sign in required', code: 'unauthenticated' });
+  if (!user) return reply.code(401).send({ error: 'Log ind først', code: 'unauthenticated' });
   const usage = await rpc<{ used: number; limit: number; resets_at: string }>(user, 'get_usage');
   return { used: usage.used, limit: usage.limit, resetsAt: usage.resets_at };
 });

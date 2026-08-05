@@ -11,19 +11,19 @@ const ctx = await chromium.launchPersistentContext('', { channel: 'chromium', he
 const page = await ctx.newPage();
 await page.goto('http://127.0.0.1:8788/');
 const host = page.locator('awa-sidebar');
-await host.locator('button[title*="AI Writing Assistant"]').click();
+await host.locator('button[title*="Skriveassistent"]').click();
 await page.screenshot({ path: 'test-results/design-auth-light.png' });
 await host.locator('input[type="email"]').fill('tester@example.com');
 await host.locator('input[type="password"]').fill('awa-test-2026');
-await host.locator('button', { hasText: 'Sign in' }).click();
-await host.locator('textarea[placeholder*="Message"]').waitFor({ timeout: 15000 });
-await host.locator('textarea[placeholder*="Message"]').fill('Write one short sentence about autumn.');
+await host.locator('button', { hasText: 'Log ind' }).click();
+await host.locator('textarea[placeholder*="Skriv til"]').waitFor({ timeout: 15000 });
+await host.locator('textarea[placeholder*="Skriv til"]').fill('Skriv én kort sætning om efteråret.');
 await host.locator('button', { hasText: '↑' }).click();
-await host.locator('button[title*="readable pace"]').first().waitFor({ timeout: 60000 });
+await host.locator('button[title*="læsetempo"]').first().waitFor({ timeout: 60000 });
 await page.screenshot({ path: 'test-results/design-chat-light.png' });
 // dark theme
-await host.locator('button', { hasText: 'Settings' }).click();
-await host.locator('button', { hasText: 'dark' }).click();
+await host.locator('button[title="Indstillinger"]').click();
+await host.locator('button', { hasText: 'Mørk' }).click();
 await page.screenshot({ path: 'test-results/design-settings-dark.png' });
 await host.locator('button', { hasText: 'Chat' }).click();
 await page.screenshot({ path: 'test-results/design-chat-dark.png' });

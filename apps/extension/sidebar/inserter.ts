@@ -36,7 +36,7 @@ class Inserter {
   targetStatus(): { label: string; ok: boolean; reason?: string } | null {
     if (isGoogleDocs()) {
       const test = GDocsAdapter.selfTest();
-      return { label: 'Google Docs document', ok: test.ok, reason: test.reason };
+      return { label: 'Google Docs-dokument', ok: test.ok, reason: test.reason };
     }
     const t = this.target();
     if (!t) return null;
@@ -49,7 +49,7 @@ class Inserter {
     if (!target) {
       store.set({
         error:
-          'No editor selected on the page. Click into the text field or document where the text should go, then press Insert.',
+          'Intet tekstfelt valgt på siden. Klik i det felt eller dokument, teksten skal ind i, og tryk så på Indsæt.',
       });
       return;
     }
@@ -64,7 +64,7 @@ class Inserter {
         if (state === 'error') {
           s.set({
             insertStatus: null,
-            error: `${detail ?? 'Insertion failed.'} The text is still in the sidebar — use Copy as a fallback.`,
+            error: `${detail ?? 'Indsættelsen fejlede.'} Teksten er stadig i panelet — brug Kopiér i stedet.`,
           });
           void navigator.clipboard.writeText(text).catch(() => {});
           return;
@@ -74,16 +74,16 @@ class Inserter {
             state,
             detail:
               detail === 'user-typing'
-                ? 'Paused — you started typing. Resume when ready.'
+                ? 'På pause — du begyndte at skrive. Fortsæt når du er klar.'
                 : detail === 'undone'
-                  ? 'Insertion undone.'
+                  ? 'Indsættelsen er fortrudt.'
                   : undefined,
             progress: state === 'done' ? 1 : (s.insertStatus?.progress ?? 0),
             targetLabel: target.label,
             unverified,
           },
           ...(state === 'done' && unverified
-            ? { notice: 'Sent to Google Docs. Docs cannot confirm receipt — check the document.' }
+            ? { notice: 'Sendt til Google Docs. Docs kan ikke bekræfte modtagelsen — tjek dokumentet.' }
             : {}),
         });
       },
@@ -117,7 +117,7 @@ class Inserter {
   undo(): void {
     const res = this.session?.undo();
     if (res && !res.ok) {
-      useStore.getState().set({ error: res.reason ?? 'Undo failed.' });
+      useStore.getState().set({ error: res.reason ?? 'Fortryd fejlede.' });
     }
   }
   dismiss(): void {

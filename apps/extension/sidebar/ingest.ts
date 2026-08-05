@@ -15,26 +15,26 @@ export async function addFilesToContext(files: FileList | File[]): Promise<numbe
   let added = 0;
   for (const file of Array.from(files)) {
     if (useStore.getState().context.length >= MAX_CONTEXT_ITEMS) {
-      s.set({ error: `You can attach up to ${MAX_CONTEXT_ITEMS} items. Remove one first.` });
+      s.set({ error: `Du kan vedhæfte op til ${MAX_CONTEXT_ITEMS} elementer. Fjern ét først.` });
       break;
     }
     // Client-side pre-checks give instant, specific feedback (CTX-10);
     // the server re-validates everything regardless.
     if (file.size > MAX_FILE_BYTES) {
-      s.set({ error: `"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_FILE_BYTES / 1024 / 1024} MB.` });
+      s.set({ error: `"${file.name}" er ${(file.size / 1024 / 1024).toFixed(1)} MB — grænsen er ${MAX_FILE_BYTES / 1024 / 1024} MB.` });
       continue;
     }
     const known = file.type in ACCEPTED_FILE_TYPES || /\.(pdf|docx|txt|md|png|jpe?g)$/i.test(file.name);
     if (!known) {
-      s.set({ error: `"${file.name}" (${file.type || 'unknown type'}) isn't supported. Use PDF, DOCX, TXT, Markdown, PNG or JPG.` });
+      s.set({ error: `"${file.name}" (${file.type || 'ukendt type'}) understøttes ikke. Brug PDF, DOCX, TXT, Markdown, PNG eller JPG.` });
       continue;
     }
-    s.set({ contextBusy: `Processing ${file.name}…`, error: null });
+    s.set({ contextBusy: `Behandler ${file.name}…`, error: null });
     try {
       const base64 = await fileToBase64(file);
       const res = await call({ kind: 'upload', name: file.name, mime: file.type || 'application/octet-stream', base64 });
       if (!res.ok) {
-        s.set({ error: res.error ?? `Processing "${file.name}" failed.` });
+        s.set({ error: res.error ?? `Behandlingen af "${file.name}" fejlede.` });
         continue;
       }
       const parsed = res.data as ParsedFile;
@@ -42,7 +42,7 @@ export async function addFilesToContext(files: FileList | File[]): Promise<numbe
       useStore.getState().addContext(item);
       added++;
       if (parsed.truncated) {
-        s.set({ notice: `"${file.name}" was long — the first ${parsed.chars.toLocaleString()} characters are attached.` });
+        s.set({ notice: `"${file.name}" var lang — de første ${parsed.chars.toLocaleString()} tegn er vedhæftet.` });
       }
     } finally {
       s.set({ contextBusy: null });

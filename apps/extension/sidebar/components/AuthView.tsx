@@ -20,18 +20,18 @@ export function AuthView() {
     try {
       if (mode === 'reset') {
         const res = await call({ kind: 'reset', email });
-        if (res.ok) setInfo('Reset email sent — open it and follow the link, then sign in here.');
-        else setError(res.error ?? 'Reset failed');
+        if (res.ok) setInfo('Nulstillingsmail sendt — åbn den og følg linket, og log derefter ind her.');
+        else setError(res.error ?? 'Nulstilling fejlede');
         return;
       }
       const res = await call({ kind: mode === 'signin' ? 'login' : 'signup', email, password });
       if (!res.ok) {
-        setError(res.error ?? 'Something went wrong');
+        setError(res.error ?? 'Noget gik galt');
         return;
       }
       const data = res.data as { email?: string; needsConfirmation?: boolean };
       if (data.needsConfirmation) {
-        setInfo('Account created. Check your email for the confirmation link, then sign in.');
+        setInfo('Konto oprettet. Tjek din e-mail for bekræftelseslinket, og log derefter ind.');
         setMode('signin');
         return;
       }
@@ -48,7 +48,7 @@ export function AuthView() {
     const res = await call({ kind: 'google-auth' });
     setBusy(false);
     if (!res.ok) {
-      setError(res.error ?? 'Google sign-in failed');
+      setError(res.error ?? 'Google-login fejlede');
       return;
     }
     const data = res.data as { email?: string };
@@ -59,14 +59,14 @@ export function AuthView() {
   return (
     <div className="flex h-full flex-col justify-center gap-3 px-6">
       <p className="awa-eyebrow">
-        {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'New account' : 'Reset password'}
+        {mode === 'signin' ? 'Log ind' : mode === 'signup' ? 'Ny konto' : 'Nulstil adgangskode'}
       </p>
       <h2 className="font-draft text-[22px] leading-snug" style={{ fontFamily: 'Charter, Georgia, serif' }}>
         {mode === 'signin'
-          ? 'Pick up where you left off.'
+          ? 'Fortsæt, hvor du slap.'
           : mode === 'signup'
-            ? 'Start drafting anywhere.'
-            : 'Get back into your account.'}
+            ? 'Skriv udkast hvor som helst.'
+            : 'Kom ind på din konto igen.'}
       </h2>
 
       {error && <Banner kind="error" text={error} />}
@@ -74,7 +74,7 @@ export function AuthView() {
 
       <input
         type="email"
-        placeholder="Email"
+        placeholder="E-mail"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         className="rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
@@ -82,7 +82,7 @@ export function AuthView() {
       {mode !== 'reset' && (
         <input
           type="password"
-          placeholder="Password (min 6 characters)"
+          placeholder="Adgangskode (mindst 6 tegn)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && void submit()}
@@ -95,7 +95,7 @@ export function AuthView() {
         disabled={busy || !email || (mode !== 'reset' && password.length < 6)}
         className="rounded-xl bg-ink py-2 font-medium text-paper transition-opacity hover:opacity-85 disabled:opacity-40"
       >
-        {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset email'}
+        {busy ? 'Arbejder…' : mode === 'signin' ? 'Log ind' : mode === 'signup' ? 'Opret konto' : 'Send nulstillingsmail'}
       </button>
 
       {mode !== 'reset' && (
@@ -104,7 +104,7 @@ export function AuthView() {
           disabled={busy}
           className="rounded-xl border border-hairline py-2 font-medium hover:border-ink disabled:opacity-40"
         >
-          Continue with Google
+          Fortsæt med Google
         </button>
       )}
 
@@ -112,15 +112,15 @@ export function AuthView() {
         {mode === 'signin' ? (
           <>
             <button className="underline-offset-2 hover:text-ink hover:underline" onClick={() => setMode('signup')}>
-              Create account
+              Opret konto
             </button>
             <button className="underline-offset-2 hover:text-ink hover:underline" onClick={() => setMode('reset')}>
-              Forgot password?
+              Glemt adgangskode?
             </button>
           </>
         ) : (
           <button className="underline-offset-2 hover:text-ink hover:underline" onClick={() => setMode('signin')}>
-            ← Back to sign in
+            ← Tilbage til log ind
           </button>
         )}
       </div>

@@ -64,7 +64,7 @@ try {
   await host.waitFor({ state: 'attached', timeout: 10_000 });
   ok('shadow host injected', true);
 
-  const fab = host.locator('button[title*="AI Writing Assistant"]');
+  const fab = host.locator('button[title*="Skriveassistent"]');
   await fab.waitFor({ timeout: 5_000 });
   ok('floating button visible', await fab.isVisible());
   await fab.click();
@@ -77,13 +77,13 @@ try {
   console.log('\n— Auth —');
   await host.locator('input[type="email"]').fill(TEST_EMAIL);
   await host.locator('input[type="password"]').fill(TEST_PASSWORD);
-  await host.locator('button', { hasText: 'Sign in' }).click();
-  await host.locator('textarea[placeholder*="Message"]').waitFor({ timeout: 15_000 });
+  await host.locator('button', { hasText: 'Log ind' }).click();
+  await host.locator('textarea[placeholder*="Skriv til"]').waitFor({ timeout: 15_000 });
   ok('signed in → chat view', true);
   await page.screenshot({ path: `${shotsDir}/02-signed-in.png` });
 
   console.log('\n— Streaming chat (live AI) —');
-  await host.locator('textarea[placeholder*="Message"]').fill('Reply with exactly: HELLO FROM THE EXTENSION');
+  await host.locator('textarea[placeholder*="Skriv til"]').fill('Reply with exactly: HELLO FROM THE EXTENSION');
   await host.locator('button', { hasText: '↑' }).click();
   const assistantBubble = host.locator('div.bg-zinc-100, div.dark\\:bg-zinc-800').last();
   await page.waitForFunction(
@@ -94,7 +94,7 @@ try {
     },
     { timeout: 60_000 },
   );
-  const insertBtn = host.locator('button[title*="readable pace"]').first();
+  const insertBtn = host.locator('button[title*="læsetempo"]').first();
   await insertBtn.waitFor({ timeout: 30_000 });
   ok('assistant response streamed and finished', true);
   await page.screenshot({ path: `${shotsDir}/03-chat-response.png` });
@@ -103,11 +103,11 @@ try {
   const LONG_TEXT =
     'HELLO FROM THE EXTENSION. This sentence exists so progressive insertion takes long enough to exercise pause, resume, stop and undo deterministically. ' +
     'It keeps going with a second sentence to make sure there is plenty of text left after the pause point. And a third one for good measure, because timing matters.';
-  await host.locator('button', { hasText: 'Edit' }).first().click();
+  await host.locator('button', { hasText: 'Redigér' }).first().click();
   const editBox = host.locator('textarea.awa-edit');
   await editBox.waitFor({ timeout: 5_000 });
   await editBox.fill(LONG_TEXT);
-  await host.getByRole('button', { name: 'Save', exact: true }).click();
+  await host.getByRole('button', { name: 'Gem', exact: true }).click();
   ok('assistant response is editable before insertion', true);
 
   console.log('\n— Insertion: plain textarea (progressive + transport controls) —');
@@ -123,18 +123,18 @@ try {
     await page.waitForTimeout(250);
     isPaused = await page.evaluate(() => {
       const hostEl = document.querySelector('awa-sidebar');
-      return /Resume/.test(hostEl?.shadowRoot?.textContent ?? '');
+      return /Fortsæt/.test(hostEl?.shadowRoot?.textContent ?? '');
     });
   }
   const pausedVal = await page.locator('#plain').inputValue();
   await page.waitForTimeout(700);
   const stillPausedVal = await page.locator('#plain').inputValue();
   ok('pause actually pauses', isPaused && pausedVal === stillPausedVal && pausedVal.length > 0, `"${pausedVal.slice(0, 30)}" vs "${stillPausedVal.slice(0, 30)}"`);
-  await host.locator('button', { hasText: 'Resume' }).click();
+  await host.locator('button', { hasText: 'Fortsæt' }).click();
   await page.waitForFunction(
     () => {
       const hostEl = document.querySelector('awa-sidebar');
-      return /Inserted ✓/.test(hostEl?.shadowRoot?.textContent ?? '');
+      return /Indsat ✓/.test(hostEl?.shadowRoot?.textContent ?? '');
     },
     { timeout: 30_000 },
   );
@@ -143,15 +143,15 @@ try {
   await page.screenshot({ path: `${shotsDir}/04-inserted-textarea.png` });
 
   console.log('\n— Undo —');
-  await host.locator('button', { hasText: 'Undo insertion' }).click();
+  await host.locator('button', { hasText: 'Fortryd indsættelse' }).click();
   await page.waitForTimeout(300);
   const undoneVal = await page.locator('#plain').inputValue();
   ok('undo restored the textarea', undoneVal === '', `value="${undoneVal.slice(0, 40)}"`);
 
   console.log('\n— Insertion: framework-controlled input (revert trap) —');
-  await host.locator('button', { hasText: 'Dismiss' }).click().catch(() => {});
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
   await page.locator('#controlled').click();
-  await host.locator('button[title*="everything at once"]').first().click();
+  await host.locator('button[title*="på én gang"]').first().click();
   await page.waitForTimeout(800); // outlive the 50ms "re-render" loop several times
   const controlledVal = await page.locator('#controlled').inputValue();
   const controlledState = await page.evaluate(() => window.__controlledState());
@@ -159,16 +159,16 @@ try {
   await page.screenshot({ path: `${shotsDir}/05-controlled-input.png` });
 
   console.log('\n— Insertion: contenteditable —');
-  await host.locator('button', { hasText: 'Dismiss' }).click().catch(() => {});
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
   await page.locator('#editor').click();
   // place cursor at end
   await page.keyboard.press('End');
-  await host.locator('button[title*="readable pace"]').first().click();
+  await host.locator('button[title*="læsetempo"]').first().click();
   await page.waitForFunction(
     () => {
       const hostEl = document.querySelector('awa-sidebar');
       const t = hostEl?.shadowRoot?.textContent ?? '';
-      return /Inserted ✓|Sent/.test(t);
+      return /Indsat ✓|Sendt/.test(t);
     },
     { timeout: 30_000 },
   );
@@ -177,15 +177,15 @@ try {
   await page.screenshot({ path: `${shotsDir}/06-contenteditable.png` });
 
   console.log('\n— Typing-race guard —');
-  await host.locator('button', { hasText: 'Dismiss' }).click().catch(() => {});
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
   await page.locator('#plain').click();
-  await host.locator('button[title*="readable pace"]').first().click();
+  await host.locator('button[title*="læsetempo"]').first().click();
   await page.waitForTimeout(400);
   await page.locator('#plain').press('x'); // user types mid-insertion
   await page.waitForTimeout(400);
   const pausedByTyping = await page.evaluate(() => {
     const hostEl = document.querySelector('awa-sidebar');
-    return /you started typing/i.test(hostEl?.shadowRoot?.textContent ?? '');
+    return /du begyndte at skrive/i.test(hostEl?.shadowRoot?.textContent ?? '');
   });
   ok('user typing auto-pauses insertion', pausedByTyping);
   await page.screenshot({ path: `${shotsDir}/07-typing-guard.png` });
@@ -199,7 +199,7 @@ try {
     () => {
       const hostEl = document.querySelector('awa-sidebar');
       const t = hostEl?.shadowRoot?.textContent ?? '';
-      return /Inserted ✓|Stopped|use Copy|fallback|error/i.test(t);
+      return /Indsat ✓|Stoppet|Kopiér|fejl/i.test(t);
     },
     { timeout: 30_000 },
   ).catch(() => {});
@@ -211,7 +211,7 @@ try {
   await page.waitForTimeout(400);
   const afterUndo = await page.locator('#plain').inputValue();
   ok('undo preserves user typing', afterUndo.includes('x'), `after undo="${afterUndo.slice(0, 40)}"`);
-  await host.locator('button', { hasText: 'Dismiss' }).click().catch(() => {});
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
   console.log('\n— Usage counter —');
   const usageShown = await page.evaluate(() => {
@@ -221,27 +221,27 @@ try {
   ok('real usage numbers visible in header', usageShown);
 
   console.log('\n— Templates (PROD-01) —');
-  const composer = host.locator('textarea[placeholder*="Message"], textarea[placeholder*="instructions"]').first();
+  const composer = host.locator('textarea[placeholder*="Skriv til"], textarea[placeholder*="instruktioner"]').first();
   await composer.fill('Summarize the attached report for a busy executive.');
-  await host.locator('button', { hasText: 'Save as template' }).click();
-  await host.locator('input[placeholder="Template name"]').fill('Exec summary');
-  await host.getByRole('button', { name: 'Save', exact: true }).click();
+  await host.locator('button', { hasText: 'Gem som skabelon' }).click();
+  await host.locator('input[placeholder="Skabelonnavn"]').fill('Exec summary');
+  await host.getByRole('button', { name: 'Gem', exact: true }).click();
   await page.waitForTimeout(800);
   await composer.fill('');
-  const tplSelect = host.locator('select[title*="saved template"]');
+  const tplSelect = host.locator('select[title*="skabelon"]');
   await tplSelect.waitFor({ timeout: 5_000 });
   await tplSelect.selectOption({ label: 'Exec summary' });
   await page.waitForTimeout(200);
   const applied = await composer.inputValue();
   ok('template saves and applies to composer', applied.includes('busy executive'), `composer="${applied.slice(0, 50)}"`);
   // cleanup so reruns stay deterministic
-  await host.locator('button', { hasText: 'manage' }).click();
-  await host.locator('button', { hasText: 'Delete' }).first().click();
+  await host.locator('button', { hasText: 'administrér' }).click();
+  await host.locator('button', { hasText: 'Slet' }).first().click();
   await page.waitForTimeout(400);
 
   console.log('\n— History search (PROD-02) —');
-  await host.locator('button', { hasText: 'History' }).click();
-  const searchBox = host.locator('input[placeholder*="Search titles"]');
+  await host.locator('button', { hasText: 'Historik' }).click();
+  const searchBox = host.locator('input[placeholder*="Søg i titler"]');
   await searchBox.waitFor({ timeout: 5_000 });
   await searchBox.fill('HELLO FROM THE EXTENSION');
   await page.waitForTimeout(900);
@@ -251,7 +251,7 @@ try {
   await page.waitForTimeout(900);
   const noneText = await page.evaluate(() => {
     const hostEl = document.querySelector('awa-sidebar');
-    return /Nothing matches/.test(hostEl?.shadowRoot?.textContent ?? '');
+    return /Intet matcher/.test(hostEl?.shadowRoot?.textContent ?? '');
   });
   ok('search shows a specific empty state', noneText);
   await searchBox.fill('');
@@ -261,7 +261,7 @@ try {
   const row = host.locator('div.group').first();
   await row.hover();
   const downloadPromise = page.waitForEvent('download', { timeout: 10_000 });
-  await row.locator('button', { hasText: 'Export' }).click();
+  await row.locator('button', { hasText: 'Eksportér' }).click();
   const download = await downloadPromise;
   const fname = download.suggestedFilename();
   ok('conversation exports as a markdown download', fname.endsWith('.md'), `filename=${fname}`);

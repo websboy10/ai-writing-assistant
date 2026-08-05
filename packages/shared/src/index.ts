@@ -107,11 +107,11 @@ export const ACCEPTED_FILE_TYPES: Record<string, ContextItem['kind']> = {
 
 export const OPERATION_LABELS: Record<PromptOperation, string> = {
   chat: 'Chat',
-  summarize: 'Summarize',
-  rewrite: 'Rewrite',
-  expand: 'Expand',
-  simplify: 'Simplify',
-  explain: 'Explain',
-  translate: 'Translate',
-  continue: 'Continue writing',
+  summarize: 'Opsummér',
+  rewrite: 'Omskriv',
+  expand: 'Uddyb',
+  simplify: 'Forenkl',
+  explain: 'Forklar',
+  translate: 'Oversæt',
+  continue: 'Skriv videre',
 };

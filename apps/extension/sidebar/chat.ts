@@ -95,7 +95,7 @@ export function sendChat(userText: string, subject?: string): void {
       if (!sawTerminal) {
         state.set({
           streaming: false,
-          error: 'The response stream was interrupted before it finished. Try again.',
+          error: 'Svaret blev afbrudt, før det var færdigt. Prøv igen.',
           messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
         });
       }
@@ -126,7 +126,7 @@ export function sendChat(userText: string, subject?: string): void {
             streaming: false,
             email: null,
             view: 'auth',
-            error: 'Your session expired — sign in again.',
+            error: 'Din session er udløbet — log ind igen.',
             messages: state.messages
               .map((m) => (m.streaming ? { ...m, streaming: false } : m))
               .filter((m) => m.content.length > 0 || m.role === 'user'),
@@ -138,7 +138,7 @@ export function sendChat(userText: string, subject?: string): void {
         state.set({
           streaming: false,
           error: ev.message,
-          notice: kept ? 'The partial response above was kept.' : null,
+          notice: kept ? 'Det delvise svar ovenfor er beholdt.' : null,
           messages: state.messages
             .map((m) => (m.streaming ? { ...m, streaming: false } : m))
             .filter((m) => m.content.length > 0 || m.role === 'user'),
@@ -155,7 +155,7 @@ export function sendChat(userText: string, subject?: string): void {
       state.set({
         streaming: false,
         error:
-          'The connection to the assistant dropped mid-response (the browser suspended the extension worker). The partial text is kept — press send to continue.',
+          'Forbindelsen til assistenten røg midt i svaret (browseren satte udvidelsen i dvale). Den delvise tekst er beholdt — tryk send for at fortsætte.',
         messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
       });
     }

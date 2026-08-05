@@ -48,7 +48,7 @@ export function TemplatesBar({
     });
     setBusy(false);
     if (!res.ok) {
-      s.set({ error: res.error ?? 'Could not save the template.' });
+      s.set({ error: res.error ?? 'Skabelonen kunne ikke gemmes.' });
       return;
     }
     setName('');
@@ -59,7 +59,7 @@ export function TemplatesBar({
   async function remove(id: string) {
     const res = await call({ kind: 'api', path: `/api/templates/${id}`, method: 'DELETE' });
     if (res.ok) setTemplates((t) => t.filter((x) => x.id !== id));
-    else s.set({ error: res.error ?? 'Could not delete the template.' });
+    else s.set({ error: res.error ?? 'Skabelonen kunne ikke slettes.' });
   }
 
   return (
@@ -73,10 +73,10 @@ export function TemplatesBar({
           }}
           className="max-w-[150px] rounded-lg border border-hairline bg-paper px-2 py-1 text-[11px] text-ink outline-none focus:border-ink"
           style={MONO}
-          title="Insert a saved template into the composer"
+          title="Indsæt en gemt skabelon i skrivefeltet"
         >
           <option value="" disabled>
-            Template…
+            Skabelon…
           </option>
           {templates.map((t) => (
             <option key={t.id} value={t.id}>
@@ -92,9 +92,9 @@ export function TemplatesBar({
           disabled={!input.trim()}
           className="rounded-full border border-hairline px-2.5 py-1 text-[11px] text-graphite hover:border-ink hover:text-ink disabled:opacity-40"
           style={MONO}
-          title={input.trim() ? 'Save the composer text as a reusable template' : 'Type something first, then save it as a template'}
+          title={input.trim() ? 'Gem skrivefeltets tekst som en genbrugelig skabelon' : 'Skriv noget først, og gem det så som skabelon'}
         >
-          Save as template
+          Gem som skabelon
         </button>
       ) : (
         <span className="flex items-center gap-1">
@@ -106,12 +106,12 @@ export function TemplatesBar({
               if (e.key === 'Enter') void save();
               if (e.key === 'Escape') setSaving(false);
             }}
-            placeholder="Template name"
+            placeholder="Skabelonnavn"
             className="w-32 rounded-lg border border-ink bg-paper px-2 py-1 text-[11px] outline-none"
             style={MONO}
           />
           <button onClick={() => void save()} disabled={busy || !name.trim()} className="rounded-full bg-ink px-2.5 py-1 text-[11px] text-paper disabled:opacity-40" style={MONO}>
-            Save
+            Gem
           </button>
           <button onClick={() => setSaving(false)} className="px-1 text-[11px] text-graphite hover:text-ink" style={MONO}>
             ✕
@@ -131,7 +131,7 @@ function TemplateManager({ templates, onDelete }: { templates: Template[]; onDel
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="text-[11px] text-graphite underline-offset-2 hover:text-ink hover:underline" style={MONO}>
-        manage
+        administrér
       </button>
     );
   }
@@ -143,12 +143,12 @@ function TemplateManager({ templates, onDelete }: { templates: Template[]; onDel
             {t.name}
           </span>
           <button onClick={() => onDelete(t.id)} className="text-graphite underline-offset-2 hover:text-ink hover:underline">
-            Delete
+            Slet
           </button>
         </div>
       ))}
       <button onClick={() => setOpen(false)} className="awa-eyebrow" >
-        Close
+        Luk
       </button>
     </div>
   );

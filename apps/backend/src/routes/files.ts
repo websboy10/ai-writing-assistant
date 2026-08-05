@@ -16,17 +16,17 @@ export function fileRoutes(app: FastifyInstance): void {
 
   app.post('/api/files', limited, async (req, reply) => {
     const user = await verifyUser(req.headers.authorization);
-    if (!user) return reply.code(401).send({ error: 'Sign in required', code: 'unauthenticated' });
+    if (!user) return reply.code(401).send({ error: 'Log ind først', code: 'unauthenticated' });
 
     const file = await req.file({ limits: { fileSize: MAX_FILE_BYTES } });
-    if (!file) return reply.code(400).send({ error: 'No file in request', code: 'bad_request' });
+    if (!file) return reply.code(400).send({ error: 'Ingen fil i forespørgslen', code: 'bad_request' });
 
     let buffer: Buffer;
     try {
       buffer = await file.toBuffer();
     } catch {
       return reply.code(413).send({
-        error: `"${file.filename}" is over the ${MAX_FILE_BYTES / 1024 / 1024} MB limit.`,
+        error: `"${file.filename}" er over grænsen på ${MAX_FILE_BYTES / 1024 / 1024} MB.`,
         code: 'file_too_large',
       });
     }
@@ -38,7 +38,7 @@ export function fileRoutes(app: FastifyInstance): void {
       const parsed = await withTimeout(parse(buffer, name, mime), 60_000, (m) => req.log.warn(m));
       if (!parsed.text.trim()) {
         return reply.code(422).send({
-          error: `No text could be extracted from "${name}". If it's a scanned document, try uploading it as an image so OCR can read it.`,
+          error: `Der kunne ikke udtrækkes tekst fra "${name}". Er det et scannet dokument, så prøv at uploade det som billede, så OCR kan læse det.`,
           code: 'no_text',
         });
       }
@@ -47,18 +47,18 @@ export function fileRoutes(app: FastifyInstance): void {
       const message = err instanceof Error ? err.message : 'unknown error';
       if (message === 'timeout') {
         return reply.code(422).send({
-          error: `Processing "${name}" took too long and was stopped. Try a smaller file.`,
+          error: `Behandlingen af "${name}" tog for lang tid og blev stoppet. Prøv en mindre fil.`,
           code: 'parse_timeout',
         });
       }
       if (message === 'unsupported') {
         return reply.code(415).send({
-          error: `"${name}" (${mime || 'unknown type'}) isn't supported. Use PDF, DOCX, TXT, Markdown, PNG or JPG.`,
+          error: `"${name}" (${mime || 'ukendt type'}) understøttes ikke. Brug PDF, DOCX, TXT, Markdown, PNG eller JPG.`,
           code: 'unsupported_type',
         });
       }
       return reply.code(422).send({
-        error: `"${name}" could not be processed: ${message}`,
+        error: `"${name}" kunne ikke behandles: ${message}`,
         code: 'parse_failed',
       });
     }

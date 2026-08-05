@@ -6,7 +6,7 @@ export async function call(msg: OneShotRequest): Promise<OneShotResponse> {
   const res: OneShotResponse = await chrome.runtime.sendMessage(msg).catch((err) => ({
     ok: false,
     status: 0,
-    error: err instanceof Error ? err.message : 'Extension messaging failed',
+    error: err instanceof Error ? err.message : 'Kommunikationen med udvidelsen fejlede',
   }));
   // Session death must land the user back on the sign-in form, not in a chat
   // view where every action fails (WR-08). Only authed calls — a wrong
@@ -24,7 +24,7 @@ export function fileToBase64(file: File | Blob): Promise<string> {
       const url = reader.result as string;
       resolve(url.slice(url.indexOf(',') + 1));
     };
-    reader.onerror = () => reject(new Error('Could not read the file.'));
+    reader.onerror = () => reject(new Error('Filen kunne ikke læses.'));
     reader.readAsDataURL(file);
   });
 }

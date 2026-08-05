@@ -15,7 +15,7 @@ export function chatRoutes(app: FastifyInstance): void {
   app.post('/api/chat', async (req, reply) => {
     const user = await verifyUser(req.headers.authorization);
     if (!user) {
-      return reply.code(401).send({ error: 'Sign in to use the assistant', code: 'unauthenticated' });
+      return reply.code(401).send({ error: 'Log ind for at bruge assistenten', code: 'unauthenticated' });
     }
 
     const body = req.body as ChatRequest;
@@ -33,13 +33,13 @@ export function chatRoutes(app: FastifyInstance): void {
     } catch (err) {
       req.log.error(err, 'consume_quota failed');
       return reply.code(503).send({
-        error: 'Could not verify your usage quota just now — try again in a few seconds.',
+        error: 'Din kvote kunne ikke kontrolleres lige nu — prøv igen om få sekunder.',
         code: 'upstream_error',
       });
     }
     if (!quota.ok) {
       return reply.code(429).send({
-        error: `You've used all ${quota.limit} requests for today. Your limit resets at ${quota.resets_at}.`,
+        error: `Du har brugt alle ${quota.limit} forespørgsler for i dag. Din grænse nulstilles ${quota.resets_at}.`,
         code: 'quota_exceeded',
         used: quota.used,
         limit: quota.limit,
@@ -124,21 +124,21 @@ export function chatRoutes(app: FastifyInstance): void {
           type: 'error',
           code: 'policy_no_paid_models',
           message:
-            'This content is marked as real personal data, which only runs on paid no-training models. None are funded yet — top up OpenRouter credits, or untick "contains real data" if this is test content.',
+            'Dette indhold er markeret som rigtige persondata og kører kun på betalte modeller uden træning. Ingen er finansieret endnu — tank OpenRouter-kredit op, eller fjern fluebenet i "indeholder rigtige data", hvis det er testindhold.',
         });
       } else if (err instanceof NoModelsError) {
         send({
           type: 'error',
           code: 'all_models_failed',
-          message: `Every model in the chain is currently unavailable (${err.attempts
+          message: `Alle modeller i kæden er utilgængelige lige nu (${err.attempts
             .map((a) => a.model.split('/').pop())
-            .join(', ')}). This is usually temporary — try again in a minute.`,
+            .join(', ')}). Det er som regel midlertidigt — prøv igen om et øjeblik.`,
         });
       } else if (!abort.signal.aborted) {
         send({
           type: 'error',
           code: 'upstream_error',
-          message: `The AI response failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+          message: `AI-svaret fejlede: ${err instanceof Error ? err.message : 'ukendt fejl'}`,
         });
       }
     } finally {

@@ -4,7 +4,7 @@ document.getElementById('toggle')?.addEventListener('click', async () => {
     await chrome.tabs.sendMessage(tab.id, { type: 'toggle-sidebar' }).catch(() => {
       // Content script not present (chrome:// pages, web store, etc.)
       document.querySelector('.hint')!.textContent =
-        'The assistant cannot run on this page (browser-internal pages are off-limits). Try a normal website.';
+        'Assistenten kan ikke køre på denne side (browserens egne sider er lukket land). Prøv en almindelig hjemmeside.';
     });
     window.close();
   }

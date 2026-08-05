@@ -88,7 +88,7 @@ export function App() {
           }}
           onDragLeave={() => setDragState((s) => (s === 'hover' ? 'attract' : s))}
           onDrop={(e) => void handleDrop(e)}
-          title="AI Writing Assistant (Alt+Shift+A) — drop files here to attach them"
+          title="AI Skriveassistent (Alt+Shift+A) — slip filer her for at vedhæfte dem"
           className={`fixed right-3 top-[42%] z-[2147483646] flex h-12 w-12 items-center justify-center rounded-full bg-ink text-[19px] leading-none text-paper shadow-xl shadow-black/25 transition-all duration-200 ease-out hover:scale-110 ${scale} ${
             dragState !== 'idle' ? 'ring-4 ring-ink/25' : ''
           } ${justDropped ? 'ring-4 ring-ink/40' : ''}`}
@@ -110,11 +110,11 @@ export function App() {
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink text-[14px] text-paper" style={SERIF}>
               ¶
             </span>
-            <span className="awa-eyebrow whitespace-nowrap !text-ink">Assistant</span>
+            <span className="awa-eyebrow whitespace-nowrap !text-ink">Assistent</span>
             {usage && (
               <span
                 className="awa-eyebrow ml-0.5 whitespace-nowrap rounded-full border border-hairline px-2 py-0.5"
-                title={`Resets ${new Date(usage.resetsAt).toLocaleString()}`}
+                title={`Nulstilles ${new Date(usage.resetsAt).toLocaleString('da-DK')}`}
               >
                 {usage.used} / {usage.limit}
               </span>
@@ -124,21 +124,21 @@ export function App() {
                 <>
                   <TabButton label="Chat" active={view === 'chat'} onClick={() => set({ view: 'chat' })} />
                   <TabButton
-                    label="History"
+                    label="Historik"
                     active={view === 'history'}
                     onClick={() => {
                       set({ view: 'history' });
                       void useStore.getState().loadHistory();
                     }}
                   />
-                  <TabButton label="⚙" active={view === 'settings'} onClick={() => set({ view: 'settings' })} title="Settings" />
+                  <TabButton label="⚙" active={view === 'settings'} onClick={() => set({ view: 'settings' })} title="Indstillinger" />
                 </>
               )}
               {/* Collapse keeps state (SIDE-03) — store lives outside the tree */}
               <button
                 onClick={() => setOpen(false)}
                 className="ml-1 rounded-full p-1.5 text-graphite transition-colors hover:bg-wash hover:text-ink"
-                title="Collapse sidebar"
+                title="Skjul panelet"
               >
                 ✕
               </button>

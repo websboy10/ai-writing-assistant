@@ -29,7 +29,7 @@ export function ChatView() {
   function send() {
     const text = input.trim();
     if (!text && !selectionSnapshot) return;
-    sendChat(text || `Apply "${OPERATION_LABELS[s.operation]}" to the subject text.`, selectionSnapshot || undefined);
+    sendChat(text || `Udfør "${OPERATION_LABELS[s.operation]}" på emneteksten.`, selectionSnapshot || undefined);
     setInput('');
   }
 
@@ -39,7 +39,7 @@ export function ChatView() {
       setSelectionSnapshot(text);
     } else {
       s.set({
-        notice: 'Nothing is selected on the page. Select the text first, then press "Use page selection".',
+        notice: 'Der er ikke markeret noget på siden. Markér teksten først, og tryk så på "Brug markeret tekst".',
       });
     }
   }
@@ -58,10 +58,10 @@ export function ChatView() {
         {s.messages.length === 0 && (
           <div className="mt-10 space-y-2 text-center">
             <p className="text-[17px] text-graphite" style={SERIF}>
-              A blank page, ready when you are.
+              En blank side — klar når du er.
             </p>
             <p className="text-[12px] text-graphite">
-              Ask anything — or pick an operation below and point it at selected page text or attached files.
+              Spørg om hvad som helst — eller vælg en handling nedenfor og peg den på markeret tekst eller vedhæftede filer.
             </p>
           </div>
         )}
@@ -80,7 +80,7 @@ export function ChatView() {
           className="awa-eyebrow flex w-full items-center justify-between px-4 py-2 hover:bg-wash"
         >
           <span>
-            Context{s.context.length > 0 && <b className="text-ink"> · {s.context.length}</b>}
+            Kontekst{s.context.length > 0 && <b className="text-ink"> · {s.context.length}</b>}
           </span>
           <span>{showContext ? '−' : '+'}</span>
         </button>
@@ -128,11 +128,11 @@ export function ChatView() {
             onClick={captureSelection}
             className="rounded-full border border-dashed border-graphite px-2.5 py-1 text-[12px] text-graphite hover:border-ink hover:text-ink"
           >
-            Use page selection
+            Brug markeret tekst
           </button>
           {selectionSnapshot && (
             <span className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 text-[12px] text-paper">
-              {selectionSnapshot.length} chars
+              {selectionSnapshot.length} tegn
               <button onClick={() => setSelectionSnapshot('')} className="font-bold">
                 ×
               </button>
@@ -140,7 +140,7 @@ export function ChatView() {
           )}
           <label
             className="ml-auto flex items-center gap-1.5 text-[11.5px] text-graphite"
-            title="Real personal data only runs on paid no-training models (enforced server-side)"
+            title="Rigtige persondata kører kun på betalte modeller uden træning (håndhæves på serveren)"
           >
             <input
               type="checkbox"
@@ -148,7 +148,7 @@ export function ChatView() {
               onChange={(e) => s.set({ containsRealData: e.target.checked })}
               className="accent-current"
             />
-            contains real data
+            indeholder rigtige data
           </label>
         </div>
 
@@ -163,14 +163,14 @@ export function ChatView() {
               }
             }}
             rows={2}
-            placeholder={s.operation === 'chat' ? 'Message the assistant…' : `Optional instructions for "${OPERATION_LABELS[s.operation]}"…`}
+            placeholder={s.operation === 'chat' ? 'Skriv til assistenten…' : `Valgfrie instruktioner til "${OPERATION_LABELS[s.operation]}"…`}
             className="min-h-[42px] flex-1 resize-y rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
           />
           {s.streaming ? (
             <button
               onClick={stopGeneration}
               className="rounded-xl border border-ink px-3 py-2 font-medium text-ink hover:bg-ink hover:text-paper"
-              title="Stop generating"
+              title="Stop genereringen"
             >
               ■
             </button>
@@ -186,7 +186,7 @@ export function ChatView() {
         </div>
         <div className="flex justify-between gap-2 text-[11px] text-graphite">
           <button onClick={() => s.newConversation()} className="shrink-0 underline-offset-2 hover:text-ink hover:underline">
-            + New conversation
+            + Ny samtale
           </button>
           <TargetHint />
         </div>
@@ -229,11 +229,11 @@ function TargetHint() {
     const t = setInterval(() => setStatus(inserter.targetStatus()), 1500);
     return () => clearInterval(t);
   }, []);
-  if (!status) return <span className="truncate">No insertion target yet — click into a text field on the page</span>;
+  if (!status) return <span className="truncate">Intet indsættelsesmål endnu — klik i et tekstfelt på siden</span>;
   return (
     <span className={`truncate ${status.ok ? '' : 'font-medium text-ink'}`}>
-      Insert target: {status.label}
-      {!status.ok && ' (unavailable — will offer Copy)'}
+      Indsættes i: {status.label}
+      {!status.ok && ' (utilgængelig — Kopiér tilbydes)'}
     </span>
   );
 }
@@ -271,7 +271,7 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
 
   return (
     <div className="space-y-1.5">
-      <p className="awa-eyebrow">Draft</p>
+      <p className="awa-eyebrow">Udkast</p>
       {editing ? (
         <div className="space-y-1.5">
           <textarea
@@ -283,10 +283,10 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
           />
           <div className="flex gap-1.5 text-[12px]">
             <button onClick={saveEdit} className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85">
-              Save
+              Gem
             </button>
             <button onClick={() => setEditing(false)} className="rounded-full border border-hairline px-3 py-1 hover:border-ink">
-              Cancel
+              Annullér
             </button>
           </div>
         </div>
@@ -301,19 +301,19 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
           <button
             onClick={() => inserter.start(m.content, 'progressive')}
             className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
-            title="Insert into the page at a readable pace — pause or stop any time"
+            title="Indsæt på siden i læsetempo — sæt på pause eller stop når som helst"
           >
-            Insert
+            Indsæt
           </button>
           <button
             onClick={() => inserter.start(m.content, 'instant')}
             className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
-            title="Insert everything at once"
+            title="Indsæt det hele på én gang"
           >
-            Instant
+            Straks
           </button>
           <button onClick={() => void copy()} className="rounded-full border border-hairline px-3 py-1 hover:border-ink">
-            {copied ? 'Copied ✓' : 'Copy'}
+            {copied ? 'Kopieret ✓' : 'Kopiér'}
           </button>
           <button
             onClick={() => {
@@ -322,7 +322,7 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
             }}
             className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
           >
-            Edit
+            Redigér
           </button>
         </div>
       )}
@@ -339,11 +339,11 @@ function InsertBar() {
     <div className="sticky bottom-0 space-y-2 rounded-2xl border border-hairline bg-paper p-3 shadow-lg">
       <div className="flex items-baseline justify-between">
         <span className="awa-eyebrow !text-ink">
-          {st.state === 'running' && 'Inserting'}
-          {st.state === 'paused' && 'Paused'}
-          {st.state === 'done' && (st.unverified ? 'Sent (unverified)' : 'Inserted ✓')}
-          {st.state === 'stopped' && 'Stopped — partial text kept'}
-          {st.state === 'idle' && 'Undone'}
+          {st.state === 'running' && 'Indsætter'}
+          {st.state === 'paused' && 'På pause'}
+          {st.state === 'done' && (st.unverified ? 'Sendt (ubekræftet)' : 'Indsat ✓')}
+          {st.state === 'stopped' && 'Stoppet — delvis tekst beholdt'}
+          {st.state === 'idle' && 'Fortrudt'}
         </span>
         <span className="awa-eyebrow">{pct}%</span>
       </div>
@@ -360,7 +360,7 @@ function InsertBar() {
         )}
         {st.state === 'paused' && (
           <button onClick={() => inserter.resume()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
-            ▶ Resume
+            ▶ Fortsæt
           </button>
         )}
         {(st.state === 'running' || st.state === 'paused') && (
@@ -370,11 +370,11 @@ function InsertBar() {
         )}
         {(st.state === 'done' || st.state === 'stopped' || st.state === 'paused') && (
           <button onClick={() => inserter.undo()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
-            ↩ Undo insertion
+            ↩ Fortryd indsættelse
           </button>
         )}
         <button onClick={() => inserter.dismiss()} className="ml-auto px-2 py-1 text-graphite hover:text-ink">
-          Dismiss
+          Skjul
         </button>
       </div>
       <div className="truncate text-[11px] text-graphite">{st.targetLabel}</div>

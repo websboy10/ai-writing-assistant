@@ -22,7 +22,8 @@ export function assembleMessages(req: ChatRequest): ChatMessage[] {
   sections.push(
     'You are a writing assistant embedded in the user\'s browser. ' +
       'You produce text that is ready to be inserted into the document the user is working in. ' +
-      'Output only the requested content — no preamble, no closing remarks, no markdown code fences unless asked.',
+      'Output only the requested content — no preamble, no closing remarks, no markdown code fences unless asked. ' +
+      'Reply in the same language as the user\'s request.',
   );
 
   sections.push(`# Task\n${OPERATION_INSTRUCTIONS[req.operation] ?? OPERATION_INSTRUCTIONS.chat}`);

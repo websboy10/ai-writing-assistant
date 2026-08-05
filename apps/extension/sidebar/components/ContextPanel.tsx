@@ -13,7 +13,7 @@ export function ContextPanel() {
 
   function guardCount(): boolean {
     if (s.context.length >= MAX_CONTEXT_ITEMS) {
-      s.set({ error: `You can attach up to ${MAX_CONTEXT_ITEMS} items. Remove one first.` });
+      s.set({ error: `Du kan vedhæfte op til ${MAX_CONTEXT_ITEMS} elementer. Fjern ét først.` });
       return false;
     }
     return true;
@@ -25,23 +25,23 @@ export function ContextPanel() {
 
   async function screenshot() {
     if (!guardCount()) return;
-    s.set({ contextBusy: 'Capturing screenshot…', error: null });
+    s.set({ contextBusy: 'Tager skærmbillede…', error: null });
     try {
       const shot = await call({ kind: 'screenshot' });
       if (!shot.ok) {
-        s.set({ error: shot.error ?? 'Screenshot failed.' });
+        s.set({ error: shot.error ?? 'Skærmbilledet fejlede.' });
         return;
       }
       const { dataUrl } = shot.data as { dataUrl: string };
-      s.set({ contextBusy: 'Reading text from screenshot (OCR)…' });
+      s.set({ contextBusy: 'Læser tekst fra skærmbilledet (OCR)…' });
       const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
       const res = await call({ kind: 'upload', name: 'screenshot.png', mime: 'image/png', base64 });
       if (!res.ok) {
-        s.set({ error: res.error ?? 'Could not read text from the screenshot.' });
+        s.set({ error: res.error ?? 'Der kunne ikke læses tekst fra skærmbilledet.' });
         return;
       }
       const parsed = res.data as ParsedFile;
-      s.addContext({ id: newId(), ...parsed, kind: 'screenshot', name: `Screenshot of ${location.host}` });
+      s.addContext({ id: newId(), ...parsed, kind: 'screenshot', name: `Skærmbillede af ${location.host}` });
     } finally {
       s.set({ contextBusy: null });
     }
@@ -51,7 +51,7 @@ export function ContextPanel() {
     if (!pasteText.trim() || !guardCount()) return;
     s.addContext({
       id: newId(),
-      name: `Pasted text (${pasteText.length.toLocaleString()} chars)`,
+      name: `Indsat tekst (${pasteText.length.toLocaleString()} tegn)`,
       kind: 'paste',
       text: pasteText,
       chars: pasteText.length,
@@ -82,8 +82,8 @@ export function ContextPanel() {
           <span className="min-w-0 flex-1 truncate" title={c.name}>
             {c.name}
           </span>
-          <span className="text-graphite">{c.chars.toLocaleString()} ch</span>
-          <button onClick={() => s.removeContext(c.id)} className="font-bold text-graphite hover:text-ink" title="Remove">
+          <span className="text-graphite">{c.chars.toLocaleString()} tegn</span>
+          <button onClick={() => s.removeContext(c.id)} className="font-bold text-graphite hover:text-ink" title="Fjern">
             ×
           </button>
         </div>
@@ -98,15 +98,15 @@ export function ContextPanel() {
 
       <div className="flex flex-wrap gap-1.5 text-[12px]">
         <button onClick={() => fileInput.current?.click()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
-          + File
+          + Fil
         </button>
         <button onClick={() => void screenshot()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
-          + Screenshot
+          + Skærmbillede
         </button>
         <button onClick={() => setPasteOpen((v) => !v)} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
-          + Paste text
+          + Indsæt tekst
         </button>
-        <span className="self-center text-[11px] text-graphite">or drag files here</span>
+        <span className="self-center text-[11px] text-graphite">eller træk filer hertil</span>
       </div>
 
       {pasteOpen && (
@@ -115,11 +115,11 @@ export function ContextPanel() {
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
             rows={4}
-            placeholder="Paste text to use as context…"
+            placeholder="Indsæt tekst som kontekst…"
             className="w-full rounded-xl border border-hairline bg-paper px-2.5 py-1.5 text-[12.5px] outline-none placeholder:text-graphite focus:border-ink"
           />
           <button onClick={addPaste} disabled={!pasteText.trim()} className="rounded-full bg-ink px-3 py-1 text-[12px] text-paper hover:opacity-85 disabled:opacity-40">
-            Attach
+            Vedhæft
           </button>
         </div>
       )}

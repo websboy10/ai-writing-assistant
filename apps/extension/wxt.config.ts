@@ -7,8 +7,8 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
-    name: 'AI Writing Assistant',
-    description: 'AI writing assistant with controllable insertion into the editor you are already in.',
+    name: 'AI Skriveassistent',
+    description: 'AI-skriveassistent med styrbar indsættelse direkte i det tekstfelt, du allerede skriver i.',
     version: '0.1.0',
     // No 'tabs' permission: tabs.query/sendMessage work without it (only URL/
     // title access needs it) and captureVisibleTab is covered by activeTab —
@@ -20,9 +20,9 @@ export default defineConfig({
     commands: {
       'toggle-sidebar': {
         suggested_key: { default: 'Alt+Shift+A' },
-        description: 'Toggle the AI Writing Assistant sidebar',
+        description: 'Åbn/luk AI Skriveassistenten',
       },
     },
-    action: { default_title: 'AI Writing Assistant' },
+    action: { default_title: 'AI Skriveassistent' },
   },
 });

@@ -110,7 +110,7 @@ export const useStore = create<AwaState>((set, get) => ({
     const path = q?.trim() ? `/api/conversations?q=${encodeURIComponent(q.trim())}` : '/api/conversations';
     const res = await call({ kind: 'api', path });
     if (res.ok) set({ history: res.data as ConversationSummary[] });
-    else set({ error: res.error ?? 'Could not load history' });
+    else set({ error: res.error ?? 'Historikken kunne ikke hentes' });
   },
 
   signOut: async () => {
