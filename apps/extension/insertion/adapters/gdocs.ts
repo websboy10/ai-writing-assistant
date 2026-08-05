@@ -83,17 +83,30 @@ export class GDocsAdapter implements InsertionAdapter {
     const delivered = el.dispatchEvent(
       new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }),
     );
-    // `delivered === false` means some listener called preventDefault — for
-    // Docs that's exactly what its paste handler does, so it's our best signal
-    // that the event was consumed. We still cannot read the canvas back.
+    // dispatchEvent returns true when NO listener called preventDefault —
+    // i.e. Docs did NOT consume the paste. That is the one affirmative
+    // failure signal this adapter has (Pitfall 4: the iframe can survive
+    // while Google removes the handler), so it must fail loudly, not report
+    // a silent "success" for text that never entered the document.
+    if (delivered) {
+      return {
+        ok: false,
+        verified: true,
+        reason:
+          'Google Docs did not accept the inserted text — Google may have changed how Docs receives input. Use Copy instead.',
+      };
+    }
     this.chunksInserted += 1;
-    return { ok: true, verified: false, reason: delivered ? 'Docs did not consume the paste event.' : undefined };
+    return { ok: true, verified: false };
   }
 
   undoAll(): InsertResult {
     const el = this.targetEl();
     if (!el) return { ok: false, verified: true, reason: 'Google Docs input target is gone.' };
-    const isMac = navigator.platform.toLowerCase().includes('mac');
+    const platform =
+      (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+      navigator.platform;
+    const isMac = platform.toLowerCase().includes('mac');
     for (let i = 0; i < this.chunksInserted; i++) {
       const init: KeyboardEventInit = {
         key: 'z',
