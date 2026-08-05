@@ -98,24 +98,30 @@ export function ChatView() {
           <MachineSelect
             value={s.prefs.tone ?? 'neutral'}
             onChange={(v) => s.set({ prefs: { ...s.prefs, tone: v as never } })}
-            options={['neutral', 'formal', 'friendly', 'confident', 'casual'].map((t) => [t, t] as [string, string])}
+            options={[
+              ['neutral', 'Neutral'],
+              ['formal', 'Formel'],
+              ['friendly', 'Venlig'],
+              ['confident', 'Selvsikker'],
+              ['casual', 'Afslappet'],
+            ]}
             title="Tone"
           />
           <MachineSelect
             value={s.prefs.length ?? 'same'}
             onChange={(v) => s.set({ prefs: { ...s.prefs, length: v as never } })}
             options={[
-              ['shorter', 'shorter'],
-              ['same', 'same length'],
-              ['longer', 'longer'],
+              ['shorter', 'Kortere'],
+              ['same', 'Samme længde'],
+              ['longer', 'Længere'],
             ]}
-            title="Length"
+            title="Længde"
           />
           {s.operation === 'translate' && (
             <input
               value={s.prefs.language ?? ''}
               onChange={(e) => s.set({ prefs: { ...s.prefs, language: e.target.value } })}
-              placeholder="Target language"
+              placeholder="Målsprog"
               className="w-28 rounded-lg border border-hairline bg-paper px-2 py-1 text-[12px] outline-none placeholder:text-graphite focus:border-ink"
             />
           )}
