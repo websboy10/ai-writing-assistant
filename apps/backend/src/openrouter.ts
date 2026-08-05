@@ -76,29 +76,38 @@ async function streamOne(
   signal: AbortSignal,
   handlers: StreamHandlers,
 ): Promise<void> {
-  // 30s to first byte guards both against dead upstreams and against MV3-side
-  // idle timeouts in the extension's relay.
-  const firstByteTimeout = AbortSignal.timeout(30_000);
-  const combined = AbortSignal.any([signal, firstByteTimeout]);
+  // 30s to FIRST BYTE only. The timer must be detached once headers arrive:
+  // a fetch signal governs body consumption too, so leaving it attached would
+  // kill every generation longer than 30s mid-stream — exactly the long,
+  // read-along generations the product exists for.
+  const firstByte = new AbortController();
+  const firstByteTimer = setTimeout(() => firstByte.abort(), 30_000);
 
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    signal: combined,
-    headers: {
-      Authorization: `Bearer ${env.openrouterKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://github.com/websboy10/ai-writing-assistant',
-      'X-Title': 'AI Writing Assistant',
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: true,
-      usage: { include: true },
-      // For real content, refuse providers that collect/train on prompts.
-      ...(isSynthetic ? {} : { provider: { data_collection: 'deny' } }),
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      signal: AbortSignal.any([signal, firstByte.signal]),
+      headers: {
+        Authorization: `Bearer ${env.openrouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://github.com/websboy10/ai-writing-assistant',
+        'X-Title': 'AI Writing Assistant',
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: true,
+        usage: { include: true },
+        // For real content, refuse providers that collect/train on prompts.
+        ...(isSynthetic ? {} : { provider: { data_collection: 'deny' } }),
+      }),
+    });
+  } finally {
+    // Headers received (or fetch failed) — from here only the caller's abort
+    // applies, because the cleared timer can never fire firstByte.abort().
+    clearTimeout(firstByteTimer);
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
