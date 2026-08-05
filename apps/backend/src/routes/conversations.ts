@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { verifyUser, rest } from '../supabase.js';
+import { verifyUser, rest, isUuid } from '../supabase.js';
 
 export function conversationRoutes(app: FastifyInstance): void {
   app.get('/api/conversations', async (req, reply) => {
@@ -24,6 +24,9 @@ export function conversationRoutes(app: FastifyInstance): void {
     const user = await verifyUser(req.headers.authorization);
     if (!user) return reply.code(401).send({ error: 'Sign in required', code: 'unauthenticated' });
     const { id } = req.params as { id: string };
+    // The id lands in a PostgREST filter string — %-decoded params can inject
+    // extra query parameters unless the format is pinned down first (WR-05).
+    if (!isUuid(id)) return reply.code(400).send({ error: 'Invalid conversation id', code: 'bad_request' });
 
     const res = await rest(user, `/messages?conversation_id=eq.${id}&select=role,content,created_at&order=created_at.asc`);
     if (!res.ok) return reply.code(502).send({ error: 'Could not load conversation', code: 'upstream_error' });
@@ -34,6 +37,7 @@ export function conversationRoutes(app: FastifyInstance): void {
     const user = await verifyUser(req.headers.authorization);
     if (!user) return reply.code(401).send({ error: 'Sign in required', code: 'unauthenticated' });
     const { id } = req.params as { id: string };
+    if (!isUuid(id)) return reply.code(400).send({ error: 'Invalid conversation id', code: 'bad_request' });
 
     // Messages cascade via FK; RLS restricts to the owner.
     const res = await rest(user, `/conversations?id=eq.${id}`, { method: 'DELETE' });

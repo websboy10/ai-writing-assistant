@@ -53,7 +53,9 @@ export interface ChatRequest {
 export type ChatStreamEvent =
   | { type: 'meta'; conversationId: string; model: string }
   | { type: 'token'; text: string }
-  | { type: 'done'; usage: { used: number; limit: number; resetsAt: string } }
+  // usage is null when the post-stream usage lookup failed — the response
+  // itself still succeeded and clients must treat it as such.
+  | { type: 'done'; usage: { used: number; limit: number; resetsAt: string } | null }
   | { type: 'error'; code: ChatErrorCode; message: string };
 
 export type ChatErrorCode =

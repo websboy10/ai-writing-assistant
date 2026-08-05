@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ChatRequest, ChatStreamEvent } from '@awa/shared';
-import { verifyUser, rpc, rest, type AuthedUser } from '../supabase.js';
+import { verifyUser, rpc, rest, isUuid, type AuthedUser } from '../supabase.js';
 import { assembleMessages } from '../prompt.js';
 import { streamChat, NoModelsError, PolicyError } from '../openrouter.js';
 
@@ -21,6 +21,9 @@ export function chatRoutes(app: FastifyInstance): void {
     const body = req.body as ChatRequest;
     if (!Array.isArray(body?.messages) || body.messages.length === 0) {
       return reply.code(400).send({ error: 'messages required', code: 'bad_request' });
+    }
+    if (body.conversationId && !isUuid(body.conversationId)) {
+      return reply.code(400).send({ error: 'Invalid conversation id', code: 'bad_request' });
     }
 
     // Quota is consumed atomically BEFORE the AI call (QUOT-01).
@@ -44,7 +47,9 @@ export function chatRoutes(app: FastifyInstance): void {
       });
     }
 
-    // SSE stream
+    // SSE stream. hijack() tells Fastify we own the raw socket from here —
+    // without it Fastify attempts its own send after the handler returns.
+    reply.hijack();
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
@@ -80,14 +85,30 @@ export function chatRoutes(app: FastifyInstance): void {
         },
       });
 
-      // Persist the exchange under the user's own JWT (RLS-scoped).
-      await persistExchange(user, conversationId, body, assistantText);
+      // Persist the exchange under the user's own JWT (RLS-scoped). A persist
+      // failure must not fail a generation the user already received — log it
+      // loudly instead of silently dropping history (WR-03).
+      try {
+        await persistExchange(user, conversationId, body, assistantText);
+      } catch (persistErr) {
+        req.log.error(persistErr, 'persistExchange failed — exchange missing from history');
+      }
       if (tokensIn || tokensOut) {
         await rpc(user, 'record_tokens', { p_in: tokensIn, p_out: tokensOut }).catch(() => {});
       }
 
-      const usage = await rpc<{ used: number; limit: number; resets_at: string }>(user, 'get_usage');
-      send({ type: 'done', usage: { used: usage.used, limit: usage.limit, resetsAt: usage.resets_at } });
+      // The usage lookup is bookkeeping; its failure must not mark a fully
+      // delivered (and charged) response as errored (WR-04).
+      let usage: { used: number; limit: number; resets_at: string } | null = null;
+      try {
+        usage = await rpc<{ used: number; limit: number; resets_at: string }>(user, 'get_usage');
+      } catch (usageErr) {
+        req.log.error(usageErr, 'get_usage after successful stream failed');
+      }
+      send({
+        type: 'done',
+        usage: usage ? { used: usage.used, limit: usage.limit, resetsAt: usage.resets_at } : null,
+      });
     } catch (err) {
       if (err instanceof PolicyError) {
         send({
@@ -129,7 +150,9 @@ async function ensureConversation(user: AuthedUser, body: ChatRequest): Promise<
   });
   if (!res.ok) throw new Error(`create conversation failed: ${res.status}`);
   const rows = (await res.json()) as { id: string }[];
-  return rows[0].id;
+  const id = rows[0]?.id;
+  if (!id) throw new Error('create conversation returned no row (RLS filtered the insert?)');
+  return id;
 }
 
 async function persistExchange(
@@ -143,9 +166,15 @@ async function persistExchange(
   if (lastUser) rows.push({ conversation_id: conversationId, role: 'user', content: lastUser.content });
   if (assistantText) rows.push({ conversation_id: conversationId, role: 'assistant', content: assistantText });
   if (!rows.length) return;
-  await rest(user, '/messages', { method: 'POST', body: JSON.stringify(rows) });
-  await rest(user, `/conversations?id=eq.${conversationId}`, {
+  const insert = await rest(user, '/messages', { method: 'POST', body: JSON.stringify(rows) });
+  if (!insert.ok) {
+    throw new Error(`messages insert failed (${insert.status}): ${await insert.text().catch(() => '')}`);
+  }
+  const touch = await rest(user, `/conversations?id=eq.${conversationId}`, {
     method: 'PATCH',
     body: JSON.stringify({ updated_at: new Date().toISOString() }),
   });
+  if (!touch.ok) {
+    throw new Error(`conversation touch failed (${touch.status}): ${await touch.text().catch(() => '')}`);
+  }
 }

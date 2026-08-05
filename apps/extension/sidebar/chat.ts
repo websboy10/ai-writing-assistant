@@ -87,7 +87,8 @@ export function sendChat(userText: string, subject?: string): void {
         sawTerminal = true;
         state.set({
           streaming: false,
-          usage: { used: ev.usage.used, limit: ev.usage.limit, resetsAt: ev.usage.resetsAt },
+          // null usage = the server's usage lookup failed; keep the last known value.
+          usage: ev.usage ? { used: ev.usage.used, limit: ev.usage.limit, resetsAt: ev.usage.resetsAt } : state.usage,
           messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
         });
         break;

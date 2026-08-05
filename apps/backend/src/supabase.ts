@@ -1,5 +1,13 @@
 import { env } from './env.js';
 
+/**
+ * Ids are interpolated into PostgREST filter strings — a non-UUID value can
+ * inject extra query parameters and widen DELETE/PATCH scope (WR-05).
+ */
+export function isUuid(v: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
 export interface AuthedUser {
   id: string;
   email: string;
