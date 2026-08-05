@@ -56,7 +56,40 @@ export function sendChat(userText: string, subject?: string): void {
   // (CHAT-04 / QUOT-07).
   let sawTerminal = false;
 
+  // Token batching (WR-14): at ~40 tokens/s, one store write per token means
+  // hundreds of component renders per second inside the host page's shadow
+  // root. Buffer tokens and flush at most every 50 ms.
+  let pendingText = '';
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
+  const flushTokens = () => {
+    if (flushTimer !== null) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    if (!pendingText) return;
+    const st = useStore.getState();
+    const msgs = [...st.messages];
+    const last = msgs[msgs.length - 1];
+    if (last?.streaming) {
+      msgs[msgs.length - 1] = { ...last, content: last.content + pendingText };
+      st.set({ messages: msgs });
+    }
+    pendingText = '';
+  };
+
   port.onMessage.addListener((msg: ChatPortServerMsg) => {
+    if (msg.type === 'ping') return; // relay keepalive, no UI meaning
+    // Events from a superseded port must not touch state — "New conversation"
+    // mid-stream would otherwise attach the old conversationId or resurrect
+    // its tokens (WR-16).
+    if (activePort !== port) return;
+    if (msg.type === 'event' && msg.event.type === 'token') {
+      pendingText += msg.event.text;
+      flushTimer ??= setTimeout(flushTokens, 50);
+      return;
+    }
+    // Any non-token message must see fully applied tokens first.
+    flushTokens();
     const state = useStore.getState();
     if (msg.type === 'closed') {
       if (!sawTerminal) {
@@ -74,15 +107,6 @@ export function sendChat(userText: string, subject?: string): void {
       case 'meta':
         if (!state.conversationId) state.set({ conversationId: ev.conversationId });
         break;
-      case 'token': {
-        const msgs = [...state.messages];
-        const last = msgs[msgs.length - 1];
-        if (last?.streaming) {
-          msgs[msgs.length - 1] = { ...last, content: last.content + ev.text };
-          state.set({ messages: msgs });
-        }
-        break;
-      }
       case 'done': {
         sawTerminal = true;
         state.set({

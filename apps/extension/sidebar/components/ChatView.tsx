@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { OPERATION_LABELS, type PromptOperation } from '@awa/shared';
 import { sendChat, stopGeneration } from '../chat';
 import { inserter } from '../inserter';
@@ -12,9 +12,13 @@ export function ChatView() {
   const [selectionSnapshot, setSelectionSnapshot] = useState('');
   const [showContext, setShowContext] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Only follow the stream while the user is at the bottom — scrolling up to
+  // re-read mid-stream must not be fought (IN-17).
+  const stickToBottom = useRef(true);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    const el = scrollRef.current;
+    if (el && stickToBottom.current) el.scrollTo({ top: el.scrollHeight });
   }, [s.messages, s.streaming]);
 
   function send() {
@@ -38,7 +42,14 @@ export function ChatView() {
   return (
     <div className="flex h-full flex-col">
       {/* messages */}
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
+      <div
+        ref={scrollRef}
+        onScroll={() => {
+          const el = scrollRef.current;
+          if (el) stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+        }}
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3"
+      >
         {s.messages.length === 0 && (
           <div className="mt-8 space-y-2 text-center text-[13px] text-zinc-400">
             <p>Ask anything, or pick an operation below and point it at selected page text or attached files.</p>
@@ -195,8 +206,11 @@ function TargetHint() {
   );
 }
 
-function MessageBubble({ m }: { m: UiMessage }) {
-  const s = useStore();
+// Memoized so that per-token store updates only re-render the one streaming
+// bubble — the spread in the token handler preserves every other message's
+// identity. Do NOT subscribe to the store in here; that would re-render every
+// bubble on every token and defeat the memo (WR-14).
+const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
   const [editing, setEditing] = useState(false);
   // Seeded when Edit is clicked, not at mount — streamed messages mount with
   // empty content, so a mount-time seed would make Save erase the response.
@@ -212,7 +226,8 @@ function MessageBubble({ m }: { m: UiMessage }) {
   }
 
   function saveEdit() {
-    s.set({ messages: s.messages.map((x) => (x.id === m.id ? { ...x, content: draft } : x)) });
+    const st = useStore.getState();
+    st.set({ messages: st.messages.map((x) => (x.id === m.id ? { ...x, content: draft } : x)) });
     setEditing(false);
   }
 
@@ -279,7 +294,7 @@ function MessageBubble({ m }: { m: UiMessage }) {
       )}
     </div>
   );
-}
+});
 
 function InsertBar() {
   const s = useStore();

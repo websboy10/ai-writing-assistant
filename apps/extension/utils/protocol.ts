@@ -31,7 +31,10 @@ export type BackgroundBroadcast = { type: 'toggle-sidebar' };
 export const CHAT_PORT = 'awa-chat';
 
 export type ChatPortClientMsg = { type: 'start'; request: ChatRequest } | { type: 'abort' };
-export type ChatPortServerMsg = { type: 'event'; event: ChatStreamEvent } | { type: 'closed' };
+// 'ping' relays the backend's SSE heartbeats: port traffic is what resets the
+// MV3 service-worker idle timer, so heartbeats must cross the port during
+// long token gaps or Chrome may kill the worker mid-stream (WR-15).
+export type ChatPortServerMsg = { type: 'event'; event: ChatStreamEvent } | { type: 'ping' } | { type: 'closed' };
 
 export interface StoredSession {
   access_token: string;

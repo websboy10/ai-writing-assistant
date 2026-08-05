@@ -281,7 +281,12 @@ export default defineBackground(() => {
             const frame = buffer.slice(0, idx);
             buffer = buffer.slice(idx + 2);
             const line = frame.split('\n').find((l) => l.startsWith('data: '));
-            if (!line) continue;
+            if (!line) {
+              // SSE comment frames are the server's heartbeats — forward them
+              // so the port sees traffic during token gaps (WR-15).
+              if (frame.startsWith(':')) send({ type: 'ping' });
+              continue;
+            }
             try {
               const event = JSON.parse(line.slice(6)) as ChatStreamEvent;
               send({ type: 'event', event });
