@@ -89,6 +89,13 @@ start, because it exposes dozens of models behind one API and the default can
 change in config rather than code. The long-term intent is a subscription, but
 v1's economic protection is per-user quotas, not payment.
 
+**Free models are individually unreliable.** Verified 2026-08-05 against the live
+OpenRouter key: of the free models tested, one answered cleanly and another
+returned HTTP 429 on a first, single request. Free tiers are shared and
+congested. The provider layer therefore needs an ordered fallback chain and
+transparent retry, not one configured default — a beta user hitting silence
+because one upstream was busy will assume the product is broken.
+
 **Deferred but designed for.** The provider abstraction, quota accounting and
 context pipeline should be built so that adding a second provider, a paid tier,
 or multi-document reasoning is additive — but none of those are built now.
@@ -128,6 +135,7 @@ or multi-document reasoning is additive — but none of those are built now.
 | Code editors deferred | Monaco/CodeMirror each need bespoke adapters and aren't where prose gets written | — Pending |
 | Supabase for auth, database and storage | One free service replaces hand-built accounts, sessions, password reset and S3; removes security-sensitive work with no upside to owning. PostgreSQL and Prisma unchanged | — Pending |
 | Private GitHub repo under `websboy10` | Commercial product; repo carries configuration detail not worth indexing | — Pending |
+| Ordered model fallback chain, not a single default | Free OpenRouter models 429 unpredictably; verified live on day one. Silence reads as a broken product | — Pending |
 
 ## Evolution
 
