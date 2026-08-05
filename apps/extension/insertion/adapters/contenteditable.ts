@@ -1,0 +1,191 @@
+import type { InsertionAdapter, InsertResult } from '../types';
+import type { SavedTarget } from '../target';
+
+/**
+ * Contenteditable editors (Gmail, LinkedIn, Slack, Notion — ProseMirror,
+ * Lexical, Quill, Draft.js and friends).
+ *
+ * These editors ignore direct DOM mutation: their internal document model is
+ * the truth and re-normalizes the DOM under you. `execCommand('insertText')`
+ * — deprecated but with no replacement — is the one entry point that walks
+ * their transaction pipeline, because editors listen for the beforeinput
+ * events it produces. Fallback: a synthetic paste event, which every major
+ * editor also handles.
+ *
+ * Undo strategy: we record the absolute character offset where insertion
+ * begins; undoAll() selects [start, start+inserted] by walking text nodes and
+ * deletes via execCommand — one user-visible step, expressed through the
+ * editor's own pipeline.
+ */
+export class ContentEditableAdapter implements InsertionAdapter {
+  readonly kind = 'contenteditable' as const;
+  private el: HTMLElement;
+  private savedRange: Range | null;
+  private startOffset = 0;
+  private inserted = 0;
+
+  constructor(target: SavedTarget) {
+    this.el = target.element;
+    this.savedRange = target.range ?? null;
+  }
+
+  eventTarget(): EventTarget {
+    return this.el;
+  }
+
+  prepare(): InsertResult {
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor is no longer on the page.' };
+    this.el.focus();
+    const sel = document.getSelection();
+    if (!sel) return { ok: false, verified: true, reason: 'Could not access the page selection.' };
+    if (this.savedRange && this.el.contains(this.savedRange.startContainer)) {
+      sel.removeAllRanges();
+      sel.addRange(this.savedRange);
+    } else if (sel.rangeCount === 0 || !this.el.contains(sel.getRangeAt(0).startContainer)) {
+      // No usable cursor — put it at the end of the editor.
+      const r = document.createRange();
+      r.selectNodeContents(this.el);
+      r.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+    this.startOffset = this.absoluteOffset(sel.getRangeAt(0));
+    this.inserted = 0;
+    return { ok: true, verified: true };
+  }
+
+  insert(chunk: string): InsertResult {
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor disappeared mid-insertion.' };
+    // Keep focus with the editor — the user may have clicked into our sidebar.
+    if (document.activeElement !== this.el && !this.el.contains(document.activeElement)) {
+      this.el.focus();
+      this.restoreCursor();
+    }
+
+    const before = this.textLength();
+    let ok = false;
+    try {
+      ok = document.execCommand('insertText', false, chunk);
+    } catch {
+      ok = false;
+    }
+    if (!ok || this.textLength() === before) {
+      // Fallback: synthetic paste — DataTransfer is fully scriptable.
+      const dt = new DataTransfer();
+      dt.setData('text/plain', chunk);
+      const pasteTarget = document.activeElement && this.el.contains(document.activeElement)
+        ? (document.activeElement as HTMLElement)
+        : this.el;
+      pasteTarget.dispatchEvent(
+        new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }),
+      );
+    }
+
+    // Post-write verification (INST-11): the editor's text must have grown.
+    // Length delta (not exact equality) because editors normalize whitespace.
+    const after = this.textLength();
+    const grewEnough = after - before >= Math.max(1, chunk.trim().length > 0 ? chunk.trim().length - 2 : 0);
+    if (!grewEnough && chunk.trim().length > 0) {
+      return { ok: false, verified: true, reason: 'This editor rejected the inserted text.' };
+    }
+    this.inserted += after - before;
+    return { ok: true, verified: true };
+  }
+
+  undoAll(): InsertResult {
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor is no longer on the page.' };
+    if (this.inserted <= 0) return { ok: true, verified: true };
+    const range = this.rangeFromOffsets(this.startOffset, this.startOffset + this.inserted);
+    if (!range) return { ok: false, verified: true, reason: 'Could not locate the inserted text to remove it.' };
+    const sel = document.getSelection();
+    if (!sel) return { ok: false, verified: true, reason: 'Could not access the page selection.' };
+    this.el.focus();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const before = this.textLength();
+    let ok = false;
+    try {
+      ok = document.execCommand('delete');
+    } catch {
+      ok = false;
+    }
+    if (!ok || this.textLength() === before) {
+      // Fallback: deleteContentBackward via beforeinput-compatible paste of nothing
+      // is not a thing — use execCommand insertText with empty replacement.
+      try {
+        document.execCommand('insertText', false, '');
+      } catch {
+        /* ignore */
+      }
+    }
+    const removed = before - this.textLength();
+    const success = removed >= this.inserted - 2; // whitespace normalization tolerance
+    if (success) this.inserted = 0;
+    return {
+      ok: success,
+      verified: true,
+      reason: success ? undefined : 'The editor did not allow removing the inserted text.',
+    };
+  }
+
+  // ---- text offset helpers ----
+
+  private textLength(): number {
+    return (this.el.textContent ?? '').length;
+  }
+
+  private absoluteOffset(range: Range): number {
+    const r = document.createRange();
+    r.selectNodeContents(this.el);
+    r.setEnd(range.startContainer, range.startOffset);
+    return r.toString().length;
+  }
+
+  private rangeFromOffsets(start: number, end: number): Range | null {
+    const walker = document.createTreeWalker(this.el, NodeFilter.SHOW_TEXT);
+    let pos = 0;
+    let startNode: Node | null = null;
+    let startOff = 0;
+    let endNode: Node | null = null;
+    let endOff = 0;
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      const len = node.textContent?.length ?? 0;
+      if (!startNode && pos + len >= start) {
+        startNode = node;
+        startOff = start - pos;
+      }
+      if (pos + len >= end) {
+        endNode = node;
+        endOff = end - pos;
+        break;
+      }
+      pos += len;
+    }
+    if (!startNode) return null;
+    if (!endNode) {
+      endNode = startNode;
+      endOff = startNode.textContent?.length ?? 0;
+    }
+    const r = document.createRange();
+    try {
+      r.setStart(startNode, Math.max(0, Math.min(startOff, startNode.textContent?.length ?? 0)));
+      r.setEnd(endNode, Math.max(0, Math.min(endOff, endNode.textContent?.length ?? 0)));
+    } catch {
+      return null;
+    }
+    return r;
+  }
+
+  private restoreCursor(): void {
+    const range = this.rangeFromOffsets(
+      this.startOffset + this.inserted,
+      this.startOffset + this.inserted,
+    );
+    if (range) {
+      const sel = document.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  }
+}

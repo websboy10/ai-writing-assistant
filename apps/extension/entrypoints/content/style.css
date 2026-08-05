@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* The shadow root isolates us from host CSS; these keep our own baseline sane. */
+:host {
+  all: initial;
+}

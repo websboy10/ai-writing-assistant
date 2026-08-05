@@ -4,3 +4,7 @@ node_modules/
 .env.local
 dist/
 build/
+.output/
+.wxt/
+*.traineddata
+test-results/
