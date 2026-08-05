@@ -110,6 +110,15 @@ export function chatRoutes(app: FastifyInstance): void {
         usage: usage ? { used: usage.used, limit: usage.limit, resetsAt: usage.resets_at } : null,
       });
     } catch (err) {
+      // The quota point was consumed up front (QUOT-01). If the user received
+      // zero tokens, give it back — charging for nothing burns beta quota on
+      // routine free-model 429s (WR-06). Refund failure must not mask the
+      // original error.
+      if (!assistantText) {
+        await rpc(user, 'refund_quota', { p_cost: 1 }).catch((refundErr) =>
+          req.log.error(refundErr, 'refund_quota failed after zero-token generation failure'),
+        );
+      }
       if (err instanceof PolicyError) {
         send({
           type: 'error',

@@ -62,7 +62,7 @@ export function sendChat(userText: string, subject?: string): void {
       if (!sawTerminal) {
         state.set({
           streaming: false,
-          error: 'The response stream was interrupted before it finished. Try again — nothing was charged twice.',
+          error: 'The response stream was interrupted before it finished. Try again.',
           messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
         });
       }
