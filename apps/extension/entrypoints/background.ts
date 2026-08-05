@@ -42,11 +42,22 @@ export default defineBackground(() => {
     };
   }
 
+  // Single-flight guard: GoTrue rotates refresh tokens, so two concurrent
+  // refreshes with the same token can invalidate the session and silently log
+  // the user out mid-session (WR-07). All concurrent callers share one refresh.
+  let refreshing: Promise<string | null> | null = null;
+
   async function freshToken(): Promise<string | null> {
-    let s = await getSession();
+    const s = await getSession();
     if (!s) return null;
     if (s.expires_at - 60 > Date.now() / 1000) return s.access_token;
-    // refresh
+    refreshing ??= doRefresh(s).finally(() => {
+      refreshing = null;
+    });
+    return refreshing;
+  }
+
+  async function doRefresh(s: StoredSession): Promise<string | null> {
     const res = await fetch(`${BACKEND_URL}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -57,9 +68,9 @@ export default defineBackground(() => {
       return null;
     }
     const data = (await res.json()) as Record<string, unknown>;
-    s = sessionFromTokenResponse(data);
-    await setSession(s);
-    return s.access_token;
+    const next = sessionFromTokenResponse(data);
+    await setSession(next);
+    return next.access_token;
   }
 
   async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
@@ -208,6 +219,7 @@ export default defineBackground(() => {
     if (port.name !== CHAT_PORT) return;
     const abort = new AbortController();
     let closed = false;
+    let started = false;
 
     const send = (m: ChatPortServerMsg) => {
       if (!closed) {
@@ -230,6 +242,10 @@ export default defineBackground(() => {
         return;
       }
       if (msg.type !== 'start') return;
+      // One stream per port — a second start would share this AbortController
+      // and interleave two responses on one port (IN-15).
+      if (started) return;
+      started = true;
 
       try {
         const res = await apiFetch('/api/chat', {

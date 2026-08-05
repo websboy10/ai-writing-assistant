@@ -95,6 +95,20 @@ export function sendChat(userText: string, subject?: string): void {
       }
       case 'error': {
         sawTerminal = true;
+        // Chat streams bypass the call() wrapper, so session death surfaces
+        // here too (WR-08).
+        if (ev.code === 'unauthenticated') {
+          state.set({
+            streaming: false,
+            email: null,
+            view: 'auth',
+            error: 'Your session expired — sign in again.',
+            messages: state.messages
+              .map((m) => (m.streaming ? { ...m, streaming: false } : m))
+              .filter((m) => m.content.length > 0 || m.role === 'user'),
+          });
+          break;
+        }
         const partial = state.messages[state.messages.length - 1];
         const kept = partial?.streaming && partial.content.length > 0;
         state.set({
