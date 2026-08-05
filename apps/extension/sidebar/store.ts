@@ -85,15 +85,14 @@ export const useStore = create<AwaState>((set, get) => ({
   set: (partial) => set(partial),
 
   loadSession: async () => {
-    const [{ theme }, res] = await Promise.all([
-      chrome.storage.local.get(['theme']) as Promise<{ theme?: Theme }>,
-      call({ kind: 'session' }),
-    ]);
+    const res = await call({ kind: 'session' });
     const data = res.data as { email: string } | null;
+    // Theme is fixed to light: the settings page is gone, so a stored 'dark'
+    // from an earlier build would be a trap with no way out.
     set({
       email: data?.email ?? null,
       view: data ? 'chat' : 'auth',
-      theme: theme ?? 'light',
+      theme: 'light',
     });
     if (data) void get().loadUsage();
   },
@@ -126,7 +125,3 @@ export const useStore = create<AwaState>((set, get) => ({
   },
 }));
 
-export function setTheme(theme: Theme): void {
-  useStore.getState().set({ theme });
-  void chrome.storage.local.set({ theme });
-}
