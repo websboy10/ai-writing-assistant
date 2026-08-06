@@ -284,6 +284,50 @@ have to send me anything.
 
 ---
 
+## Step 6.5 — A SECOND OAuth client, for Google Docs access (2 min)
+
+Added 2026-08-06 after Phase 7 research. The client from Step 6 powers **sign-in**.
+Reading and writing Google documents needs a *different* kind of client.
+
+**Why two.** Supabase hands over a Google token at login but never refreshes it,
+and Google's tokens expire hourly. Making that path work would mean putting your
+Google **client secret** on our backend — exactly what Step 6 promised you'd
+never have to do. A Chrome Extension client avoids it entirely: Chrome holds and
+refreshes the token itself, and no secret exists to leak. It also lets us ask for
+document access the first time someone uses the feature, instead of frightening
+people at signup.
+
+1. Google Cloud Console → confirm you're in the **AI Skriveassistent** project
+2. **APIs & Services** → **Credentials** *(newer console: **Clients**)*
+3. **+ Create credentials** → **OAuth client ID** *(newer: **+ Create client**)*
+4. **Application type: Chrome Extension**
+   > This time it genuinely is "Chrome Extension" — unlike Step 6a, which had to
+   > be "Web application" because sign-in runs through Supabase.
+5. **Name:**
+   ```
+   AI Skriveassistent – Extension
+   ```
+6. **Item ID** — paste:
+   ```
+   foidkbeinmfolejjjfjcokmmknimohof
+   ```
+7. **Create**
+
+**This Client ID is NOT a secret — send it to me.** Chrome Extension clients have
+no secret, and the ID ships inside the extension's manifest where anyone can read
+it. That is by design and is safe. (The Step 6 client's *secret* is the one that
+must never leave Supabase.)
+
+**Two known traps, handled in code:**
+- **Granular consent** — Google now lets a user approve sign-in while unticking
+  document access. The code must check `grantedScopes`; a partial grant must
+  never be treated as success.
+- **Pre-publication** — whether `chrome.identity.getAuthToken` works before the
+  extension is on the Web Store is unverified. It gets tested first, cheaply, in
+  Phase 7's opening spike rather than discovered late.
+
+---
+
 ## Step 7 — Tell me it's done (my part)
 
 Then I:
