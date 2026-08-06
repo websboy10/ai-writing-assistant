@@ -11,6 +11,14 @@ export { DEFAULT_PACING } from './types';
 export type { PacingConfig, InsertionState } from './types';
 export type { SavedTarget } from './target';
 
+// Autonomous mode (07-03): one run, many InsertionSessions, driven over
+// whatever QuestionSource the caller builds — whole document or marked
+// selection, plain or contenteditable today, Docs in 07-05.
+export { AutonomousRun } from './autonomous/orchestrator';
+export type { RunState, RunProgress, RunCallbacks } from './autonomous/orchestrator';
+export { sourceFor } from './autonomous/locator';
+export type { QuestionSource } from './autonomous/locator';
+
 /** INST-04: pick the right adapter for the detected editor automatically. */
 export function adapterFor(target: SavedTarget): InsertionAdapter {
   switch (target.kind) {
