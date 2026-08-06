@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { autonomous } from '../autonomous';
 import { sendChat, stopGeneration } from '../chat';
 import { newContextId } from '../ingest';
 import { inserter } from '../inserter';
@@ -127,6 +128,8 @@ export function ChatView() {
 
         <ContextChips />
 
+        <AutonomousBar />
+
         {/* the one output setting: length */}
         <div className="flex items-center gap-1.5">
           <span className="awa-eyebrow">Længde</span>
@@ -188,6 +191,74 @@ export function ChatView() {
           <TargetHint />
         </div>
       </div>
+    </div>
+  );
+}
+
+// One capability, one entry point here (the whole open document); "Besvar
+// markeringen" is 07-04's job on the selection bar above. No review step,
+// no approval gate, no third mode — pressing Straks or Langsomt writes
+// directly (D-04).
+function AutonomousBar() {
+  const s = useStore();
+  const [expanded, setExpanded] = useState(false);
+
+  if (s.autoRun) {
+    const st = s.autoRun;
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-hairline px-2.5 py-1.5 text-[12px]">
+        <span className="awa-eyebrow !text-ink">
+          {st.state === 'writing' && 'Besvarer spørgsmål'}
+          {st.state === 'paused' && 'På pause'}
+          {st.state === 'done' && 'Færdig ✓'}
+          {st.state === 'stopped' && 'Stoppet'}
+          {st.state === 'error' && 'Fejl'}
+        </span>
+        <span className="text-graphite">
+          {st.answersDone} / {st.answersTotal}
+        </span>
+        {(st.state === 'done' || st.state === 'stopped' || st.state === 'error') && (
+          <button onClick={() => autonomous.dismiss()} className="ml-auto px-1.5 py-0.5 text-graphite hover:text-ink">
+            Skjul
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        onClick={() => setExpanded((e) => !e)}
+        className="rounded-full border border-hairline px-3 py-1 text-[12px] hover:border-ink"
+        title="Finder hvert spørgsmål i det felt eller dokument, du sidst klikkede i, og skriver et svar under hvert af dem"
+      >
+        Besvar alle spørgsmål
+      </button>
+      {expanded && (
+        <>
+          <button
+            onClick={() => {
+              setExpanded(false);
+              void autonomous.run('document', 'instant');
+            }}
+            className="rounded-full bg-ink px-3 py-1 text-[12px] text-paper hover:opacity-85"
+            title="Skriver alle svar på én gang"
+          >
+            Straks
+          </button>
+          <button
+            onClick={() => {
+              setExpanded(false);
+              void autonomous.run('document', 'progressive');
+            }}
+            className="rounded-full border border-hairline px-3 py-1 text-[12px] hover:border-ink"
+            title="Skriver bogstav for bogstav, ét spørgsmål ad gangen, fra toppen af dokumentet"
+          >
+            Langsomt
+          </button>
+        </>
+      )}
     </div>
   );
 }

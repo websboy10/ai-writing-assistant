@@ -25,10 +25,15 @@
       Five items, one per line, blank line beneath each: a question-mark
       question, an imperative with no question mark, a numbered field, a
       plain statement that must never be answered, and a real question the
-      page gives no grounding for. Text reused verbatim from
-      scripts/verify-autonomous-api.mjs (07-02), already proven reliable
-      against the live model for all three question shapes plus the
-      grounded:false case.
+      page gives no grounding for. The four questions are reused verbatim
+      from scripts/verify-autonomous-api.mjs (07-02), already proven
+      reliable against the live model for all three question shapes plus
+      the grounded:false case. The statement text is deliberately NOT
+      07-02's ("Projektet startede...") — that line reads as the natural
+      grounded answer to "Hvad er status på projektet?", so the model
+      quotes it back verbatim, which collides with this script's
+      position-based text search on the final document (unlike 07-02's own
+      test, which checks structured JSON fields, not raw text search).
     -->
     <textarea id="doc" rows="10">Hvad er status på projektet?
 
@@ -36,7 +41,7 @@ Beskriv dine tre vigtigste resultater i år
 
 2. Hvilke områder vil du gerne udvikle?
 
-Projektet startede i januar og blev afsluttet i juni.
+Denne formular tager cirka fem minutter at udfylde.
 
 Hvad var din kollegas vurdering af leveringen i marts?</textarea>
   </section>
@@ -47,7 +52,7 @@ Hvad var din kollegas vurdering af leveringen i marts?</textarea>
       <p>Hvad er status på projektet?</p>
       <p>Beskriv dine tre vigtigste resultater i år</p>
       <p>2. Hvilke områder vil du gerne udvikle?</p>
-      <p>Projektet startede i januar og blev afsluttet i juni.</p>
+      <p>Denne formular tager cirka fem minutter at udfylde.</p>
       <p>Hvad var din kollegas vurdering af leveringen i marts?</p>
     </div>
   </section>

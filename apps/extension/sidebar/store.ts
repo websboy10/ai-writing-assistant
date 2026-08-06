@@ -8,7 +8,7 @@ import type {
   PromptOperation,
   UsageInfo,
 } from '@awa/shared';
-import { type InsertionState } from '@/insertion';
+import { type InsertionState, type RunState } from '@/insertion';
 import { call } from './api';
 import { stopGeneration } from './chat';
 
@@ -27,6 +27,24 @@ interface InsertStatus {
   progress: number; // 0..1
   targetLabel?: string;
   unverified?: boolean;
+}
+
+/**
+ * One run, many InsertionSessions (07-03). `unplaced` and `ungrounded` are
+ * carried here now but only rendered as a gap list from 07-04 onward — this
+ * plan's UI just shows the state word and answersDone/answersTotal.
+ */
+interface AutoRunStatus {
+  state: RunState;
+  detail?: string;
+  answersDone: number;
+  answersTotal: number;
+  progress: number; // 0..1
+  targetLabel?: string;
+  placement: 'in-place' | 'block';
+  degradedReason?: string;
+  unplaced: { questionText: string; reason: string }[];
+  ungrounded: string[];
 }
 
 interface AwaState {
@@ -48,6 +66,8 @@ interface AwaState {
   contextBusy: string | null;
   // insertion
   insertStatus: InsertStatus | null;
+  // autonomous mode (07-03)
+  autoRun: AutoRunStatus | null;
   // usage/history
   usage: UsageInfo | null;
   history: ConversationSummary[];
@@ -83,6 +103,7 @@ export const useStore = create<AwaState>((set, get) => ({
   context: [],
   contextBusy: null,
   insertStatus: null,
+  autoRun: null,
   usage: null,
   history: [],
   billing: null,
@@ -134,7 +155,15 @@ export const useStore = create<AwaState>((set, get) => ({
     // A still-running stream would keep generating (and charging quota) into
     // a conversation the user just left (WR-16).
     stopGeneration();
-    set({ conversationId: null, messages: [], streaming: false, error: null, notice: null, insertStatus: null });
+    set({
+      conversationId: null,
+      messages: [],
+      streaming: false,
+      error: null,
+      notice: null,
+      insertStatus: null,
+      autoRun: null,
+    });
   },
 }));
 
