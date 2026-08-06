@@ -7,6 +7,7 @@
     "dev:extension": "pnpm --filter extension dev",
     "build": "pnpm --filter shared build && pnpm --filter extension build",
     "verify": "node scripts/verify.mjs",
+    "verify:autonomous": "node scripts/verify-autonomous.mjs",
     "verify:autonomous-api": "node scripts/verify-autonomous-api.mjs",
     "test": "pnpm --filter backend test"
   },
