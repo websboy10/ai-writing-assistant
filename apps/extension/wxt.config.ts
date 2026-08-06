@@ -1,6 +1,14 @@
 import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
 
+// Localhost is only reachable by a build that actually points at localhost.
+// A store package that carries http://localhost host permissions it never uses
+// is unjustifiable permission surface in review — and the reviewer cannot see
+// the build flag, only the manifest. Tracks VITE_BACKEND_URL, the same switch
+// that decides the backend origin in utils/protocol.ts.
+const backendUrl = process.env.VITE_BACKEND_URL ?? '';
+const isLocalBackend = /localhost|127\.0\.0\.1/.test(backendUrl);
+
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   vite: () => ({
@@ -19,8 +27,7 @@ export default defineConfig({
     host_permissions: [
       '<all_urls>',
       'https://ai-skriveassistent-api.vercel.app/*',
-      'http://localhost:8787/*',
-      'http://127.0.0.1:8787/*',
+      ...(isLocalBackend ? ['http://localhost:8787/*', 'http://127.0.0.1:8787/*'] : []),
     ],
     commands: {
       'toggle-sidebar': {
