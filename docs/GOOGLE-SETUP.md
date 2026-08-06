@@ -115,8 +115,18 @@ Clients, Data Access**. Those five are the rest of this job.
     ```
 16. **Authorised domains** — click **+ Add domain**, then type:
     ```
-    vercel.app
+    ai-skriveassistent.vercel.app
     ```
+    > **Not `vercel.app`.** Google rejects it with *"Invalid domain: must be a
+    > top private domain"*, because `vercel.app` is on the public suffix list —
+    > the same category as `.co.uk`. Nobody can own it, so it can't be your
+    > authorised domain. The full subdomain is what you own.
+    >
+    > **If Google then demands Search Console verification:** try clearing the
+    > field and saving. In Testing mode the list is usually optional — Google
+    > infers it from the home page and privacy links above. If it insists, the
+    > landing site needs a Search Console verification tag (a 5-minute job, and
+    > one you'll want before public launch anyway).
 17. Click **Save** at the bottom.
 
 > Leave the logo empty. Uploading one triggers a Google brand review you don't
