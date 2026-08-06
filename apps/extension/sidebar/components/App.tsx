@@ -142,26 +142,29 @@ export function App() {
       {/* Right-attached modal: flush right edge, rounded left corners */}
       {open && (
         <aside className="fixed right-0 top-1/2 z-[2147483646] flex h-[min(86vh,700px)] w-[400px] max-w-[92vw] -translate-y-1/2 flex-col overflow-hidden rounded-l-[26px] border border-r-0 border-hairline bg-paper/95 text-[14px] text-ink shadow-2xl shadow-black/30 backdrop-blur-xl">
-          <header className="flex items-center gap-2 border-b border-hairline px-4 py-3">
-            <img src={logo} alt="" className="h-7 w-7" />
-            <span className="awa-eyebrow whitespace-nowrap !text-ink">Assistent</span>
-            {usage && (
-              <span
-                className="awa-eyebrow ml-0.5 whitespace-nowrap rounded-full border border-hairline px-2 py-0.5"
-                title={`Nulstilles ${new Date(usage.resetsAt).toLocaleString('da-DK')}`}
-              >
-                {usage.used} / {usage.limit}
-              </span>
-            )}
-            {billing?.status === 'trialing' && billing.active && (
-              <span
-                className="awa-eyebrow whitespace-nowrap rounded-full border border-hairline px-2 py-0.5"
-                title={`Din gratis prøveperiode slutter ${new Date(billing.trialEndsAt).toLocaleDateString('da-DK')}`}
-              >
-                Prøve: {billing.trialDaysLeft} {billing.trialDaysLeft === 1 ? 'dag' : 'dage'}
-              </span>
-            )}
-            <div className="ml-auto flex items-center gap-0.5">
+          {/* The ✕ and tabs are shrink-0; the chips in the middle give way
+              instead — the close button must never be pushed off the edge. */}
+          <header className="flex items-center gap-1.5 border-b border-hairline py-3 pl-3 pr-2">
+            <img src={logo} alt="AI Skriveassistent" className="h-7 w-7 shrink-0" />
+            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+              {usage && (
+                <span
+                  className="awa-eyebrow whitespace-nowrap rounded-full border border-hairline px-2 py-0.5"
+                  title={`Nulstilles ${new Date(usage.resetsAt).toLocaleString('da-DK')}`}
+                >
+                  {usage.used} / {usage.limit}
+                </span>
+              )}
+              {billing?.status === 'trialing' && billing.active && (
+                <span
+                  className="awa-eyebrow whitespace-nowrap rounded-full border border-hairline px-2 py-0.5"
+                  title={`Din gratis prøveperiode slutter ${new Date(billing.trialEndsAt).toLocaleDateString('da-DK')}`}
+                >
+                  {billing.trialDaysLeft} {billing.trialDaysLeft === 1 ? 'dag' : 'dage'}
+                </span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5">
               {email && (
                 <>
                   <TabButton label="Chat" active={view === 'chat'} onClick={() => set({ view: 'chat' })} />
@@ -184,7 +187,7 @@ export function App() {
               {/* Collapse keeps state (SIDE-03) — store lives outside the tree */}
               <button
                 onClick={() => setOpen(false)}
-                className="ml-1 rounded-full p-1.5 text-graphite transition-colors hover:bg-wash hover:text-ink"
+                className="rounded-full p-1.5 text-graphite transition-colors hover:bg-wash hover:text-ink"
                 title="Skjul panelet"
               >
                 ✕
@@ -224,7 +227,7 @@ function TabButton({
     <button
       onClick={onClick}
       title={title}
-      className={`awa-eyebrow rounded-full px-2.5 py-1 transition-colors ${
+      className={`awa-eyebrow whitespace-nowrap rounded-full px-2 py-1 transition-colors ${
         active ? '!text-paper bg-ink' : 'hover:bg-wash hover:!text-ink'
       }`}
     >
