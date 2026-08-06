@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>AWA — 07-01 Docs-spike</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 720px;
+        margin: 24px auto;
+        padding: 0 16px;
+        font-size: 13px;
+        color: #111;
+      }
+      h1 {
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
+      p.hint {
+        color: #666;
+        margin-top: 0;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin: 16px 0;
+      }
+      input[type='text'] {
+        flex: 1;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+      button {
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: none;
+        background: #111111;
+        color: #fff;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #888;
+        cursor: default;
+      }
+      button.secondary {
+        background: #eee;
+        color: #111;
+      }
+      pre#report {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #f6f6f6;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 12px;
+        min-height: 200px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>07-01 — Docs-spike (D-16a)</h1>
+    <p class="hint">
+      Ikke en del af sidebaren. Kun for at bevise Find-positionering og token-flowet mod et rigtigt
+      Google-dokument, før noget bygges ovenpå det.
+    </p>
+    <div class="row">
+      <input type="text" id="doc-url" placeholder="https://docs.google.com/document/d/.../edit" />
+      <button id="run">Kør spike</button>
+    </div>
+    <div class="row">
+      <button id="copy" class="secondary">Kopiér rapport</button>
+    </div>
+    <pre id="report"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
