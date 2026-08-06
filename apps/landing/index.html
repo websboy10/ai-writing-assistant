@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Skriveassistent — svaret lander i dit dokument, i dit tempo</title>
+  <meta name="description" content="En Chrome-udvidelse, der lægger en AI-skriveassistent på hver webside. Chat, vedhæft filer, og få teksten skrevet direkte ind i din editor — også Google Docs. 7 dage gratis, derefter 50 kr./md.">
+  <link rel="icon" type="image/png" href="icon-128.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html">
+      <img src="icon-128.png" alt="AI Skriveassistent logo">
+      <span>AI Skriveassistent</span>
+    </a>
+    <nav class="site-nav" aria-label="Hovedmenu">
+      <a href="#funktioner">Funktioner</a>
+      <a href="#pris">Pris</a>
+      <a href="#faq">Spørgsmål</a>
+      <a class="nav-cta" href="mailto:sehit@degirmenci.dk?subject=Beta%20%E2%80%94%20AI%20Skriveassistent">Skriv dig op til beta</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <div class="wrap">
+      <span class="eyebrow">Chrome-udvidelse · Til alt du skriver på nettet</span>
+      <h1>Svaret lander i dit dokument. I dit tempo.<span class="caret" aria-hidden="true"></span></h1>
+      <p class="lede">En lille rund knap i kanten af hver webside. Chat med din assistent, vedhæft filer, og få teksten skrevet direkte ind i den editor, du allerede arbejder i — med det samme, eller bogstav for bogstav i et menneskeligt skrivetempo.</p>
+      <div class="cta-row">
+        <span class="btn btn-disabled" aria-disabled="true">Kommer snart i Chrome Web Store</span>
+        <a class="btn btn-primary" href="mailto:sehit@degirmenci.dk?subject=Beta%20%E2%80%94%20AI%20Skriveassistent">Skriv dig op til beta</a>
+      </div>
+      <p class="cta-note">7 dage gratis · Intet kort · Derefter 50 kr./md.</p>
+    </div>
+  </section>
+
+  <section class="stage-section" aria-label="Sådan ser det ud">
+    <div class="wrap">
+      <div class="stage">
+        <div class="stage-bar" aria-hidden="true">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="url">docs.google.com/document/…</span>
+        </div>
+        <div class="stage-body">
+          <div class="doc-area">
+            <div class="doc" aria-hidden="true">
+              <p class="doc-title">Medarbejderudviklingssamtale — 2. halvår</p>
+              <div class="line"></div>
+              <div class="line w80"></div>
+              <div class="line w60"></div>
+              <p class="typed-wrap"><span id="typed"></span><span class="typed-caret"></span></p>
+            </div>
+          </div>
+          <div class="edge-btn" aria-hidden="true">
+            <img src="icon-128.png" alt="">
+          </div>
+          <aside class="panel" aria-hidden="true">
+            <div class="panel-head">Assistent</div>
+            <div class="bubble user">Skriv et udkast til afsnittet om samarbejde — brug de vedhæftede noter.</div>
+            <div class="chip-row">
+              <span class="chip">noter.pdf</span>
+              <span class="chip">referat.docx</span>
+            </div>
+            <div class="bubble ai">Klart. Jeg skriver udkastet direkte ind i dokumentet nu.</div>
+            <div class="chip-row">
+              <span class="chip active">Menneskeligt tempo</span>
+              <span class="chip">Pause</span>
+              <span class="chip">Fortryd</span>
+            </div>
+            <div class="panel-foot">Skriv en besked …</div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="funktioner">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Funktioner</span>
+        <h2>Ikke endnu en chatboks. En assistent, der skriver dér, hvor du skriver.</h2>
+        <p>De fleste AI-værktøjer giver dig et svar, du selv skal kopiere videre. Denne assistent afleverer teksten direkte i dit dokument — og du bestemmer hvordan.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="eyebrow">Indsættelse</span>
+          <h3>Menneskeligt tempo — eller med det samme</h3>
+          <p>Få teksten indsat på ét sekund, eller lad assistenten skrive den bogstav for bogstav i et naturligt skrivetempo på cirka 30 ord i minuttet.</p>
+          <p>Du kan sætte på pause, stoppe og fortryde undervejs. Det er dit dokument hele vejen.</p>
+        </article>
+        <article class="feature">
+          <span class="eyebrow">Filer og OCR</span>
+          <h3>Vedhæft filer — også scannede</h3>
+          <p>Træk PDF, Word, tekst, Markdown eller billeder ind i samtalen, og skriv ud fra indholdet.</p>
+          <p>Scannede dokumenter læses automatisk med OCR — med fuld understøttelse af dansk.</p>
+        </article>
+        <article class="feature">
+          <span class="eyebrow">Markeret tekst</span>
+          <h3>Markér tekst — vælg, hvad den skal bruges til</h3>
+          <p>Markér tekst på en side, og vælg mellem to funktioner: Få den besvaret — svaret lander lige under det markerede — eller vedhæft den som kontekst til samtalen.</p>
+        </article>
+        <article class="feature">
+          <span class="eyebrow">Overalt</span>
+          <h3>Virker i din editor — også Google Docs</h3>
+          <p>Assistenten skriver direkte i det felt eller dokument, du arbejder i: webformularer, CMS'er, mailprogrammer — og Google Docs, som ellers er notorisk svær for udvidelser.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="pris">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Pris</span>
+        <h2>Én pris. Ingen overraskelser.</h2>
+      </div>
+      <div class="price-card">
+        <span class="eyebrow">7 dage gratis — intet kort</span>
+        <p class="price-line">50 kr./md.</p>
+        <p class="price-sub">efter prøveperioden</p>
+        <ul class="price-points">
+          <li>Alle funktioner med fra første dag</li>
+          <li>Ingen binding — opsig når som helst</li>
+          <li>Betaling håndteres af Stripe</li>
+        </ul>
+        <a class="btn btn-primary" href="mailto:sehit@degirmenci.dk?subject=Beta%20%E2%80%94%20AI%20Skriveassistent">Skriv dig op til beta</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Spørgsmål</span>
+        <h2>Ofte stillede spørgsmål</h2>
+      </div>
+      <div class="faq-list">
+        <details>
+          <summary>Hvordan kommer teksten ind i mit dokument?</summary>
+          <p class="answer">Assistenten skriver direkte i den editor, du har åben — enten hele teksten med det samme eller bogstav for bogstav i menneskeligt tempo (cirka 30 ord i minuttet). Du kan sætte på pause, stoppe og fortryde undervejs, og teksten lander præcis dér, hvor din markør står.</p>
+        </details>
+        <details>
+          <summary>Virker det virkelig i Google Docs?</summary>
+          <p class="answer">Ja. Google Docs bruger sin egen særlige editor, som de fleste udvidelser ikke kan skrive i — det har vi bygget specifik understøttelse af. Assistenten virker også i almindelige tekstfelter, CMS'er og webmail.</p>
+        </details>
+        <details>
+          <summary>Hvad sker der med mine data? (GDPR)</summary>
+          <p class="answer">Din konto og samtalehistorik opbevares hos Supabase i EU (Stockholm). Vedhæftede filer behandles kun midlertidigt for at udtrække tekst og gemmes ikke som filer. Personligt indhold sendes udelukkende til betalte AI-modeller med træning slået fra. Du kan til enhver tid få dine data slettet. Læs det hele i vores <a href="privatliv.html">privatlivspolitik</a>.</p>
+        </details>
+        <details>
+          <summary>Hvad koster det efter prøveperioden?</summary>
+          <p class="answer">50 kr. om måneden. De første 7 dage er gratis, og du skal ikke oplyse kort for at prøve. Der er ingen binding — du kan opsige når som helst med virkning fra udgangen af perioden. Betaling håndteres af Stripe. Se også <a href="handelsbetingelser.html">handelsbetingelserne</a>.</p>
+        </details>
+        <details>
+          <summary>Hvornår kan jeg hente udvidelsen?</summary>
+          <p class="answer">Udvidelsen er på vej til Chrome Web Store. Indtil da kan du <a href="mailto:sehit@degirmenci.dk?subject=Beta%20%E2%80%94%20AI%20Skriveassistent">skrive dig op til betaen</a>, så får du besked, så snart den er klar.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="bottom-cta">
+    <div class="wrap">
+      <h2>Skriv mindre udenom. Skriv mere færdigt.</h2>
+      <p>Prøv gratis i 7 dage, når vi åbner — ingen kortoplysninger, ingen binding.</p>
+      <div class="cta-row">
+        <span class="btn btn-disabled" aria-disabled="true">Kommer snart i Chrome Web Store</span>
+        <a class="btn btn-primary" href="mailto:sehit@degirmenci.dk?subject=Beta%20%E2%80%94%20AI%20Skriveassistent">Skriv dig op til beta</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-brand">
+      <img src="icon-128.png" alt="">
+      <span>AI Skriveassistent</span>
+    </div>
+    <nav class="footer-links" aria-label="Sidefod">
+      <a href="privatliv.html">Privatlivspolitik</a>
+      <a href="handelsbetingelser.html">Handelsbetingelser</a>
+      <a href="mailto:sehit@degirmenci.dk">Kontakt</a>
+    </nav>
+    <p class="footer-meta">© 2026 AI Skriveassistent · Danmark · sehit@degirmenci.dk</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var el = document.getElementById("typed");
+  if (!el) return;
+  var text = "Marie har i det seneste halvår løftet samarbejdet i teamet mærkbart. Hun deler viden uopfordret, følger op på aftaler og har taget initiativ til en fast ugentlig status, som resten af afdelingen nu bruger.";
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    el.textContent = text;
+    return;
+  }
+  var i = 0;
+  function tick() {
+    if (i <= text.length) {
+      el.textContent = text.slice(0, i);
+      i += 1;
+      // ~30 words/min feel, sped up slightly so the demo stays alive
+      setTimeout(tick, 55);
+    } else {
+      setTimeout(function () { i = 0; tick(); }, 6000);
+    }
+  }
+  tick();
+})();
+</script>
+
+</body>
+</html>
