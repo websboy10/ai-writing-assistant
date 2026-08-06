@@ -129,45 +129,40 @@ Decimal phases appear between their surrounding integers in numeric order.
 **UI hint**: yes
 
 ### Phase 7: Autonomous mode — answer every question in a document
-**Goal**: [To be set by /gsd:discuss-phase 7 — see the open questions below]
-**Mode:** TBD
+**Goal**: A user opens a document full of questions, picks Straks or Langsomt, and every question is answered in place beneath itself — driven either from a button covering the whole document or from a marked selection holding one question or twenty.
+**Mode:** mvp
 **Depends on**: Phases 1-6 (all shipped)
-**Requirements**: TBD (new requirement family AUTO-xx to be written during discuss)
-**Success Criteria** (what must be TRUE): TBD
+**Requirements**: AUTO-01..AUTO-10 (to be written during planning, from CONTEXT decisions D-01..D-15)
+**Success Criteria** (what must be TRUE):
+  1. User presses the autonomous button on a document containing questions, picks Straks or Langsomt, and every question receives an answer written directly beneath it — verified in a plain textarea, a contenteditable editor, and a real Google Doc.
+  2. User marks text containing several questions, presses "Besvar markeringen", is asked Straks or Langsomt, and every marked question is answered in place — with ten questions in one marking working the same as one.
+  3. Langsomt visibly types from the first question downward, one answer at a time, and the user can pause, resume, stop, and undo the entire run as a single step.
+  4. Answers on Google Docs are placed at exact positions via the Docs API with the user's formatting intact; a user who declines the Google permission still gets answers through the fallback path, and is told plainly that placement is degraded rather than being failed silently.
+  5. "Brug som kontekst" behaves exactly as it does today.
 
-**Origin**: Operator request 2026-08-06. The use case is a project leader who
-sends a worker a document full of questions. The worker opens it, presses one
-button, and the assistant reads the whole document, finds every question,
-answers them all, and writes the answers back — in either of the two insertion
-modes that already exist (Straks and Langsomt).
+**Origin**: Operator request 2026-08-06. A project leader sends a worker a
+document full of questions; the worker opens it, picks fast or slow, and the
+answers get written in. This sits directly on PROJECT.md's first demand signal —
+HR teams writing performance reviews in Google Docs.
 
-**The load-bearing assumption**: Google Docs paints its document to `<canvas>`,
-so there is no readable DOM (`insertion/adapters/gdocs.ts:6-9`). The candidate
-read path is select-all followed by reading the hidden
-`iframe.docs-texteventtarget-iframe` mirror that `GDocsAdapter.hasSelection()`
-(gdocs.ts:67) already uses to detect a selection. **Unproven against live Docs.**
-If it fails, the whole feature's shape changes on Docs. It should be spiked
-before anything else is planned — the same go/no-go discipline Phase 3 used.
+**Decisions are locked in `07-CONTEXT.md`** (D-01..D-15). Read it before
+planning. The four that shape everything:
 
-**The consequence if it holds**: the mirror yields plain text with no positions.
-We would know every question but not where on the canvas each one sits, so
-answering *in place, under each question* is the hard part on Docs specifically.
-Plain fields and contenteditable editors have real positions and do not have
-this problem.
+- **In place, under each question** — not a collected block (D-01).
+- **No review step.** The two existing buttons are the whole interface; the user
+  picks fast or slow and the assistant writes (D-04).
+- **Build the Google Docs API path** (D-05). The canvas/hidden-iframe route this
+  phase was originally scoped around is superseded (D-09) and survives only as
+  the fallback (D-06). **Google OAuth is therefore a prerequisite** (D-07),
+  shipped under OAuth "Testing" mode so no Google verification blocks the beta
+  (D-08).
+- **The AI decides what counts as a question** — no rule-based detection (D-10).
 
-**Open questions for discuss** (none of these are decided):
-1. What counts as a question? Lines ending in `?`, numbered items, a heading
-   with blank space under it, form-like prompts — the document is not
-   necessarily punctuated helpfully.
-2. Where does each answer go — in place under its question, or as one collected
-   answer block at the cursor/end? On Docs this may be forced.
-3. Langsomt at ~30 wpm across a whole questionnaire could run for many minutes.
-   Does the user watch it, can they leave, what happens on tab switch?
-4. Review before writing: does the user see the answers first, or does the
-   assistant write straight into the document?
-5. Stop and undo across *many* insertions rather than one.
-6. What the assistant answers *from* — the document alone, attached files, or
-   does it need to ask the user for facts it cannot know?
+**Operator-accepted risk**: every question gets a confident answer and nothing is
+marked in the document, including questions the assistant had nothing to base an
+answer on. Stated to the operator and chosen deliberately. Mitigated, inside that
+decision, by widening source material to attached files (D-11) and listing the
+gaps in the panel rather than the document (D-12).
 
 **Plans**: TBD
 **UI hint**: yes

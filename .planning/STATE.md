@@ -149,8 +149,16 @@ specific rejection messages for oversized/malformed/unsupported files
 ### Roadmap Evolution
 
 - **Phase 7 added 2026-08-06**: Autonomous mode — answer every question in a
-  document. Operator request. Not planned yet; the open questions and the
-  load-bearing Google Docs assumption are written into the ROADMAP entry.
+  document. Operator request. **Discussed the same day; decisions locked in
+  `.planning/phases/07-*/07-CONTEXT.md` (D-01..D-15).** Not planned yet.
+- **Phase 7 absorbed the marked-text flow** rather than spawning a phase for it:
+  "Besvar markeringen" is the same engine at a smaller scope, and must handle a
+  marking containing many questions.
+- **Phase 7 chose to fix Google Docs properly, not work around it.** The
+  original canvas/hidden-iframe reading assumption is superseded — the phase now
+  builds on the Google Docs API, with the existing synthetic-paste mechanism
+  demoted to a fallback. **This promotes Google OAuth from optional (SETUP.md
+  Job 4) to a hard prerequisite.**
 
 ### Locked operator decisions
 
@@ -169,12 +177,16 @@ specific rejection messages for oversized/malformed/unsupported files
 ## Session Continuity
 
 Last session: 2026-08-06
-Stopped at: Web Store package prepared and then paused by operator (localhost
-host_permissions removed from the store build, all listing copy written).
-Phase 7 (Autonomous mode) opened on the roadmap, awaiting /gsd:discuss-phase 7.
-Resume file: None
+Stopped at: Phase 7 context gathered — `07-CONTEXT.md` written and committed.
+Earlier the same session: Web Store package prepared and then paused by operator
+(localhost host_permissions removed from the store build, all listing copy
+written in `docs/STORE-LISTING.md`).
+Resume file: `.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-CONTEXT.md`
 
-**Next step:** discuss Phase 7. The first real question is a go/no-go spike:
-can the whole Google Docs document be read via select-all + the hidden
-`docs-texteventtarget-iframe` mirror? Needs a Google-signed-in browser, so it
-needs the operator.
+**Next step:** `/gsd:plan-phase 7`.
+
+**Blocked on the operator first:** the Google Cloud OAuth credential
+(`docs/SETUP.md` Job 4) is now a prerequisite, not an optional extra — Phase 7's
+primary Google Docs path is the Docs API, which needs that same Google Cloud
+project with the Docs API enabled. Roughly 10 minutes of clicking. Planning can
+proceed without it; execution of the Docs path cannot.
