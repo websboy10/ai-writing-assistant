@@ -1,5 +1,12 @@
 # Chrome Web Store — færdig tekst til alle felter
 
+> **PÅ PAUSE — operatørbeslutning 2026-08-06.** Udviklerkontoen er betalt, men
+> Sehit vil iterere videre på selve udvidelsen, før den sendes ind. Teksten
+> herunder er færdig og bliver ved med at passe; **skærmbillederne er
+> bevidst ikke taget endnu**, fordi de ville forældes med hver ændring i UI'et.
+> Når indsendelsen genoptages: tag skærmbillederne, afgør blokeringen nederst,
+> og gennemgå beskrivelserne for funktioner, der er kommet til siden.
+
 Skrevet 2026-08-06. Alt herunder er skrevet til at blive **kopieret direkte ind**
 i devconsole. Rækkefølgen følger fanerne i konsollen.
 
