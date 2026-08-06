@@ -6,7 +6,8 @@
     "dev:backend": "pnpm --filter backend dev",
     "dev:extension": "pnpm --filter extension dev",
     "build": "pnpm --filter shared build && pnpm --filter extension build",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "test": "pnpm --filter backend test"
   },
   "devDependencies": {
     "playwright": "^1.49.0",

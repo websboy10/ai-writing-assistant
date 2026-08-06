@@ -126,3 +126,40 @@ export const OPERATION_LABELS: Record<PromptOperation, string> = {
   translate: 'Oversæt',
   continue: 'Skriv videre',
 };
+
+// ---- Autonomous mode: POST /api/autonomous/answer (phase 7) ----
+// The extension hands over an ordered list of paragraphs (whichever editor it
+// came from); the backend decides what counts as a question (D-10) and
+// answers every one it finds, grounded in the paragraphs plus any attached
+// context. Model-returned indices are always positions into THIS list, never
+// offsets into a live document — see apps/backend/src/autonomous/parse.ts.
+
+export interface AutonomousParagraph {
+  index: number;
+  text: string;
+}
+
+export interface AutonomousRequest {
+  scope: 'document' | 'selection';
+  paragraphs: AutonomousParagraph[];
+  documentTitle?: string;
+  context?: ContextItem[];
+  prefs?: OutputPrefs;
+}
+
+export interface AutonomousAnswer {
+  paragraphIndex: number;
+  questionText: string;
+  answer: string;
+  /** false = nothing in the document or attached context grounded this answer (D-12). */
+  grounded: boolean;
+}
+
+export interface AutonomousResponse {
+  answers: AutonomousAnswer[];
+  detected: number;
+}
+
+export const MAX_AUTONOMOUS_QUESTIONS = 40;
+export const MAX_AUTONOMOUS_DOC_CHARS = 60_000;
+export const ANSWER_BATCH_SIZE = 5;
