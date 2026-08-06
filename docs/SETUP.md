@@ -82,17 +82,20 @@ Just say "private" or "public" and I'll do the rest.
 
 ---
 
-## Job 4 — Google sign-in credential (Phase 2, not now)
+## Job 4 — Google sign-in + Google Docs credential (DO THIS NEXT)
 
-**Why:** So beta users can click "Sign in with Google" instead of inventing
-another password. Email/password works without this, which is why it waits.
+**Why:** Two things at once — the "Log ind med Google" button that's already
+built but has no credential, and Phase 7's Google Docs path, which needs the
+same Google Cloud project.
 
-I'll walk you through it when we get there. Roughly: Google Cloud Console → new
-project → OAuth consent screen → Credentials → create an OAuth client ID, then
-paste two values into the Supabase dashboard. I'll give you the exact redirect
-URL to paste when the backend exists, because the URL doesn't exist yet.
+**Status changed 2026-08-06.** This was "not now" because the extension had no
+fixed ID, so there was no address to whitelist. The ID is now pinned
+(`foidkbeinmfolejjjfjcokmmknimohof`) and this job is unblocked — and Phase 7
+can't be executed without it.
 
-**Cost:** Free.
+**→ Full step-by-step with real values: `docs/GOOGLE-SETUP.md`**
+
+**Time:** ~20 min. **Cost:** free.
 
 ---
 
