@@ -63,6 +63,11 @@ export function billingRoutes(app: FastifyInstance): void {
       metadata: { user_id: user.id },
       success_url: `${env.publicUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${env.publicUrl}/billing/cancel`,
+      // Stripe Tax books the moms share of the tax-inclusive 50 kr price.
+      // Needs the customer's billing address, hence customer_update.
+      ...(env.stripeAutomaticTax
+        ? { automatic_tax: { enabled: true }, customer_update: { address: 'auto' as const } }
+        : {}),
       // Dashboard analytics tag (2026-03-25.dahlia+); harmless when older.
       ...({ integration_identifier: 'awa-extension-kqzvbnwt' } as Record<string, string>),
     });

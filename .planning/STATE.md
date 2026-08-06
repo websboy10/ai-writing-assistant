@@ -119,6 +119,17 @@ specific rejection messages for oversized/malformed/unsupported files
 - 33/33 E2E green with the extension running against the DEPLOYED backend
 - Operator guides: docs/STRIPE-LIVE.md, docs/CHROME-WEB-STORE.md
 
+### Stripe LIVE (2026-08-06)
+
+- Live product prod_V1SRACC78tS4Gm, price price_1U1PWyGYgFaIZrpIrPedJujG
+  (50 DKK/md, tax_behavior inclusive, tax_code SaaS personal), webhook
+  we_1U1PWyGYgFaIZrpIsGIM1atH — all on Vercel production env
+- STRIPE_AUTOMATIC_TAX=1 in production (operator confirmed tax setup +
+  MobilePay enabled); local dev stays on TEST keys deliberately
+- Verified live: cs_live checkout mints, webhook rejects bad signatures
+- REMAINING for operator: Stripe public business name still shows "Chat"
+  (Settings → Business → Public details → "AI Skriveassistent")
+
 ### Pending Todos
 
 - Operator walkthrough per TESTING.md — especially Google Docs insertion

@@ -65,9 +65,11 @@ confirmation email; click the link, then sign in.
   screen (50 kr./md. via Stripe). Enforced on the server, not just in the UI.
 - **Anti-abuse**: a browser that has already used a free week gives new
   accounts no new trial (verified automatically).
-- Stripe is in **test mode**: pay with card `4242 4242 4242 4242`, any future
-  expiry, any CVC. No real money moves. The panel unlocks by itself within a
-  few seconds of paying.
+- **Stripe is LIVE on the deployed backend** (real cards, real money, moms
+  booked automatically). The local dev backend keeps TEST keys — the 4242
+  test card and scripts/verify-paywall.mjs only work against a locally built
+  extension pointing at 127.0.0.1:8787 (build with
+  VITE_BACKEND_URL=http://127.0.0.1:8787).
 - Manage/cancel: the paywall's "Administrér abonnement" opens Stripe's
   self-service portal.
 - Before real customers: switch the Stripe keys to live mode and set the

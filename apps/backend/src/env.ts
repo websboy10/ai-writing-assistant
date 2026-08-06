@@ -31,4 +31,7 @@ export const env = {
   // Set in production once the webhook endpoint exists in the Stripe
   // dashboard. Locally the success-page + on-demand sync covers the flow.
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+  // Only enabled where a tax registration exists (live). Enabling it without
+  // one makes Stripe silently collect no tax — the classic Stripe Tax trap.
+  stripeAutomaticTax: process.env.STRIPE_AUTOMATIC_TAX === '1',
 };
