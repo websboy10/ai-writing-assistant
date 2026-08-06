@@ -69,6 +69,20 @@ try {
   const fab = host.locator('button[title*="Skriveassistent"]');
   await fab.waitFor({ timeout: 5_000 });
   ok('floating button visible', await fab.isVisible());
+
+  console.log('\n— Discreet dismiss —');
+  await fab.hover();
+  const dismissDot = host.locator('button[title^="Skjul knappen"]');
+  await dismissDot.waitFor({ timeout: 3_000 });
+  await dismissDot.click();
+  const sliver = host.locator('button[title="Vis assistenten"]');
+  await sliver.waitFor({ timeout: 3_000 });
+  ok('circle collapses to a tiny edge sliver', (await fab.count()) === 0 && (await sliver.isVisible()));
+  const persisted = await page.evaluate(() => new Promise((r) => chrome?.storage?.local ? chrome.storage.local.get('fabHidden').then((v) => r(v.fabHidden)) : r('n/a')));
+  await sliver.click();
+  await fab.waitFor({ timeout: 3_000 });
+  ok('sliver brings the circle back', await fab.isVisible(), `persisted=${persisted}`);
+
   await fab.click();
 
   const aside = host.locator('aside');

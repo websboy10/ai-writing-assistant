@@ -19,13 +19,22 @@ const SERIF = { fontFamily: 'Charter, Georgia, serif' };
 export function App() {
   const { email, view, theme, usage, context, set, loadSession } = useStore();
   const [open, setOpen] = useState(false);
+  // Discreetly dismissed: the circle collapses to a hairline sliver on the
+  // edge. Persisted, so the choice holds across every tab and window.
+  const [hidden, setHidden] = useState(false);
   // 'idle' → files dragged anywhere on the page → 'attract' → over the button → 'hover'
   const [dragState, setDragState] = useState<'idle' | 'attract' | 'hover'>('idle');
   const [justDropped, setJustDropped] = useState(false);
   const dragDepth = useRef(0);
 
+  function dismiss(v: boolean) {
+    setHidden(v);
+    void chrome.storage.local.set({ fabHidden: v });
+  }
+
   useEffect(() => {
     void loadSession();
+    void chrome.storage.local.get('fabHidden').then(({ fabHidden }) => setHidden(!!fabHidden));
     const onMsg = (msg: { type?: string }) => {
       if (msg?.type === 'toggle-sidebar') setOpen((o) => !o);
     };
@@ -80,8 +89,21 @@ export function App() {
 
   return (
     <div className={`awa-root ${theme === 'dark' ? 'dark' : ''}`}>
-      {/* The edge circle — present at all times unless the modal replaces it */}
-      {!open && (
+      {/* Dismissed state: a near-invisible sliver on the edge brings it back.
+          Dragging files temporarily reveals the circle so drop keeps working. */}
+      {!open && hidden && dragState === 'idle' && (
+        <button
+          onClick={() => dismiss(false)}
+          title="Vis assistenten"
+          className="group fixed right-0 top-[42%] z-[2147483646] flex h-12 w-[10px] items-center justify-start rounded-l-full transition-colors hover:bg-ink/10"
+        >
+          <span className="ml-[3px] h-7 w-[3px] rounded-full bg-ink/30 transition-all group-hover:h-9 group-hover:bg-ink/70" />
+        </button>
+      )}
+
+      {/* The edge circle — present at all times unless dismissed or the modal replaces it */}
+      {!open && (!hidden || dragState !== 'idle') && (
+        <div className="group/fab fixed right-3 top-[42%] z-[2147483646]">
         <button
           onClick={() => setOpen(true)}
           onDragOver={(e) => {
@@ -91,7 +113,7 @@ export function App() {
           onDragLeave={() => setDragState((s) => (s === 'hover' ? 'attract' : s))}
           onDrop={(e) => void handleDrop(e)}
           title="AI Skriveassistent (Alt+Shift+A) — slip filer her for at vedhæfte dem"
-          className={`fixed right-3 top-[42%] z-[2147483646] flex h-12 w-12 items-center justify-center rounded-full border border-hairline bg-paper text-[19px] leading-none text-ink shadow-xl shadow-black/25 transition-all duration-200 ease-out hover:scale-110 ${scale} ${
+          className={`flex h-12 w-12 items-center justify-center rounded-full border border-hairline bg-paper text-[19px] leading-none text-ink shadow-xl shadow-black/25 transition-all duration-200 ease-out hover:scale-110 ${scale} ${
             dragState !== 'idle' ? 'ring-4 ring-ink/25' : ''
           } ${justDropped ? 'ring-4 ring-ink/40' : ''}`}
           style={SERIF}
@@ -103,6 +125,17 @@ export function App() {
             </span>
           )}
         </button>
+        {/* one-click discreet dismiss, revealed on hover */}
+        {dragState === 'idle' && !justDropped && (
+          <button
+            onClick={() => dismiss(true)}
+            title="Skjul knappen — en lille stribe i kanten henter den frem igen"
+            className="absolute -left-1.5 -top-1.5 hidden h-[18px] w-[18px] items-center justify-center rounded-full border border-hairline bg-paper text-[10px] font-bold leading-none text-graphite shadow-md hover:text-ink group-hover/fab:flex"
+          >
+            ×
+          </button>
+        )}
+        </div>
       )}
 
       {/* Right-attached modal: flush right edge, rounded left corners */}
