@@ -29,6 +29,23 @@ export interface InsertionAdapter {
   verifyIntact?(): InsertResult;
   /** The element that receives user keystrokes (for typing-race detection). */
   eventTarget(): EventTarget | null;
+  /**
+   * True when the editor applies our write on its own schedule, so the
+   * browser's edit report lands AFTER insert() has returned.
+   *
+   * Google Docs does this: the synthetic paste hands text to Docs, Docs
+   * updates its model and repaints its canvas, and only then does an `input`
+   * event appear — by which point the engine's "this write is mine" flag is
+   * already down. The guard then reads our own echo as the user typing and
+   * pauses the run after a single letter (INST-12 misfiring on itself).
+   *
+   * On these adapters the engine drops `input` from the typing-race guard and
+   * relies on `keydown` alone, which separates the two cleanly: a person
+   * typing always produces a trusted keydown, and a synthetic paste never
+   * does. A timing window would have had to choose between swallowing real
+   * keystrokes and re-admitting the echo; this needs no window at all.
+   */
+  readonly echoesAsync?: boolean;
 }
 
 /**

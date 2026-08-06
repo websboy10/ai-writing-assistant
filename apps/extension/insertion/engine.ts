@@ -151,11 +151,21 @@ export class InsertionSession {
 
   private attachGuard(): void {
     this.guardTarget = this.adapter.eventTarget();
-    this.guardTarget?.addEventListener('input', this.onUserInput, true);
+    // An async-echo editor (Google Docs) reports our own write as a trusted
+    // `input` after insert() has returned, so listening for it here pauses the
+    // run on its own first letter. `keydown` carries the same signal without
+    // the ambiguity — a person typing always produces one, our synthetic paste
+    // never does. See InsertionAdapter.echoesAsync.
+    if (!this.adapter.echoesAsync) {
+      this.guardTarget?.addEventListener('input', this.onUserInput, true);
+    }
     this.guardTarget?.addEventListener('keydown', this.onUserKey, true);
   }
 
   private detachGuard(): void {
+    // Unconditional: removing a listener that was never added is a no-op, and
+    // keying this off echoesAsync would leak the listener if that ever changed
+    // mid-session.
     this.guardTarget?.removeEventListener('input', this.onUserInput, true);
     this.guardTarget?.removeEventListener('keydown', this.onUserKey, true);
     this.guardTarget = null;

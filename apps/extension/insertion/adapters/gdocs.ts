@@ -18,6 +18,14 @@ import type { InsertionAdapter, InsertResult } from '../types';
  */
 export class GDocsAdapter implements InsertionAdapter {
   readonly kind = 'gdocs' as const;
+  /**
+   * Docs applies the paste on its own schedule and only then does the browser
+   * report an `input` — after insert() has returned. Without this, the paced
+   * path mistook its own echo for the user and paused after one letter, while
+   * instant insertion (which never arms the guard) worked fine. See
+   * InsertionAdapter.echoesAsync.
+   */
+  readonly echoesAsync = true;
   private chunksInserted = 0;
 
   private iframe(): HTMLIFrameElement | null {
