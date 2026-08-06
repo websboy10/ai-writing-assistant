@@ -16,9 +16,11 @@ const MONO = { fontFamily: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
 export function ChatView() {
   const s = useStore();
   const [input, setInput] = useState('');
-  // The marked text the next question is ABOUT (function 1 of a selection).
-  const [selSubject, setSelSubject] = useState('');
   const [liveSelection, setLiveSelection] = useState('');
+  // Reveals the Straks/Langsomt choice for "Besvar markeringen" (D-04a) — the
+  // same two-chip pattern AutonomousBar uses for the whole document, just
+  // scoped to the marked text. No draft, no Insert press on this path.
+  const [selExpanded, setSelExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickBottom = useRef(true);
 
@@ -39,10 +41,9 @@ export function ChatView() {
 
   function send() {
     const text = input.trim();
-    if (!text && !selSubject) return;
-    sendChat(text || 'Besvar den markerede tekst.', selSubject || undefined);
+    if (!text) return;
+    sendChat(text);
     setInput('');
-    setSelSubject('');
   }
 
   function useSelectionAsContext() {
@@ -85,44 +86,67 @@ export function ChatView() {
         {s.error && <Banner kind="error" text={s.error} />}
         {s.notice && <Banner kind="info" text={s.notice} />}
         {s.insertStatus && <InsertBar />}
+        {s.autoRun && <AutoRunBar />}
       </div>
 
       {/* composer */}
       <div className="space-y-2 border-t border-hairline p-3">
-        {/* Marked text on the page: its two jobs, clearly stated (PROM-02) */}
-        {liveSelection && !selSubject && (
+        {/* Marked text on the page: its two jobs, clearly stated (PROM-02).
+            "Besvar markeringen" now asks Straks/Langsomt and writes the
+            answers directly into the marked text (D-04a) — the old
+            generate-into-the-panel-then-Insert two-step is gone on this
+            path. "Brug som kontekst" is untouched (D-04b). Hidden while a
+            run is active so a second run can't be started on top of it. */}
+        {liveSelection && !s.autoRun && (
           <div className="space-y-1.5 rounded-xl border border-hairline p-2.5">
             <p className="awa-eyebrow !text-ink">Du har markeret tekst · {liveSelection.length.toLocaleString('da-DK')} tegn</p>
             <div className="flex flex-wrap gap-1.5 text-[12px]">
-              <button
-                onClick={() => setSelSubject(liveSelection)}
-                className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
-                title="Assistenten besvarer den markerede tekst, og svaret skrives på en ny linje lige under den"
-              >
-                Besvar markeringen
-              </button>
-              <button
-                onClick={useSelectionAsContext}
-                className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
-                title="Teksten vedhæftes som baggrundsviden, assistenten kan trække på"
-              >
-                Brug som kontekst
-              </button>
+              {!selExpanded ? (
+                <>
+                  <button
+                    onClick={() => setSelExpanded(true)}
+                    className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
+                    title="Spørger Straks eller Langsomt, og skriver svarene direkte ind i den markerede tekst"
+                  >
+                    Besvar markeringen
+                  </button>
+                  <button
+                    onClick={useSelectionAsContext}
+                    className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
+                    title="Teksten vedhæftes som baggrundsviden, assistenten kan trække på"
+                  >
+                    Brug som kontekst
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setSelExpanded(false);
+                      void autonomous.run('selection', 'instant');
+                    }}
+                    className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
+                    title="Skriver alle svar på én gang"
+                  >
+                    Straks
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelExpanded(false);
+                      void autonomous.run('selection', 'progressive');
+                    }}
+                    className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
+                    title="Skriver bogstav for bogstav, ét spørgsmål ad gangen, fra toppen af markeringen"
+                  >
+                    Langsomt
+                  </button>
+                </>
+              )}
             </div>
             <p className="text-[11px] leading-snug text-graphite">
-              <b>Besvar:</b> svaret skrives lige under markeringen. <b>Kontekst:</b> teksten vedhæftes som baggrundsviden.
+              <b>Besvar:</b> svarene skrives direkte ind i markeringen, lige under hvert spørgsmål. <b>Kontekst:</b> teksten
+              vedhæftes som baggrundsviden.
             </p>
-          </div>
-        )}
-        {selSubject && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 text-[12px] text-paper">
-              Besvarer markeringen · {selSubject.length.toLocaleString('da-DK')} tegn
-              <button onClick={() => setSelSubject('')} className="font-bold" title="Glem markeringen">
-                ×
-              </button>
-            </span>
-            <span className="text-[11px] text-graphite">Svaret indsættes under markeringen.</span>
           </div>
         )}
 
@@ -163,7 +187,7 @@ export function ChatView() {
               }
             }}
             rows={2}
-            placeholder={selSubject ? 'Hvad skal jeg gøre med markeringen?' : 'Skriv til assistenten…'}
+            placeholder="Skriv til assistenten…"
             className="min-h-[42px] flex-1 resize-y rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
           />
           {s.streaming ? (
@@ -177,7 +201,7 @@ export function ChatView() {
           ) : (
             <button
               onClick={send}
-              disabled={!input.trim() && !selSubject}
+              disabled={!input.trim()}
               className="rounded-xl bg-ink px-3 py-2 font-medium text-paper hover:opacity-85 disabled:opacity-40"
             >
               ↑
@@ -195,36 +219,17 @@ export function ChatView() {
   );
 }
 
-// One capability, one entry point here (the whole open document); "Besvar
-// markeringen" is 07-04's job on the selection bar above. No review step,
-// no approval gate, no third mode — pressing Straks or Langsomt writes
-// directly (D-04).
+// One capability, two entry points to the same machine — the whole open
+// document here, "Besvar markeringen" on the selection bar above (scope:
+// 'selection'). No review step, no approval gate, no third mode — pressing
+// Straks or Langsomt writes directly (D-04). While a run is active the full
+// transport lives in AutoRunBar below; this button hides so a second run
+// can't be started on top of the first.
 function AutonomousBar() {
   const s = useStore();
   const [expanded, setExpanded] = useState(false);
 
-  if (s.autoRun) {
-    const st = s.autoRun;
-    return (
-      <div className="flex items-center gap-2 rounded-xl border border-hairline px-2.5 py-1.5 text-[12px]">
-        <span className="awa-eyebrow !text-ink">
-          {st.state === 'writing' && 'Besvarer spørgsmål'}
-          {st.state === 'paused' && 'På pause'}
-          {st.state === 'done' && 'Færdig ✓'}
-          {st.state === 'stopped' && 'Stoppet'}
-          {st.state === 'error' && 'Fejl'}
-        </span>
-        <span className="text-graphite">
-          {st.answersDone} / {st.answersTotal}
-        </span>
-        {(st.state === 'done' || st.state === 'stopped' || st.state === 'error') && (
-          <button onClick={() => autonomous.dismiss()} className="ml-auto px-1.5 py-0.5 text-graphite hover:text-ink">
-            Skjul
-          </button>
-        )}
-      </div>
-    );
-  }
+  if (s.autoRun) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -418,6 +423,99 @@ function InsertBar() {
         </button>
       </div>
       <div className="truncate text-[11px] text-graphite">{st.targetLabel}</div>
+    </div>
+  );
+}
+
+// The whole-run transport for autonomous mode (07-04) — reachable from
+// either entry point (document or selection scope), styled like InsertBar.
+// Stop and undo act on the WHOLE run, one user-visible step (D-15); there is
+// no per-answer control anywhere here. Collapsing the panel unmounts this
+// component, but the run itself lives outside the React tree (D-14) and
+// keeps going — see apps/extension/insertion/autonomous/orchestrator.ts.
+function AutoRunBar() {
+  const s = useStore();
+  const st = s.autoRun;
+  if (!st) return null;
+  const pct = Math.round(st.progress * 100);
+  return (
+    <div className="sticky bottom-0 space-y-2 rounded-2xl border border-hairline bg-paper p-3 shadow-lg">
+      <div className="flex items-baseline justify-between">
+        <span className="awa-eyebrow !text-ink">
+          {st.state === 'writing' && 'Skriver'}
+          {st.state === 'paused' && 'På pause'}
+          {/* Færdig keeps its checkmark: 07-03's regression suite already asserts on "Færdig ✓" verbatim. */}
+          {st.state === 'done' && 'Færdig ✓'}
+          {st.state === 'stopped' && 'Stoppet'}
+          {st.state === 'idle' && 'Fortrudt'}
+          {st.state === 'error' && 'Fejl'}
+        </span>
+        <span className="awa-eyebrow">
+          {st.answersDone} / {st.answersTotal} · {pct}%
+        </span>
+      </div>
+      {st.detail === 'user-typing' && (
+        <div className="text-[12px] text-graphite">På pause — du begyndte at skrive. Fortsæt når du er klar.</div>
+      )}
+      {st.placement === 'block' && st.degradedReason && <div className="text-[12px] text-graphite">{st.degradedReason}</div>}
+      {/* The galley line: ink advancing across paper. No countdown, no ETA — a
+          backgrounded tab throttles Langsomt's timers, so any estimate here
+          would just be a lie (D-14). */}
+      <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-wash">
+        <div className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="flex items-center gap-1.5 text-[11px]" style={MONO}>
+        {st.state === 'writing' && (
+          <button onClick={() => autonomous.pause()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
+            ⏸ Pause
+          </button>
+        )}
+        {st.state === 'paused' && (
+          <button onClick={() => autonomous.resume()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
+            ▶ Fortsæt
+          </button>
+        )}
+        {(st.state === 'writing' || st.state === 'paused') && (
+          <button onClick={() => autonomous.stop()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
+            ■ Stop
+          </button>
+        )}
+        {(st.state === 'done' || st.state === 'stopped' || st.state === 'paused' || st.state === 'error') && (
+          <button onClick={() => autonomous.undo()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
+            ↩ Fortryd alle svar
+          </button>
+        )}
+        <button onClick={() => autonomous.dismiss()} className="ml-auto px-2 py-1 text-graphite hover:text-ink">
+          Skjul
+        </button>
+      </div>
+      <div className="truncate text-[11px] text-graphite">{st.targetLabel}</div>
+      {st.ungrounded.length > 0 && (
+        <div className="space-y-1 border-t border-hairline pt-2 text-[11px]">
+          <p className="awa-eyebrow !text-ink">Uden grundlag i dine kilder</p>
+          <p className="text-graphite">
+            {st.ungrounded.length} {st.ungrounded.length === 1 ? 'spørgsmål blev besvaret' : 'spørgsmål blev besvaret'} alligevel,
+            uden noget i dine kilder at bygge på — intet er markeret i dokumentet.
+          </p>
+          <ul className="list-disc space-y-0.5 pl-4 text-graphite">
+            {st.ungrounded.map((q, i) => (
+              <li key={i}>{q}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {st.unplaced.length > 0 && (
+        <div className="space-y-1 border-t border-hairline pt-2 text-[11px]">
+          <p className="awa-eyebrow !text-ink">Kunne ikke placeres · {st.unplaced.length}</p>
+          <ul className="list-disc space-y-0.5 pl-4 text-graphite">
+            {st.unplaced.map((u, i) => (
+              <li key={i}>
+                {u.questionText} — {u.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
