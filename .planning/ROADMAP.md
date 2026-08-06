@@ -132,7 +132,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Goal**: A user opens a document full of questions, picks Straks or Langsomt, and every question is answered in place beneath itself — driven either from a button covering the whole document or from a marked selection holding one question or twenty.
 **Mode:** mvp
 **Depends on**: Phases 1-6 (all shipped)
-**Requirements**: AUTO-01..AUTO-10 (to be written during planning, from CONTEXT decisions D-01..D-15)
+**Requirements**: AUTO-01, AUTO-02, AUTO-03, AUTO-04, AUTO-05, AUTO-06, AUTO-07, AUTO-08, AUTO-09, AUTO-10, AUTO-11, AUTO-12, AUTO-13, AUTO-14, AUTO-15, AUTO-16, AUTO-17
 **Success Criteria** (what must be TRUE):
   1. User presses the autonomous button on a document containing questions, picks Straks or Langsomt, and every question receives an answer written directly beneath it — verified in a plain textarea, a contenteditable editor, and a real Google Doc.
   2. User marks text containing several questions, presses "Besvar markeringen", is asked Straks or Langsomt, and every marked question is answered in place — with ten questions in one marking working the same as one.
@@ -145,7 +145,7 @@ document full of questions; the worker opens it, picks fast or slow, and the
 answers get written in. This sits directly on PROJECT.md's first demand signal —
 HR teams writing performance reviews in Google Docs.
 
-**Decisions are locked in `07-CONTEXT.md`** (D-01..D-15). Read it before
+**Decisions are locked in `07-CONTEXT.md`** (D-01..D-17). Read it before
 planning. The four that shape everything:
 
 - **In place, under each question** — not a collected block (D-01).
@@ -164,7 +164,16 @@ answer on. Stated to the operator and chosen deliberately. Mitigated, inside tha
 decision, by widening source material to attached files (D-11) and listing the
 gaps in the panel rather than the document (D-12).
 
-**Plans**: TBD
+**Plans:** 6 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Google Docs go/no-go spike: Chrome-managed Docs token and Find-based cursor positioning, proved against a real document
+- [ ] 07-02-PLAN.md — Backend: the AI finds every question and answers it from the document plus attached files, flagging the ones it had nothing to go on
+- [ ] 07-03-PLAN.md — The run engine and the whole-document button, proven in a textarea and a rich-text editor
+- [ ] 07-04-PLAN.md — "Besvar markeringen" writes directly, plus whole-run pause/stop/undo and the gap list
+- [ ] 07-05-PLAN.md — Google Docs: in place via Find and the Docs API read, with visible fallbacks when permission is declined
+- [ ] 07-06-PLAN.md — Acceptance scenario, permission disclosure, and the operator's real-browser walkthrough
+
 **UI hint**: yes
 
 ## Progress
@@ -186,4 +195,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6. Phase 3's spik
 | 4. Context & File Pipeline | 0/TBD | Not started | - |
 | 5. Conversation History | 0/TBD | Not started | - |
 | 6. Quota Hardening, Usage Transparency & Trust Polish | 0/TBD | Not started | - |
-| 7. Autonomous mode — answer every question in a document | 0/TBD | Not planned | - |
+| 7. Autonomous mode — answer every question in a document | 0/6 | Planned | - |

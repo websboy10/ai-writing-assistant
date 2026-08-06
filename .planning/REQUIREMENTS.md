@@ -82,6 +82,26 @@ to exactly one roadmap phase.
 - [ ] **HIST-02**: Conversations persist across devices for a signed-in user
 - [x] **HIST-03**: User can delete a conversation, and deletion removes stored content
 
+### Autonomous Mode
+
+- [ ] **AUTO-01**: User can answer every question in the open document with one button, each answer written directly beneath its question
+- [ ] **AUTO-02**: User can mark text holding one question or twenty, press "Besvar markeringen", and have every marked question answered in place — the panel asks Straks or Langsomt and then writes, with no generate-into-the-panel step
+- [ ] **AUTO-03**: The AI decides what counts as a question — question marks, numbered fields, imperative prompts and headings with blank space beneath all count; there is no rule-based detector
+- [ ] **AUTO-04**: Answers are built from the document itself plus any files already attached in the panel
+- [ ] **AUTO-05**: Questions the assistant had nothing to draw on are listed in the panel, never marked in the document and never a gate
+- [ ] **AUTO-06**: Each question's position is resolved at the moment it is needed, never all measured up front
+- [ ] **AUTO-07**: Straks and Langsomt are the entire interface — no review step, no approval gate, no third mode, no settings
+- [ ] **AUTO-08**: Langsomt types letter by letter starting at the first question and working downward, one answer at a time
+- [ ] **AUTO-09**: User can pause, resume, stop and undo an entire run as a single action
+- [ ] **AUTO-10**: A keystroke from the user during a run auto-pauses the whole run
+- [ ] **AUTO-11**: On Google Docs the document is read once via the Docs API, and answers land at exact positions with the user's formatting intact
+- [ ] **AUTO-12**: Google Docs positioning uses Docs' own Find; typing reuses the existing insertion engine, costing zero write quota
+- [ ] **AUTO-13**: Docs access is obtained via chrome.identity against a Chrome-Extension OAuth client, requested at first use, with a partial consent grant treated as a refusal
+- [ ] **AUTO-14**: A user who declines the Google permission, or whose Docs call fails, still gets every answer and is told plainly that the placement is degraded
+- [ ] **AUTO-15**: A long run continues while the panel is collapsed
+- [ ] **AUTO-16**: "Brug som kontekst" behaves exactly as it did before this phase
+- [ ] **AUTO-17**: Every autonomous-mode failure states what went wrong and what to do next — never a silent no-op
+
 ### Trust, Quotas & Compliance
 
 - [x] **QUOT-01**: Per-user usage limits are enforced on the server before every AI call, atomically
@@ -206,11 +226,29 @@ Explicitly excluded. Documented to prevent scope creep.
 | QUOT-07 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
 | QUOT-08 | Phase 6 — Quota Hardening, Usage Transparency & Trust Polish | Pending |
 
+| AUTO-01 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-02 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-03 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-04 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-05 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-06 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-07 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-08 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-09 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-10 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-11 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-12 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-13 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-14 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-15 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-16 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-17 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+
 **Coverage:**
-- v1 requirements: 60 total
-- Mapped to phases: 60
+- v1 requirements: 77 total (60 original + 17 AUTO added with Phase 7)
+- Mapped to phases: 77
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-08-05*
-*Last updated: 2026-08-05 after roadmap creation (60/60 v1 requirements mapped across 6 phases)*
+*Last updated: 2026-08-06 — AUTO-01..AUTO-17 coined during Phase 7 planning from CONTEXT decisions D-01..D-17 (77/77 mapped across 7 phases)*
