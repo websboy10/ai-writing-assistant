@@ -73,10 +73,21 @@ export default defineBackground(() => {
     return next.access_token;
   }
 
+  // Stable per-install id for the one-free-trial-per-device rule (BILL-02).
+  // Survives sign-out and account switching; resets only on reinstall.
+  async function installId(): Promise<string> {
+    const { install_id } = await chrome.storage.local.get('install_id');
+    if (typeof install_id === 'string') return install_id;
+    const id = crypto.randomUUID();
+    await chrome.storage.local.set({ install_id: id });
+    return id;
+  }
+
   async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
     const token = await freshToken();
     const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
+    headers.set('x-awa-install', await installId());
     return fetch(`${BACKEND_URL}${path}`, { ...init, headers });
   }
 

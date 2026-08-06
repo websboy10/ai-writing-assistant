@@ -81,6 +81,22 @@ specific rejection messages for oversized/malformed/unsupported files
 - Logo/icon generated via kie.ai (nano-banana), monochrome knot mark;
   manifest icons in apps/extension/public/icon, inline data-URI in the UI
 
+### Billing (added 2026-08-06)
+
+- Freemium: 7-day server-side trial (billing_init RPC) → hard paywall (402
+  payment_required on /api/chat) → Stripe Checkout subscription 50 DKK/md
+  (price_1U1Lf2GrmuDlJMN2u6PrgTcB, product prod_V1ORKbu7oE0CNj, TEST MODE)
+- Anti-abuse: one trial per extension install (x-awa-install header →
+  trial_devices table); a device that used its week gives new accounts
+  status 'expired' immediately
+- Sync channels: /billing/success page (server-side session retrieve),
+  on-demand Stripe sync in getEntitlement, webhook /api/stripe/webhook
+  (needs STRIPE_WEBHOOK_SECRET — set at Vercel deploy, not needed locally)
+- Full flow proven E2E incl. real test-mode checkout: scripts/verify-paywall.mjs
+- BEFORE LAUNCH: live-mode Stripe keys, webhook endpoint in dashboard,
+  rename Stripe business name (shows "Chat sandbox" on checkout today),
+  operator's $10 OpenRouter top-up
+
 ### Pending Todos
 
 - Operator walkthrough per TESTING.md — especially Google Docs insertion

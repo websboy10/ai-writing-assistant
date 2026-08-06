@@ -57,6 +57,22 @@ confirmation email; click the link, then sign in.
 10. **History**: top of panel → Historik. Search, export, delete. **Log ud** is
     the only other button up there — there is no settings page anymore.
 
+## Freemium & betaling (nyt)
+
+- Every new account gets **7 days free** automatically — the header shows
+  "Prøve: X dage". No card needed to start.
+- When the trial ends: **hard paywall** — the chat is replaced by an upgrade
+  screen (50 kr./md. via Stripe). Enforced on the server, not just in the UI.
+- **Anti-abuse**: a browser that has already used a free week gives new
+  accounts no new trial (verified automatically).
+- Stripe is in **test mode**: pay with card `4242 4242 4242 4242`, any future
+  expiry, any CVC. No real money moves. The panel unlocks by itself within a
+  few seconds of paying.
+- Manage/cancel: the paywall's "Administrér abonnement" opens Stripe's
+  self-service portal.
+- Before real customers: switch the Stripe keys to live mode and set the
+  webhook secret (documented in .planning/STATE.md).
+
 ## The Google Docs test — needs your eyes
 
 This is the one thing automation couldn't verify, because it needs a signed-in

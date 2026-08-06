@@ -4,6 +4,7 @@ import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import { env } from './env.js';
 import { authRoutes } from './routes/auth.js';
+import { billingRoutes } from './routes/billing.js';
 import { chatRoutes } from './routes/chat.js';
 import { conversationRoutes } from './routes/conversations.js';
 import { fileRoutes } from './routes/files.js';
@@ -43,6 +44,7 @@ app.get('/api/usage', async (req, reply) => {
 });
 
 authRoutes(app);
+billingRoutes(app);
 chatRoutes(app);
 conversationRoutes(app);
 fileRoutes(app);

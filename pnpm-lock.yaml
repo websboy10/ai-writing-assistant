@@ -47,6 +47,9 @@ importers:
       pdfjs-dist:
         specifier: ^6.2.108
         version: 6.2.108
+      stripe:
+        specifier: ^22.4.0
+        version: 22.4.0(@types/node@22.20.1)
       tesseract.js:
         specifier: ^5.1.0
         version: 5.1.1
@@ -2241,6 +2244,15 @@ packages:
   strip-literal@4.0.0:
     resolution: {integrity: sha512-PaqAvfUZKBwc/SLmNZtHmzK+v19Z4O4eS3cKPeGvbIv/U3pnyEq4Tuw3/4v/FwfM8VQaEawsyCcOQ0P+kpwWWw==}
 
+  stripe@22.4.0:
+    resolution: {integrity: sha512-LVJ+tcSYeqOSnXr3i+Kz2tZ7y0crLLdP2uwD/4wccrmEVyn0g/Heo0pF7as7rxS/sOjJzrb1lxgZY0Y0Dx1pSA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
   stubborn-fs@2.0.0:
     resolution: {integrity: sha512-Y0AvSwDw8y+nlSNFXMm2g6L51rBGdAQT20J3YSOqxC53Lo3bjWRtr2BKcfYoAf352WYpsZSTURrA0tqhfgudPA==}
 
@@ -4396,6 +4408,10 @@ snapshots:
   strip-literal@4.0.0:
     dependencies:
       js-tokens: 10.0.0
+
+  stripe@22.4.0(@types/node@22.20.1):
+    optionalDependencies:
+      '@types/node': 22.20.1
 
   stubborn-fs@2.0.0:
     dependencies:

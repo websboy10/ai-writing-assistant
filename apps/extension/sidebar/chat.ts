@@ -119,6 +119,20 @@ export function sendChat(userText: string, subject?: string): void {
       }
       case 'error': {
         sawTerminal = true;
+        // Trial ran out (possibly mid-session) → the hard paywall takes over.
+        if (ev.code === 'payment_required') {
+          state.set({
+            streaming: false,
+            billing: state.billing
+              ? { ...state.billing, active: false }
+              : { status: 'expired', active: false, subscribed: false, trialEndsAt: new Date(0).toISOString(), trialDaysLeft: 0 },
+            messages: state.messages
+              .map((m) => (m.streaming ? { ...m, streaming: false } : m))
+              .filter((m) => m.content.length > 0 || m.role === 'user'),
+          });
+          void state.loadBilling();
+          break;
+        }
         // Chat streams bypass the call() wrapper, so session death surfaces
         // here too (WR-08).
         if (ev.code === 'unauthenticated') {

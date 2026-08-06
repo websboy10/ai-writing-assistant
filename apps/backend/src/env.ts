@@ -26,4 +26,9 @@ export const env = {
   paidChain: (process.env.PAID_MODEL_CHAIN ??
     'anthropic/claude-sonnet-5,google/gemini-3.5-flash,deepseek/deepseek-v4-flash'
   ).split(',').map((s) => s.trim()).filter(Boolean),
+  stripeSecretKey: required('STRIPE_SECRET_KEY'),
+  stripePriceId: required('STRIPE_PRICE_ID'),
+  // Set in production once the webhook endpoint exists in the Stripe
+  // dashboard. Locally the success-page + on-demand sync covers the flow.
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
 };

@@ -61,10 +61,21 @@ export type ChatStreamEvent =
 export type ChatErrorCode =
   | 'unauthenticated'
   | 'quota_exceeded'
+  | 'payment_required'
   | 'all_models_failed'
   | 'policy_no_paid_models'
   | 'upstream_error'
   | 'bad_request';
+
+/** GET /api/billing/status — the freemium gate as the UI sees it. */
+export interface BillingInfo {
+  status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired';
+  /** true → the product works; false → hard paywall */
+  active: boolean;
+  subscribed: boolean;
+  trialEndsAt: string;
+  trialDaysLeft: number;
+}
 
 export interface ConversationSummary {
   id: string;

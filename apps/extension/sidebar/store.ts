@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  BillingInfo,
   ChatMessage,
   ContextItem,
   ConversationSummary,
@@ -50,10 +51,13 @@ interface AwaState {
   // usage/history
   usage: UsageInfo | null;
   history: ConversationSummary[];
+  // freemium gate (null = not loaded yet)
+  billing: BillingInfo | null;
 
   set: (partial: Partial<AwaState>) => void;
   loadSession: () => Promise<void>;
   loadUsage: () => Promise<void>;
+  loadBilling: () => Promise<void>;
   loadHistory: (q?: string) => Promise<void>;
   signOut: () => Promise<void>;
   addContext: (item: ContextItem) => void;
@@ -81,6 +85,7 @@ export const useStore = create<AwaState>((set, get) => ({
   insertStatus: null,
   usage: null,
   history: [],
+  billing: null,
 
   set: (partial) => set(partial),
 
@@ -94,12 +99,20 @@ export const useStore = create<AwaState>((set, get) => ({
       view: data ? 'chat' : 'auth',
       theme: 'light',
     });
-    if (data) void get().loadUsage();
+    if (data) {
+      void get().loadUsage();
+      void get().loadBilling();
+    }
   },
 
   loadUsage: async () => {
     const res = await call({ kind: 'api', path: '/api/usage' });
     if (res.ok) set({ usage: res.data as UsageInfo });
+  },
+
+  loadBilling: async () => {
+    const res = await call({ kind: 'api', path: '/api/billing/status' });
+    if (res.ok) set({ billing: res.data as BillingInfo });
   },
 
   loadHistory: async (q?: string) => {
@@ -111,7 +124,7 @@ export const useStore = create<AwaState>((set, get) => ({
 
   signOut: async () => {
     await call({ kind: 'logout' });
-    set({ email: null, view: 'auth', messages: [], conversationId: null, history: [], usage: null });
+    set({ email: null, view: 'auth', messages: [], conversationId: null, history: [], usage: null, billing: null });
   },
 
   addContext: (item) => set({ context: [...get().context, item] }),

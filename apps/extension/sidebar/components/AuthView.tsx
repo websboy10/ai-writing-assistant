@@ -5,7 +5,7 @@ import { useStore } from '../store';
 type Mode = 'signin' | 'signup' | 'reset';
 
 export function AuthView() {
-  const { set, loadUsage } = useStore();
+  const { set, loadUsage, loadBilling } = useStore();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +37,7 @@ export function AuthView() {
       }
       set({ email: data.email ?? email, view: 'chat' });
       void loadUsage();
+      void loadBilling();
     } finally {
       setBusy(false);
     }
@@ -54,6 +55,7 @@ export function AuthView() {
     const data = res.data as { email?: string };
     set({ email: data.email || 'Google account', view: 'chat' });
     void loadUsage();
+    void loadBilling();
   }
 
   return (

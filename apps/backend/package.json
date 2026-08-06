@@ -19,6 +19,7 @@
     "mammoth": "^1.8.0",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^6.2.108",
+    "stripe": "^22.4.0",
     "tesseract.js": "^5.1.0"
   },
   "devDependencies": {

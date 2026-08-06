@@ -63,6 +63,23 @@ export async function rpc<T>(user: AuthedUser, fn: string, args: Record<string, 
   }
 }
 
+/**
+ * RPC with only the anon key — for calls with no user context (Stripe
+ * webhooks). Callable functions are security-definer and explicitly granted;
+ * the anon key itself never leaves the backend.
+ */
+export async function anonRpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
+  const res = await fetch(`${env.supabaseUrl}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: env.supabaseAnonKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`anonRpc ${fn} failed (${res.status}): ${text}`);
+  // void functions return an empty body — not valid JSON.
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
 /** GoTrue passthrough used by the auth proxy routes. */
 export async function gotrue(path: string, init: RequestInit = {}, userToken?: string): Promise<Response> {
   const headers: Record<string, string> = {

@@ -7,6 +7,7 @@ import { addFilesToContext } from '../ingest';
 import { AuthView } from './AuthView';
 import { ChatView } from './ChatView';
 import { HistoryView } from './HistoryView';
+import { PaywallView } from './PaywallView';
 
 const SERIF = { fontFamily: 'Charter, Georgia, serif' };
 
@@ -17,7 +18,7 @@ const SERIF = { fontFamily: 'Charter, Georgia, serif' };
  * - Click → a modal attached to the right edge (left corners rounded).
  */
 export function App() {
-  const { email, view, theme, usage, context, set, loadSession } = useStore();
+  const { email, view, theme, usage, context, billing, set, loadSession } = useStore();
   const [open, setOpen] = useState(false);
   // Discreetly dismissed: the circle collapses to a hairline sliver on the
   // edge. Persisted, so the choice holds across every tab and window.
@@ -152,6 +153,14 @@ export function App() {
                 {usage.used} / {usage.limit}
               </span>
             )}
+            {billing?.status === 'trialing' && billing.active && (
+              <span
+                className="awa-eyebrow whitespace-nowrap rounded-full border border-hairline px-2 py-0.5"
+                title={`Din gratis prøveperiode slutter ${new Date(billing.trialEndsAt).toLocaleDateString('da-DK')}`}
+              >
+                Prøve: {billing.trialDaysLeft} {billing.trialDaysLeft === 1 ? 'dag' : 'dage'}
+              </span>
+            )}
             <div className="ml-auto flex items-center gap-0.5">
               {email && (
                 <>
@@ -184,7 +193,15 @@ export function App() {
           </header>
 
           <div className="min-h-0 flex-1">
-            {!email ? <AuthView /> : view === 'history' ? <HistoryView /> : <ChatView />}
+            {!email ? (
+              <AuthView />
+            ) : view === 'history' ? (
+              <HistoryView />
+            ) : billing && !billing.active ? (
+              <PaywallView />
+            ) : (
+              <ChatView />
+            )}
           </div>
         </aside>
       )}

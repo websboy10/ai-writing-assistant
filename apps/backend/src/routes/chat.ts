@@ -3,6 +3,7 @@ import type { ChatRequest, ChatStreamEvent } from '@awa/shared';
 import { verifyUser, rpc, rest, isUuid, type AuthedUser } from '../supabase.js';
 import { assembleMessages } from '../prompt.js';
 import { streamChat, NoModelsError, PolicyError } from '../openrouter.js';
+import { getEntitlement } from '../billing.js';
 
 interface QuotaResult {
   ok: boolean;
@@ -24,6 +25,26 @@ export function chatRoutes(app: FastifyInstance): void {
     }
     if (body.conversationId && !isUuid(body.conversationId)) {
       return reply.code(400).send({ error: 'Invalid conversation id', code: 'bad_request' });
+    }
+
+    // The freemium hard paywall (BILL-01): no active trial or subscription →
+    // no AI, enforced here on the server, not in the UI.
+    try {
+      const installRaw = req.headers['x-awa-install'];
+      const install = typeof installRaw === 'string' && installRaw.length >= 8 ? installRaw.slice(0, 128) : 'unknown-device';
+      const ent = await getEntitlement(user, install);
+      if (!ent.allowed) {
+        return reply.code(402).send({
+          error: 'Din gratis prøveperiode er udløbet. Opgrader for 50 kr. om måneden for at skrive videre.',
+          code: 'payment_required',
+        });
+      }
+    } catch (err) {
+      req.log.error(err, 'entitlement check failed');
+      return reply.code(503).send({
+        error: 'Dit abonnement kunne ikke kontrolleres lige nu — prøv igen om få sekunder.',
+        code: 'upstream_error',
+      });
     }
 
     // Quota is consumed atomically BEFORE the AI call (QUOT-01).
