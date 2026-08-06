@@ -164,7 +164,10 @@ try {
   await page.waitForTimeout(1400); // selection poll runs every second
   const selBarText = await shadowText();
   ok('selection bar appears with both actions', /Du har markeret tekst/.test(selBarText) && /Besvar markeringen/.test(selBarText) && /Brug som kontekst/.test(selBarText));
-  ok('the two functions are explained in words', /svaret skrives lige under markeringen/i.test(selBarText) && /baggrundsviden/.test(selBarText));
+  // Wording updated by 07-04 (D-04a): "Besvar" now writes directly into the
+  // marking instead of generating a draft to review — the explanatory line
+  // changed to say so truthfully. "Kontekst" is untouched (D-04b).
+  ok('the two functions are explained in words', /skrives direkte ind i markeringen/i.test(selBarText) && /baggrundsviden/.test(selBarText));
 
   // Function 2: use as context → a small chip with a corner ✕
   await host.locator('button', { hasText: 'Brug som kontekst' }).click();
