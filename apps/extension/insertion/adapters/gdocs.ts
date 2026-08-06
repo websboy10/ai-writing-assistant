@@ -1,4 +1,5 @@
 import type { InsertionAdapter, InsertResult } from '../types';
+import { awaLog, describeNode } from '../debug';
 
 /**
  * Google Docs adapter — the fragile one, by design kept fully isolated.
@@ -27,6 +28,8 @@ export class GDocsAdapter implements InsertionAdapter {
    */
   readonly echoesAsync = true;
   private chunksInserted = 0;
+  private lastEl: HTMLElement | null = null;
+  private lastIframe: HTMLIFrameElement | null = null;
 
   private iframe(): HTMLIFrameElement | null {
     return document.querySelector<HTMLIFrameElement>('iframe.docs-texteventtarget-iframe');
@@ -114,13 +117,32 @@ export class GDocsAdapter implements InsertionAdapter {
   insert(chunk: string): InsertResult {
     const el = this.targetEl();
     if (!el) {
+      awaLog('gdocs.insert.no-target', { chunkIndex: this.chunksInserted });
       return { ok: false, verified: true, reason: 'Google Docs input target vanished mid-insertion.' };
     }
+    // Docs is suspected of swapping the element (or the whole iframe) between
+    // writes; sameEl/sameIframe is the evidence that settles it.
+    awaLog('gdocs.insert.target', {
+      chunkIndex: this.chunksInserted,
+      chunk,
+      el: describeNode(el),
+      sameEl: el === this.lastEl,
+      sameIframe: this.iframe() === this.lastIframe,
+      activeIsBody: el === this.targetDoc()?.body,
+    });
+    this.lastEl = el;
+    this.lastIframe = this.iframe();
     const dt = new DataTransfer();
     dt.setData('text/plain', chunk);
     const delivered = el.dispatchEvent(
       new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }),
     );
+    awaLog('gdocs.insert.result', {
+      chunkIndex: this.chunksInserted,
+      // true here means NOBODY called preventDefault — i.e. Docs did not
+      // consume the paste, which this adapter treats as failure.
+      delivered,
+    });
     // dispatchEvent returns true when NO listener called preventDefault —
     // i.e. Docs did NOT consume the paste. That is the one affirmative
     // failure signal this adapter has (Pitfall 4: the iframe can survive

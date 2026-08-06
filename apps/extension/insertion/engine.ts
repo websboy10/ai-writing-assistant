@@ -1,4 +1,5 @@
 import type { InsertionAdapter, InsertionCallbacks, InsertionState, PacingConfig } from './types';
+import { awaLog } from './debug';
 
 /**
  * The insertion state machine. Lives in the content script (the only context
@@ -52,6 +53,11 @@ export class InsertionSession {
   start(): void {
     const prep = this.adapter.prepare();
     if (!prep.ok) return this.fail(prep.reason);
+    awaLog('engine.start', {
+      kind: this.adapter.kind,
+      echoesAsync: !!this.adapter.echoesAsync,
+      chunks: this.queue.length,
+    });
     this.attachGuard();
     this.setState('running');
     this.tick();
@@ -126,6 +132,7 @@ export class InsertionSession {
     this.inOwnDispatch = false;
 
     if (!res.ok) {
+      awaLog('engine.fail', { chunkIndex: this.queueIndex, reason: res.reason });
       this.detachGuard();
       return this.fail(res.reason);
     }
@@ -173,6 +180,7 @@ export class InsertionSession {
 
   private onUserInput = (e: Event): void => {
     if (this.inOwnDispatch || !e.isTrusted) return;
+    awaLog('engine.pause.input', { chunkIndex: this.queueIndex });
     this.pause('user-typing');
   };
 
@@ -180,6 +188,7 @@ export class InsertionSession {
     if (this.inOwnDispatch || !e.isTrusted) return;
     const ke = e as KeyboardEvent;
     if (ke.key.length === 1 || ['Backspace', 'Delete', 'Enter'].includes(ke.key)) {
+      awaLog('engine.pause.keydown', { chunkIndex: this.queueIndex, key: ke.key });
       this.pause('user-typing');
     }
   };
