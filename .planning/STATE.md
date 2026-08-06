@@ -144,10 +144,37 @@ specific rejection messages for oversized/malformed/unsupported files
   (or a signed-in session) tests it — self-test + clipboard fallback ship either way
 - Free OpenRouter models 429 unpredictably; fallback chain mitigates, observed live
 
+## Accumulated Context
+
+### Roadmap Evolution
+
+- **Phase 7 added 2026-08-06**: Autonomous mode — answer every question in a
+  document. Operator request. Not planned yet; the open questions and the
+  load-bearing Google Docs assumption are written into the ROADMAP entry.
+
+### Locked operator decisions
+
+- **2026-08-06 — Chrome Web Store submission on hold.** Developer account is
+  paid for, listing text and package are ready (`docs/STORE-LISTING.md`), but
+  the operator wants to iterate on the product first. Screenshots deliberately
+  NOT taken — they would go stale with each UI change.
+- **2026-08-06 — the model-routing fix is deferred, knowingly.** All content
+  still goes out as `contentClass: 'synthetic'` (free, training-enabled models)
+  because the "contains real data" checkbox was removed from the UI but
+  `chat.ts:48` still reads it. The operator was shown that this makes the
+  published privacy policy untrue and chose to defer. **It must be fixed before
+  any user other than the operator uses the product** — it is a GDPR exposure
+  and would make the Web Store data-use certification false.
+
 ## Session Continuity
 
 Last session: 2026-08-06
-Stopped at: Simplification pass complete (2-mode insertion, marked-text dual
-functions, chips UI, no settings, kie.ai logo, scanned-PDF + Danish OCR fix),
-31/31 E2E green + drop flow green, TESTING.md updated
+Stopped at: Web Store package prepared and then paused by operator (localhost
+host_permissions removed from the store build, all listing copy written).
+Phase 7 (Autonomous mode) opened on the roadmap, awaiting /gsd:discuss-phase 7.
 Resume file: None
+
+**Next step:** discuss Phase 7. The first real question is a go/no-go spike:
+can the whole Google Docs document be read via select-all + the hidden
+`docs-texteventtarget-iframe` mirror? Needs a Google-signed-in browser, so it
+needs the operator.
