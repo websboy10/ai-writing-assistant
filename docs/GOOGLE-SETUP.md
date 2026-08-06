@@ -241,6 +241,26 @@ it's broken. It isn't — it's what every app in Testing mode looks like.
 5. **Client Secret (for OAuth)** — paste the **Client secret** from 6a.
 6. Click **Save**.
 
+### 6c-0. Fix the Site URL while you're here (a real bug, not a nicety)
+
+Supabase's **Site URL** ships as `http://localhost:3000`. Signup confirmation
+emails have **no explicit redirect** (`apps/backend/src/routes/auth.ts:20` posts
+to `/signup` without one), so they fall back to Site URL — meaning every real
+person who signs up with email currently receives a confirmation link pointing
+at their own machine. Dead link. `TESTING.md` even tells people to click it.
+
+1. **Authentication** → **URL Configuration**
+2. **Site URL** — replace `http://localhost:3000` with:
+   ```
+   https://ai-skriveassistent.vercel.app
+   ```
+3. **Save**
+
+Password reset is unaffected — it passes its own redirect (`auth.ts:58`), built
+from the backend's `PUBLIC_URL`. Confirm that env var is set to
+`https://ai-skriveassistent-api.vercel.app` on Vercel production, or reset links
+fall back to localhost too.
+
 ### 6c. Let the extension receive the login
 
 **Do not skip this.** Without it, login succeeds at Google and then dies on the
