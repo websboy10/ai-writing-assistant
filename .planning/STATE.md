@@ -97,6 +97,28 @@ specific rejection messages for oversized/malformed/unsupported files
   rename Stripe business name (shows "Chat sandbox" on checkout today),
   operator's $10 OpenRouter top-up
 
+### Deployment (2026-08-06)
+
+- Backend LIVE on Vercel: https://ai-skriveassistent-api.vercel.app
+  (project ai-skriveassistent-api, rootDirectory apps/backend, Fastify via
+  api/index.ts adapter, maxDuration 300, all env vars set incl.
+  STRIPE_WEBHOOK_SECRET; live Stripe webhook we_1U1OHYGrmuDlJMN2shs10ioT)
+- Landing LIVE: https://ai-skriveassistent.vercel.app (+privatliv,
+  +handelsbetingelser)
+- Extension now DEFAULTS to the deployed backend
+  (VITE_BACKEND_URL=http://127.0.0.1:8787 for local dev builds)
+- DEVIATION: OCR switched from tesseract.js to vision-model OCR
+  (google/gemini-3.5-flash, provider data_collection deny, max_tokens 4000)
+  — tesseract's WASM cannot ship reliably in serverless bundles, and vision
+  reads Danish better. tesseract.js removed from deps.
+- Backend imports from @awa/shared are TYPE-ONLY by contract (package ships
+  TS source which Node can't load when deployed); the two runtime constants
+  are duplicated locally in files.ts with a sync note
+- pdfjs on serverless needs: explicit @napi-rs/canvas import + DOM globals +
+  _resolveFilename redirect + explicit pdf.worker.mjs import (all in files.ts)
+- 33/33 E2E green with the extension running against the DEPLOYED backend
+- Operator guides: docs/STRIPE-LIVE.md, docs/CHROME-WEB-STORE.md
+
 ### Pending Todos
 
 - Operator walkthrough per TESTING.md — especially Google Docs insertion

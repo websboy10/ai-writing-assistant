@@ -16,7 +16,12 @@ export default defineConfig({
     permissions: ['storage', 'activeTab', 'clipboardWrite', 'identity'],
     // Universal insertion is the product's single purpose; the backend origin
     // is needed for API/SSE. Narrow-permission rationale lives in PRIVACY.md.
-    host_permissions: ['<all_urls>', 'http://localhost:8787/*', 'http://127.0.0.1:8787/*'],
+    host_permissions: [
+      '<all_urls>',
+      'https://ai-skriveassistent-api.vercel.app/*',
+      'http://localhost:8787/*',
+      'http://127.0.0.1:8787/*',
+    ],
     commands: {
       'toggle-sidebar': {
         suggested_key: { default: 'Alt+Shift+A' },

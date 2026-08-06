@@ -1,6 +1,8 @@
 import type { ChatRequest, ChatStreamEvent } from '@awa/shared';
 
-export const BACKEND_URL = 'http://127.0.0.1:8787';
+// Deployed backend by default; local dev overrides with
+// VITE_BACKEND_URL=http://127.0.0.1:8787 at build time.
+export const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL ?? 'https://ai-skriveassistent-api.vercel.app';
 
 // ---- one-shot messages (UI/content ↔ background) ----
 

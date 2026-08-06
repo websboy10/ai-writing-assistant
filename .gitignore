@@ -12,3 +12,4 @@ test-results/
 .backend.log
 .backend.pid
 .chrome-profile-cft/
+.vercel

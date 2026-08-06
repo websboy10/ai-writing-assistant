@@ -5,3 +5,5 @@ allowBuilds:
   esbuild: true
   spawn-sync: true
   tesseract.js: true
+publicHoistPattern:
+  - "@napi-rs/canvas*"

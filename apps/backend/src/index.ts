@@ -11,7 +11,7 @@ import { fileRoutes } from './routes/files.js';
 import { templateRoutes } from './routes/templates.js';
 import { verifyUser, rpc } from './supabase.js';
 
-const app = Fastify({ logger: { level: 'info' } });
+export const app = Fastify({ logger: { level: 'info' } });
 
 await app.register(cors, {
   // Extension pages have chrome-extension:// origins whose ID changes per
@@ -28,12 +28,17 @@ await app.register(rateLimit, { max: 60, timeWindow: '1 minute' });
 
 app.get('/api/health', async () => ({ ok: true, name: 'ai-writing-assistant backend' }));
 
-// Local test harness for manual insertion testing (dev convenience).
+// Local test harness for manual insertion testing (dev convenience; the file
+// doesn't exist in the deployed bundle — 404 there instead of a crash).
 app.get('/harness', async (_req, reply) => {
-  const { readFileSync } = await import('node:fs');
-  const { resolve } = await import('node:path');
-  const html = readFileSync(resolve(process.cwd(), '../../test-pages/harness.html'), 'utf8');
-  reply.type('text/html').send(html);
+  try {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const html = readFileSync(resolve(process.cwd(), '../../test-pages/harness.html'), 'utf8');
+    reply.type('text/html').send(html);
+  } catch {
+    reply.code(404).send({ error: 'harness is a local-dev page' });
+  }
 });
 
 app.get('/api/usage', async (req, reply) => {
@@ -50,10 +55,14 @@ conversationRoutes(app);
 fileRoutes(app);
 templateRoutes(app);
 
-app.listen({ port: env.port, host: '127.0.0.1' }).then(
-  () => app.log.info(`backend listening on http://127.0.0.1:${env.port}`),
-  (err) => {
-    app.log.error(err, 'listen failed');
-    process.exit(1);
-  },
-);
+// On Vercel the function adapter (api/index.ts) owns the socket; only local
+// dev binds a port.
+if (!process.env.VERCEL) {
+  app.listen({ port: env.port, host: '127.0.0.1' }).then(
+    () => app.log.info(`backend listening on http://127.0.0.1:${env.port}`),
+    (err) => {
+      app.log.error(err, 'listen failed');
+      process.exit(1);
+    },
+  );
+}

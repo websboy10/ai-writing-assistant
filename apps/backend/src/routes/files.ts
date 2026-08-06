@@ -1,18 +1,22 @@
 import { createRequire } from 'node:module';
-import { mkdirSync } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
-import { MAX_FILE_BYTES, MAX_CONTEXT_CHARS_PER_ITEM, type ParsedFile } from '@awa/shared';
+import type { ParsedFile } from '@awa/shared';
+
+// Kept in sync with packages/shared/src/index.ts. Values (not types) must be
+// local: @awa/shared ships TS source, which Node can't load in the deployed
+// serverless bundle — the backend's shared imports are type-only by contract.
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_CONTEXT_CHARS_PER_ITEM = 60_000;
 import { verifyUser } from '../supabase.js';
 
 const require = createRequire(import.meta.url);
 
-// Danish-first OCR: the default 'eng' model turns æ/ø/å into garbage. Language
-// data downloads once and is cached here across restarts.
-const OCR_LANGS = 'dan+eng';
-const TESS_CACHE = path.join(os.tmpdir(), 'awa-tessdata');
-mkdirSync(TESS_CACHE, { recursive: true });
+// OCR runs on a vision model, not tesseract: WASM OCR cannot ship reliably in
+// a serverless bundle (its engine hard-requires files by path), and a vision
+// model reads Danish better anyway. Routed with training denied — an uploaded
+// file's contents are treated like real user data.
+const OCR_MODEL = process.env.OCR_MODEL ?? 'google/gemini-3.5-flash';
 
 // A "scanned" PDF is one whose pages are images: pdf-parse succeeds but finds
 // (nearly) no embedded text. Below this many characters we OCR instead.
@@ -122,15 +126,60 @@ async function parse(buffer: Buffer, name: string, mime: string): Promise<Parsed
   throw new Error('unsupported');
 }
 
+// Resolve the canvas path BEFORE patching (require.resolve itself goes
+// through _resolveFilename — resolving inside the patch recurses forever),
+// and patch exactly once per process.
+let canvasRedirectInstalled = false;
+function installCanvasRedirect(): void {
+  if (canvasRedirectInstalled) return;
+  canvasRedirectInstalled = true;
+  const canvasPath = require.resolve('@napi-rs/canvas');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const nodeModule = require('node:module') as {
+    _resolveFilename: (request: string, ...rest: unknown[]) => string;
+  };
+  const origResolve = nodeModule._resolveFilename;
+  nodeModule._resolveFilename = function (request: string, ...rest: unknown[]) {
+    if (request === '@napi-rs/canvas') return canvasPath;
+    return origResolve.call(this, request, ...rest);
+  };
+}
+
 /** Render a scanned PDF's pages to PNG (pdfjs + napi canvas) and OCR them. */
 async function ocrPdfPages(buffer: Buffer): Promise<string> {
+  // pdfjs discovers @napi-rs/canvas via its own require, which fails inside
+  // the serverless bundle's pnpm layout. Import it explicitly so it ships,
+  // provide the DOM globals pdfjs expects in Node, and redirect pdfjs's
+  // module lookup to the copy we can resolve.
+  const canvas = await import('@napi-rs/canvas');
+  const g = globalThis as Record<string, unknown>;
+  g.DOMMatrix ??= canvas.DOMMatrix;
+  g.ImageData ??= canvas.ImageData;
+  g.Path2D ??= canvas.Path2D;
+  installCanvasRedirect();
+  // Same bundler-visibility issue for the worker: pdfjs looks it up by file
+  // path at runtime; importing it registers globalThis.pdfjsWorker instead.
+  await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
   const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const pdfjsRoot = path.dirname(require.resolve('pdfjs-dist/package.json'));
+  // cmaps/standard_fonts improve glyph rendering for text-based PDFs, but the
+  // OCR fallback only runs on image-based (scanned) pages — so they're a
+  // nice-to-have locally and absent in the serverless bundle.
+  let pdfjsRoot: string | null = null;
+  try {
+    pdfjsRoot = path.dirname(require.resolve('pdfjs-dist/package.json'));
+    if (!(await import('node:fs')).existsSync(path.join(pdfjsRoot, 'cmaps'))) pdfjsRoot = null;
+  } catch {
+    pdfjsRoot = null;
+  }
   const loadingTask = getDocument({
     data: new Uint8Array(buffer),
-    cMapUrl: path.join(pdfjsRoot, 'cmaps') + '/',
-    cMapPacked: true,
-    standardFontDataUrl: path.join(pdfjsRoot, 'standard_fonts') + '/',
+    ...(pdfjsRoot
+      ? {
+          cMapUrl: path.join(pdfjsRoot, 'cmaps') + '/',
+          cMapPacked: true,
+          standardFontDataUrl: path.join(pdfjsRoot, 'standard_fonts') + '/',
+        }
+      : {}),
   });
   const doc = await loadingTask.promise;
   try {
@@ -156,25 +205,50 @@ async function ocrPdfPages(buffer: Buffer): Promise<string> {
   }
 }
 
-/** One worker, sequential pages. Timeout races INSIDE so terminate() always runs. */
+/** Vision-model OCR, one image per request, pages joined in order. */
 async function ocrBuffers(images: Buffer[]): Promise<string> {
-  const { createWorker } = await import('tesseract.js');
-  const worker = await createWorker(OCR_LANGS, undefined, { cachePath: TESS_CACHE });
-  try {
-    const out: string[] = [];
-    for (const img of images) {
-      // Race the timeout HERE, not only around the whole parse: if recognize()
-      // never settles, an outer race would return while this finally waits
-      // forever, leaking the worker's threads and WASM memory permanently.
-      // Racing inside means the finally runs at timeout and terminate() kills
-      // the pending recognize.
-      const { data } = await withTimeout(worker.recognize(img), 60_000);
-      if (data.text.trim()) out.push(clean(data.text));
-    }
-    return out.join('\n\n');
-  } finally {
-    await worker.terminate().catch(() => {});
+  const out: string[] = [];
+  for (const img of images) {
+    const res = await withTimeout(
+      fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${(await import('../env.js')).env.openrouterKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: OCR_MODEL,
+          // Compliance (QUOT-05): uploads may contain real personal data —
+          // never allow the provider to train on or retain them.
+          provider: { data_collection: 'deny' },
+          // One page of dense text transcribes well under this; without an
+          // explicit cap OpenRouter reserves the model's 65k max upfront.
+          max_tokens: 4000,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text:
+                    'Transcribe ALL text in this image exactly as written, preserving line breaks and reading order. ' +
+                    'Output only the transcription — no commentary. If the image contains no text, output nothing.',
+                },
+                { type: 'image_url', image_url: { url: `data:image/png;base64,${img.toString('base64')}` } },
+              ],
+            },
+          ],
+        }),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error(`OCR-modellen svarede ${r.status}: ${(await r.text()).slice(0, 160)}`);
+        return (await r.json()) as { choices?: { message?: { content?: string } }[] };
+      }),
+      60_000,
+    );
+    const text = res.choices?.[0]?.message?.content ?? '';
+    if (text.trim()) out.push(clean(text));
   }
+  return out.join('\n\n');
 }
 
 function clean(text: string): string {

@@ -1,0 +1,7 @@
+.chrome-profile-cft
+.chrome-profile
+test-results
+apps/extension/.output
+apps/extension/node_modules
+.planning
+.backend.log

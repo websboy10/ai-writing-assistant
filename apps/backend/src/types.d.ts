@@ -8,6 +8,8 @@ declare module 'pdf-parse/lib/pdf-parse.js' {
   export default pdfParse;
 }
 
+declare module 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+
 declare module 'pdfjs-dist/legacy/build/pdf.mjs' {
   interface PdfPage {
     getViewport(opts: { scale: number }): { width: number; height: number };
