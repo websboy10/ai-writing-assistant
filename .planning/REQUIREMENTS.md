@@ -85,22 +85,22 @@ to exactly one roadmap phase.
 ### Autonomous Mode
 
 - [x] **AUTO-01**: User can answer every question in the open document with one button, each answer written directly beneath its question
-- [ ] **AUTO-02**: User can mark text holding one question or twenty, press "Besvar markeringen", and have every marked question answered in place — the panel asks Straks or Langsomt and then writes, with no generate-into-the-panel step
+- [x] **AUTO-02**: User can mark text holding one question or twenty, press "Besvar markeringen", and have every marked question answered in place — the panel asks Straks or Langsomt and then writes, with no generate-into-the-panel step
 - [x] **AUTO-03**: The AI decides what counts as a question — question marks, numbered fields, imperative prompts and headings with blank space beneath all count; there is no rule-based detector
 - [x] **AUTO-04**: Answers are built from the document itself plus any files already attached in the panel
 - [x] **AUTO-05**: Questions the assistant had nothing to draw on are listed in the panel, never marked in the document and never a gate
 - [x] **AUTO-06**: Each question's position is resolved at the moment it is needed, never all measured up front
 - [x] **AUTO-07**: Straks and Langsomt are the entire interface — no review step, no approval gate, no third mode, no settings
 - [x] **AUTO-08**: Langsomt types letter by letter starting at the first question and working downward, one answer at a time
-- [ ] **AUTO-09**: User can pause, resume, stop and undo an entire run as a single action
-- [ ] **AUTO-10**: A keystroke from the user during a run auto-pauses the whole run
+- [x] **AUTO-09**: User can pause, resume, stop and undo an entire run as a single action
+- [x] **AUTO-10**: A keystroke from the user during a run auto-pauses the whole run
 - [ ] **AUTO-11**: On Google Docs the document is read once via the Docs API, and answers land at exact positions with the user's formatting intact
 - [ ] **AUTO-12**: Google Docs positioning uses Docs' own Find; typing reuses the existing insertion engine, costing zero write quota
 - [ ] **AUTO-13**: Docs access is obtained via chrome.identity against a Chrome-Extension OAuth client, requested at first use, with a partial consent grant treated as a refusal
 - [ ] **AUTO-14**: A user who declines the Google permission, or whose Docs call fails, still gets every answer and is told plainly that the placement is degraded
-- [ ] **AUTO-15**: A long run continues while the panel is collapsed
-- [ ] **AUTO-16**: "Brug som kontekst" behaves exactly as it did before this phase
-- [ ] **AUTO-17**: Every autonomous-mode failure states what went wrong and what to do next — never a silent no-op
+- [x] **AUTO-15**: A long run continues while the panel is collapsed
+- [x] **AUTO-16**: "Brug som kontekst" behaves exactly as it did before this phase
+- [x] **AUTO-17**: Every autonomous-mode failure states what went wrong and what to do next — never a silent no-op
 
 ### Trust, Quotas & Compliance
 
@@ -227,22 +227,22 @@ Explicitly excluded. Documented to prevent scope creep.
 | QUOT-08 | Phase 6 — Quota Hardening, Usage Transparency & Trust Polish | Pending |
 
 | AUTO-01 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-02 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-02 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 | AUTO-03 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 | AUTO-04 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 | AUTO-05 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 | AUTO-06 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 | AUTO-07 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 | AUTO-08 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-09 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
-| AUTO-10 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-09 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
+| AUTO-10 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 | AUTO-11 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
 | AUTO-12 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
 | AUTO-13 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
 | AUTO-14 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
-| AUTO-15 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
-| AUTO-16 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
-| AUTO-17 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-15 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
+| AUTO-16 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
+| AUTO-17 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 
 **Coverage:**
 

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 7 Plan 3 executed — AutonomousRun engine + Besvar alle spørgsmål button built, tested end-to-end in real Chromium (12/12), committed. See 07-03-SUMMARY.md's What 07-04 needs to know section.
-last_updated: "2026-08-06T20:50:57.138Z"
+stopped_at: Phase 7 Plan 4 executed — Besvar markeringen writes directly (ten questions in one marking), whole-run transport bar + gap list, tested end-to-end in real Chromium (34/34), committed. See 07-04-SUMMARY.md's What 07-05 needs to know section.
+last_updated: "2026-08-06T21:40:00.000Z"
 last_activity: 2026-08-05 — Bug sweep (37 findings, 20 fixed), 'Galley' monochrome
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -219,35 +219,46 @@ specific rejection messages for oversized/malformed/unsupported files
 ## Session Continuity
 
 Last session: 2026-08-06
-Stopped at: Phase 7 Plan 3 executed — AutonomousRun engine (plan.ts,
-locator.ts, orchestrator.ts) + the "Besvar alle spørgsmål" panel button
-built, tested end-to-end in real Chromium against the live model (12/12,
-both a plain textarea and a contenteditable, Straks and Langsomt), and
-committed. See
-`.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-03-SUMMARY.md`
-for the full public surface 07-04 builds on.
-Resume file: `.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-03-SUMMARY.md`
+Stopped at: Phase 7 Plan 4 executed — "Besvar markeringen" now asks
+Straks/Langsomt and writes directly into the marking (a ten-question
+marking behaves exactly like a one-question marking, the operator's
+explicit requirement), a new whole-run transport bar (pause/resume/stop/
+undo-all/hide) plus the gap list ("Uden grundlag i dine kilder") reachable
+from either entry point, and two real timing bugs found and fixed via the
+live-model E2E suite (pause silently dropped during the run's initial
+backend call and between answers). Tested end-to-end in real Chromium
+against the live model (34/34), `pnpm verify` still 33/33, `pnpm test`
+10/10, and committed. See
+`.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-04-SUMMARY.md`
+for the full public surface 07-05 builds on.
+Resume file: `.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-04-SUMMARY.md`
 
-**Next step:** Plan 07-04 (the "Besvar markeringen" entry point on the
-selection bar, whole-run pause/stop/undo transport bar, and the gap list)
-— see 07-03-SUMMARY.md's "What 07-04 needs to know" section for the exact
-public surface (`autonomous.run/pause/resume/stop/undo/dismiss`,
-`store.autoRun` shape) already built and ready to drive.
+**Next step:** Plan 07-05 (Google Docs) — see 07-04-SUMMARY.md's "What
+07-05 needs to know" section for the exact state `AutonomousRun`/
+`sourceFor` are now in (flag-based pause that holds under real timing,
+`start(startPaused)`, `undo()` reporting `'idle'` on success) and what
+still needs a Docs-aware `QuestionSource`.
 
 **New extension surface this session:**
 
-- `apps/extension/insertion/autonomous/{plan,locator,orchestrator}.ts` —
-  `AutonomousRun` drives one `InsertionSession` per answer over a
-  `QuestionSource`, re-locating each question's live position immediately
-  before writing it (D-03), never up front.
-- `apps/extension/sidebar/autonomous.ts` + `store.autoRun` — the
-  whole-document entry point, ready for 07-04 to call with
-  `scope: 'selection'` too.
-- `scripts/verify-autonomous.mjs` (port 8789) — the live-Chromium E2E
-  suite for this capability; run with
-  `VITE_BACKEND_URL=http://127.0.0.1:8787 pnpm --filter extension build`
-  first (the default build points at the deployed backend, which does not
-  yet serve `/api/autonomous/answer`).
+- `apps/extension/sidebar/components/ChatView.tsx` — the selection bar's
+  "Besvar markeringen" now reveals the same Straks/Langsomt chip pattern
+  `AutonomousBar` uses for the whole document; a new `AutoRunBar` (sticky,
+  styled like `InsertBar`) gives the whole run full transport controls and
+  the gap list.
+- `apps/extension/insertion/autonomous/orchestrator.ts` — `pause()`/
+  `start(startPaused)` now hold the queue between answers and during the
+  initial backend call (previously a silent no-op in both windows);
+  `undo()` reports `'idle'` on full success; new `remaining()` method for
+  the clipboard-copy courtesy on a failed run.
+- `apps/extension/sidebar/autonomous.ts` — `loadingRun`/
+  `pauseRequestedWhileLoading` flags backing the pause-during-load fix.
+- `scripts/verify-autonomous.mjs` — five new sections (ten-question
+  selection, whole-run transport, typing race, gap list, panel
+  independence) plus a `waitForFieldGrowth` helper — any new E2E assertion
+  that needs to observe "the run is actually typing" must wait for real
+  field growth, not the "Skriver" state word (which appears synchronously,
+  well before the backend call resolves).
 
 **Known pre-existing bug surfaced (not fixed, out of scope for 07-02 or 07-03):**
 `apps/backend/src/supabase.ts`'s `rpc()` throws parsing `refund_quota`'s empty
@@ -275,9 +286,12 @@ proceed without it; execution of the Docs path (07-05) cannot.
 - [Phase 7]: 07-02: contentClass hardcoded to 'real' in autonomous.ts as a local const, never read from the request body (T-07-06 GDPR boundary for whole-document sends)
 - [Phase 07]: 07-03: orchestrator.ts imports adapterFor from insertion/index.ts, a circular import verified safe under Vite/Rollup since neither side evaluates the other's binding at module-init time
 - [Phase 07]: 07-03: QuestionSource gained an optional lastLocateReason() beyond the plan's literal locate() signature, so unplaced questions get a specific not-found vs ambiguous reason instead of one generic message
+- [Phase 07]: 07-04: AutonomousRun.pause()/start() made flag-based (pausedBetween + resumeWaiters + startPaused) rather than purely session-forwarding, after live-model E2E timing proved a pause pressed between answers or during the initial backend call was a silent no-op
+- [Phase 07]: 07-04: AutonomousRun.undo() now transitions to 'idle' and resets progress on full success, mirroring InsertionSession's own idle+'undone' convention, so the panel stops claiming a run is still done after every answer was removed
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Notes |
 |-------|------|----------|-------|
 | Phase 07 P03 | 150m | 3 tasks | 10 files |
+| Phase 07 P04 | 180m | 3 tasks | 5 files |
