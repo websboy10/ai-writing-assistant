@@ -40,6 +40,16 @@ type SessionOutcome = 'done' | 'error' | 'stopped';
  * it, so an answer under question 1 cannot misplace the answer to
  * question 2. The per-session typing-race guard (INST-12/D-13) is reused
  * unmodified — this class never attaches its own input/keydown listeners.
+ *
+ * Panel independence (D-14): this class holds no reference to React and
+ * nothing here depends on the sidebar being mounted — the caller
+ * (`apps/extension/sidebar/autonomous.ts`) keeps the active instance in a
+ * module-level singleton outside the component tree, so collapsing the
+ * panel (which unmounts it) never calls `destroy()`. Honest limit: Chrome
+ * throttles timers in a fully backgrounded TAB (not a collapsed panel — the
+ * page itself stays foregrounded here), so a Langsomt run keeps going but
+ * can slow down in that case. The transport bar must never show a countdown
+ * or an ETA — either would become a lie the moment that throttling kicks in.
  */
 export class AutonomousRun {
   private state: RunState = 'idle';
@@ -48,6 +58,13 @@ export class AutonomousRun {
   private completed: { session: InsertionSession; answer: AutonomousAnswer }[] = [];
   private currentSession: InsertionSession | null = null;
   private stopped = false;
+  // A pause pressed BETWEEN two answers (no session currently running to
+  // forward it to) must still hold the queue, not be silently swallowed —
+  // resolved by making pause/resume flag-based here rather than only ever
+  // forwarding to currentSession. resumeWaiters lets the loop `await` this
+  // exactly like it awaits a session's own promise.
+  private pausedBetween = false;
+  private resumeWaiters: Array<() => void> = [];
 
   constructor(
     private source: QuestionSource,
@@ -61,19 +78,54 @@ export class AutonomousRun {
     this.queue = orderForRun(answers, 'top-down');
   }
 
-  async start(): Promise<void> {
+  /**
+   * `startPaused` covers a real gap: the caller shows "Skriver" and a live
+   * Pause button the instant it calls this class into existence, but a
+   * pause pressed before the FIRST answer's session even starts has nothing
+   * to forward to yet (there's no currentSession, and pausedBetween's own
+   * "between two answers" check only exists once the loop is running). This
+   * lets the caller apply an already-requested pause atomically with start,
+   * rather than starting anyway and racing to catch up (AUTO-17).
+   */
+  async start(startPaused = false): Promise<void> {
     if (this.state !== 'idle') return;
-    this.state = 'writing';
-    this.cb.onRunState('writing');
+    if (startPaused) {
+      this.pausedBetween = true;
+      this.state = 'paused';
+      this.cb.onRunState('paused');
+    } else {
+      this.state = 'writing';
+      this.cb.onRunState('writing');
+    }
     await this.loop();
   }
 
   pause(): void {
-    this.currentSession?.pause();
+    if (this.currentSession) {
+      this.currentSession.pause();
+      return;
+    }
+    // Between answers (e.g. right after one finishes, before the next is
+    // located) — nothing running to forward to. Hold the queue here instead
+    // of dropping the request silently.
+    if (this.state === 'writing') {
+      this.pausedBetween = true;
+      this.state = 'paused';
+      this.cb.onRunState('paused');
+    }
   }
 
   resume(): void {
-    this.currentSession?.resume();
+    if (this.currentSession) {
+      this.currentSession.resume();
+      return;
+    }
+    if (this.pausedBetween) {
+      this.pausedBetween = false;
+      this.state = 'writing';
+      this.cb.onRunState('writing');
+      this.releaseResumeWaiters();
+    }
   }
 
   /** Stops the whole run, leaving whatever the current session already wrote in place (INST-08). */
@@ -83,10 +135,25 @@ export class AutonomousRun {
     if (this.currentSession) {
       this.currentSession.stop();
     } else {
-      // Between answers (e.g. mid-locate) — nothing running to stop.
+      // Between answers (e.g. mid-locate, or paused-between) — nothing
+      // running to stop. Release any pending pause-wait too, so a loop
+      // blocked in waitIfPausedBetween() can see `stopped` and exit.
+      this.pausedBetween = false;
+      this.releaseResumeWaiters();
       this.state = 'stopped';
       this.cb.onRunState('stopped');
     }
+  }
+
+  /**
+   * Answers not yet fully written — the one that just failed plus everything
+   * still queued after it, in run order. Gives a failed run the same
+   * "copied to the clipboard" courtesy inserter.ts already extends on a
+   * failed insert (AUTO-17), computed here since only the orchestrator
+   * knows exactly what remains.
+   */
+  remaining(): AutonomousAnswer[] {
+    return this.queue.slice(Math.max(0, this.queueIndex - 1));
   }
 
   /**
@@ -106,19 +173,45 @@ export class AutonomousRun {
       }
     }
     this.completed = stillCompleted;
-    if (failures.length === 0) return { ok: true };
+    this.reportProgress();
+    if (failures.length === 0) {
+      // Mirrors InsertionSession's own idle+'undone' pattern (INST-09) so
+      // the transport bar reflects reality — "Fortryd alle svar" removed
+      // everything, so the panel must stop claiming the run is still done.
+      this.state = 'idle';
+      this.cb.onRunState('idle', 'undone');
+      return { ok: true };
+    }
     return { ok: false, reason: `Kunne ikke fjerne alle svar — ${failures.join('; ')}` };
   }
 
   destroy(): void {
     this.currentSession?.destroy();
     for (const item of this.completed) item.session.destroy();
+    this.releaseResumeWaiters();
   }
 
   // ---- internals ----
 
+  /** Resolves once a between-answers pause is lifted (by resume() or stop()). No-op if not paused. */
+  private waitIfPausedBetween(): Promise<void> {
+    if (!this.pausedBetween) return Promise.resolve();
+    return new Promise((resolve) => this.resumeWaiters.push(resolve));
+  }
+
+  private releaseResumeWaiters(): void {
+    const waiters = this.resumeWaiters;
+    this.resumeWaiters = [];
+    waiters.forEach((fn) => fn());
+  }
+
   private async loop(): Promise<void> {
     while (this.queueIndex < this.queue.length) {
+      if (this.stopped) return;
+      // Holds the queue for a pause pressed BETWEEN two answers (see
+      // pause()) — never resolved for a pause pressed mid-session, which
+      // InsertionSession itself already handles.
+      await this.waitIfPausedBetween();
       if (this.stopped) return;
       const answer = this.queue[this.queueIndex];
       this.queueIndex += 1;
@@ -170,10 +263,14 @@ export class AutonomousRun {
       const session = new InsertionSession(adapter, text, DEFAULT_PACING, {
         onState: (state, detail) => {
           if (state === 'paused') {
-            // A trusted keystroke mid-run (INST-12) or an explicit pause()
-            // call — either way, the WHOLE run pauses (D-13).
+            // A trusted keystroke mid-run reports detail === 'user-typing'
+            // (INST-12) — forwarded verbatim, never reworded, so the WHOLE
+            // run pauses with that exact reason (D-13). An explicit pause()
+            // call reports no detail at all; both land here identically,
+            // and the awaited runOneSession() promise below stays pending
+            // either way — the queue genuinely cannot advance until resume().
             this.state = 'paused';
-            this.cb.onRunState('paused', detail);
+            this.cb.onRunState('paused', detail); // detail is undefined or 'user-typing'
             return;
           }
           if (state === 'running') {
