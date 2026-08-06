@@ -73,6 +73,29 @@ const Q3 = '2. Hvilke områder vil du gerne udvikle?';
 // verbatim, colliding with this script's position-based text search. See
 // test-pages/questions.html's comment.
 const STATEMENT = 'Denne formular tager cirka fem minutter at udfylde.';
+// Reused verbatim from 07-02's own fixture: a real question the page gives
+// no grounding for — the deliberate grounded:false case (D-12).
+const UNGROUNDED = 'Hvad var din kollegas vurdering af leveringen i marts?';
+// The full #doc fixture text, exactly as test-pages/questions.html defines
+// it — 07-04's new sections (2-5, below) reset #doc to this between each
+// other, because the Straks section above leaves #doc populated with
+// inserted answers and never undoes them.
+const DOC_TEXT = `${Q1}\n\n${Q2}\n\n${Q3}\n\n${STATEMENT}\n\n${UNGROUNDED}`;
+
+// The ten-question marking (07-04's normal case, not an edge case — the
+// operator raised this explicitly). Verbatim from test-pages/questions.html.
+const TEN = [
+  '1. Hvad hedder du?',
+  '2. Hvor arbejder du?',
+  '3. Hvad er din stilling?',
+  '4. Hvor længe har du arbejdet der?',
+  '5. Hvad er dine vigtigste opgaver?',
+  '6. Hvilke værktøjer bruger du dagligt?',
+  '7. Hvad er din største udfordring lige nu?',
+  '8. Hvordan samarbejder du med dit team?',
+  '9. Hvad vil du gerne blive bedre til?',
+  '10. Hvad er dine mål for næste kvartal?',
+];
 
 // ---- serve the fixture on http (content scripts don't run on file:// by default) ----
 const fixture = readFileSync(resolve(root, 'test-pages/questions.html'));
@@ -95,6 +118,21 @@ page.on('console', (m) => {
 });
 
 const shadowText = () => page.evaluate(() => document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '');
+
+/**
+ * Waits for a field's value to actually grow past a baseline length — NOT
+ * for the "Skriver" state word, which appears the INSTANT run() is called
+ * (before the ~20-25s /api/autonomous/answer call even resolves, let alone
+ * before the first letter lands). A wait keyed on the state word alone
+ * resolves during that loading window and races every subsequent action.
+ */
+async function waitForFieldGrowth(selector, baseLen, timeoutMs) {
+  await page.waitForFunction(
+    ({ sel, base }) => (document.querySelector(sel)?.value?.length ?? 0) > base,
+    { sel: selector, base: baseLen },
+    { timeout: timeoutMs },
+  );
+}
 
 // NOTE on all waitForFunction calls below: (fn, options) — a 2-arg call —
 // treats the options object as `arg` (Playwright's real signature is
@@ -127,6 +165,45 @@ async function runAutonomous(host, autoBtn, modeLabel, perAttemptTimeoutMs) {
     if (/Færdig ✓/.test(text)) return { finished: true, elapsed, attempt };
     if (attempt === MAX_ATTEMPTS) return { finished: false, elapsed, attempt };
     console.log(`  … attempt ${attempt} got a transient empty-answer notice, retrying (accepted live-model variance)`);
+  }
+  return { finished: false, elapsed: 0, attempt: MAX_ATTEMPTS };
+}
+
+/**
+ * Same shape as runAutonomous, but for the "Besvar markeringen" entry point
+ * (07-04, D-04a): clicking it must ask Straks/Langsomt directly and write —
+ * no draft, no Insert press. Mirrors the whole-document helper's retry
+ * tolerance for transient empty-answer batches.
+ */
+// `alreadyOpen: true` skips the FIRST attempt's click on "Besvar markeringen"
+// — used when the caller already opened the Straks/Langsomt choice itself
+// (e.g. to assert on it before running). Any retry still reopens it, since a
+// failed run collapses back to the entry button.
+async function runSelection(host, modeLabel, perAttemptTimeoutMs, { alreadyOpen = false } = {}) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (!(alreadyOpen && attempt === 1)) {
+      const answerBtn = host.getByRole('button', { name: 'Besvar markeringen', exact: true });
+      await answerBtn.waitFor({ timeout: 5_000 });
+      await answerBtn.click();
+    }
+    const modeBtn = host.getByRole('button', { name: modeLabel, exact: true });
+    await modeBtn.waitFor({ timeout: 5_000 });
+    const t0 = Date.now();
+    await modeBtn.click();
+    await page.waitForFunction(
+      () => {
+        const t = document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '';
+        return /Færdig ✓/.test(t) || /ingen kunne besvares/.test(t) || /ikke fundet nogen spørgsmål/.test(t);
+      },
+      undefined,
+      { timeout: perAttemptTimeoutMs },
+    );
+    const elapsed = (Date.now() - t0) / 1000;
+    const text = await shadowText();
+    if (/Færdig ✓/.test(text)) return { finished: true, elapsed, attempt };
+    if (attempt === MAX_ATTEMPTS) return { finished: false, elapsed, attempt };
+    console.log(`  … attempt ${attempt} got a transient empty-answer notice, retrying (accepted live-model variance)`);
+    await page.waitForTimeout(500);
   }
   return { finished: false, elapsed: 0, attempt: MAX_ATTEMPTS };
 }
@@ -257,6 +334,251 @@ try {
       `${ceQ1Idx},${ceQ2Idx},${ceQ3Idx}`,
     );
   }
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+
+  // ---------------------------------------------------------------------
+  // 07-04, section 1: ten questions in one marking — the operator's explicit
+  // "normal case, not an edge case". "Besvar markeringen" must ask
+  // Straks/Langsomt and write directly, exactly like the whole-document
+  // button (D-04a) — no draft, no Insert press.
+  // ---------------------------------------------------------------------
+  console.log('\n— Besvar markeringen: ten questions in ONE marking (D-04a) —');
+  await page.locator('#ten').click();
+  await page.locator('#ten').press('ControlOrMeta+a');
+  await page.waitForTimeout(1400); // selection poll runs every second
+
+  const answerBtn = host.getByRole('button', { name: 'Besvar markeringen', exact: true });
+  await answerBtn.waitFor({ timeout: 5_000 });
+  await answerBtn.click();
+
+  const selStraks = host.getByRole('button', { name: 'Straks', exact: true });
+  const selLangsomt = host.getByRole('button', { name: 'Langsomt', exact: true });
+  await selStraks.waitFor({ timeout: 5_000 });
+  ok(
+    'the panel offers Straks and Langsomt directly on the selection',
+    (await selStraks.count()) > 0 && (await selLangsomt.count()) > 0,
+  );
+  ok(
+    'no draft awaiting an Insert press appeared — the old two-step is gone on this path',
+    (await host.locator('button', { hasText: 'Indsæt straks' }).count()) === 0,
+  );
+  ok(
+    'no old "Besvarer markeringen" chip appeared',
+    !/Besvarer markeringen ·/.test(await shadowText()),
+  );
+
+  const tenResult = await runSelection(host, 'Straks', 90_000, { alreadyOpen: true });
+  ok('the ten-question run reports finished', tenResult.finished, `after ${tenResult.attempt} attempt(s)`);
+  await page.screenshot({ path: `${shotsDir}/03-ten-straks-done.png` });
+
+  if (tenResult.finished) {
+    const tenVal = await page.locator('#ten').inputValue();
+    const tenLines = tenVal.split('\n');
+    const lineAfterTen = (question) => {
+      const idx = tenLines.findIndex((l) => l.trim() === question);
+      return idx === -1 ? null : (tenLines[idx + 1] ?? '').trim();
+    };
+
+    ok('all ten questions are still present, unchanged', TEN.every((q) => tenVal.includes(q)));
+
+    const answers = TEN.map(lineAfterTen);
+    ok(
+      'all ten questions have a non-empty answer on the line beneath them',
+      answers.every((a) => !!a),
+      JSON.stringify(answers.map((a, i) => `${i + 1}:${a ? a.slice(0, 24) : '(none)'}`)),
+    );
+
+    const positions = TEN.map((q) => tenVal.indexOf(q));
+    ok(
+      'all ten questions remain in original document order',
+      positions.every((p, i) => p !== -1 && (i === 0 || p > positions[i - 1])),
+      JSON.stringify(positions),
+    );
+
+    const q3Pos = positions[2];
+    const q4Pos = positions[3];
+    const ans3 = answers[2];
+    const ans3Pos = ans3 ? tenVal.indexOf(ans3, q3Pos) : -1;
+    ok(
+      "the answer for question 3 sits between questions 3 and 4",
+      !!ans3 && ans3Pos > q3Pos && (q4Pos === -1 || ans3Pos < q4Pos),
+      `q3=${q3Pos} ans3=${ans3Pos} q4=${q4Pos}`,
+    );
+  }
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+
+  // ---------------------------------------------------------------------
+  // 07-04, sections 2-5 all drive #doc. The whole-document Straks section
+  // above (07-03) left #doc populated with inserted answers and never
+  // undoes them — reset to the pristine fixture text before each of the
+  // following, so every section starts from known content.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— Whole-run transport: pause holds the WHOLE run, resume continues, Fortryd undoes it all in one press (D-15) —');
+  await page.locator('#doc').fill(DOC_TEXT);
+  await page.locator('#doc').click();
+  await autoBtn.waitFor({ timeout: 5_000 });
+  await autoBtn.click();
+  const transportLangsomt = host.getByRole('button', { name: 'Langsomt', exact: true });
+  await transportLangsomt.waitFor({ timeout: 5_000 });
+  await transportLangsomt.click();
+
+  // Wait for real, visible progress (the backend call alone can take
+  // ~20-25s) — not just the "Skriver" label, which appears the instant
+  // run() is called.
+  await waitForFieldGrowth('#doc', DOC_TEXT.length, 40_000);
+
+  const pauseBtn = host.locator('button', { hasText: 'Pause' });
+  await pauseBtn.waitFor({ timeout: 5_000 });
+  let isPaused = false;
+  for (let i = 0; i < 8 && !isPaused; i++) {
+    await pauseBtn.click().catch(() => {});
+    await page.waitForTimeout(250);
+    isPaused = /Fortsæt/.test(await shadowText());
+  }
+  ok('pause holds the whole run — even one pressed between two answers, not just mid-typing', isPaused);
+
+  const pausedVal = await page.locator('#doc').inputValue();
+  await page.waitForTimeout(900);
+  const stillPausedVal = await page.locator('#doc').inputValue();
+  ok(
+    'the field stops growing across a 900ms wait while paused',
+    isPaused && pausedVal === stillPausedVal,
+    `len ${pausedVal.length} vs ${stillPausedVal.length}`,
+  );
+
+  await host.locator('button', { hasText: 'Fortsæt' }).click();
+  await page.waitForFunction(
+    () => /Færdig ✓/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+    undefined,
+    { timeout: 150_000 },
+  );
+  ok('the Langsomt run over #doc finishes after resume', true);
+
+  await host.locator('button', { hasText: 'Fortryd alle svar' }).click();
+  await page.waitForTimeout(600);
+  const undoneVal = await page.locator('#doc').inputValue();
+  ok(
+    'Fortryd removes EVERY answer in one press — the whole run, not per-answer (D-15)',
+    undoneVal.trim() === DOC_TEXT.trim(),
+    `"${undoneVal.slice(0, 250)}"`,
+  );
+  ok(
+    'the original questions are untouched after undo',
+    [Q1, Q2, Q3, STATEMENT, UNGROUNDED].every((q) => undoneVal.includes(q)),
+  );
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+
+  console.log('\n— Typing race: a trusted keystroke mid-run pauses the WHOLE run (D-13) —');
+  await page.locator('#doc').fill(DOC_TEXT);
+  await page.locator('#doc').click();
+  await autoBtn.waitFor({ timeout: 5_000 });
+  await autoBtn.click();
+  const raceLangsomt = host.getByRole('button', { name: 'Langsomt', exact: true });
+  await raceLangsomt.waitFor({ timeout: 5_000 });
+  await raceLangsomt.click();
+
+  await waitForFieldGrowth('#doc', DOC_TEXT.length, 40_000);
+  await page.waitForTimeout(900); // outlive the first few paced ticks, like verify.mjs's own typing-race test
+  await page.locator('#doc').press('x'); // a trusted keystroke — never one we synthesized
+  await page.waitForTimeout(500);
+  ok('a trusted keystroke mid-run pauses the run, reporting why', /du begyndte at skrive/i.test(await shadowText()));
+
+  await host.locator('button', { hasText: 'Fortsæt' }).click().catch(() => {});
+  await page.waitForTimeout(600);
+  const afterResume = await page.locator('#doc').inputValue();
+  ok('the typed character survives resume', afterResume.includes('x'), `"${afterResume.slice(0, 250)}"`);
+
+  await page
+    .waitForFunction(
+      () => /Færdig ✓|Stoppet|Fejl/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+      undefined,
+      { timeout: 150_000 },
+    )
+    .catch(() => {});
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+
+  console.log('\n— The gap list: ungrounded questions are named in the PANEL, never marked in the document (D-12) —');
+  let gapPanelText = '';
+  let gapDocVal = '';
+  let gapFound = false;
+  for (let attempt = 1; attempt <= 2 && !gapFound; attempt++) {
+    await page.locator('#doc').fill(DOC_TEXT);
+    await page.locator('#doc').click();
+    const res = await runAutonomous(host, autoBtn, 'Straks', 90_000);
+    if (!res.finished) continue;
+    gapPanelText = await shadowText();
+    gapDocVal = await page.locator('#doc').inputValue();
+    gapFound = gapPanelText.includes(UNGROUNDED);
+    if (!gapFound) {
+      console.log(`  … attempt ${attempt} did not surface the ungrounded question, retrying (live-model grounding variance)`);
+      await host.locator('button', { hasText: 'Fortryd alle svar' }).click().catch(() => {});
+      await page.waitForTimeout(400);
+    }
+  }
+  ok(
+    'the panel names the question nothing could ground, under "Uden grundlag i dine kilder"',
+    gapPanelText.includes('Uden grundlag i dine kilder') && gapFound,
+    gapPanelText.slice(0, 300),
+  );
+  if (gapFound) {
+    const gapLines = gapDocVal.split('\n');
+    const idx = gapLines.findIndex((l) => l.trim() === UNGROUNDED);
+    const afterUngrounded = idx === -1 ? null : (gapLines[idx + 1] ?? '').trim();
+    ok('the ungrounded question still gets a full answer beneath it', !!afterUngrounded, `"${afterUngrounded}"`);
+    ok(
+      'the document itself carries no marker, flag or bracket next to that answer — the gap lives only in the panel',
+      !!afterUngrounded && !/[[\]{}]|⚠|TODO|FIXME|usikker|ubekræftet|grundlag/i.test(afterUngrounded),
+      `"${afterUngrounded}"`,
+    );
+  }
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+
+  console.log('\n— Panel independence: closing the sidebar does not stop a running Langsomt run (D-14) —');
+  await page.locator('#doc').fill(DOC_TEXT);
+  await page.locator('#doc').click();
+  await autoBtn.waitFor({ timeout: 5_000 });
+  await autoBtn.click();
+  const bgLangsomt = host.getByRole('button', { name: 'Langsomt', exact: true });
+  await bgLangsomt.waitFor({ timeout: 5_000 });
+  await bgLangsomt.click();
+
+  await waitForFieldGrowth('#doc', DOC_TEXT.length, 40_000);
+  await page.waitForTimeout(1500);
+  const lenBeforeClose = (await page.locator('#doc').inputValue()).length;
+
+  await host.locator('button[title="Skjul panelet"]').click();
+  await host.locator('aside').waitFor({ state: 'detached', timeout: 5_000 }).catch(() => {});
+  await page.waitForTimeout(3000); // the run must keep going while the panel (and its React tree) is unmounted
+
+  const lenWhileClosed = (await page.locator('#doc').inputValue()).length;
+  ok('the run advanced while the panel was collapsed', lenWhileClosed > lenBeforeClose, `${lenBeforeClose} → ${lenWhileClosed}`);
+
+  await host.locator('button[title*="Skriveassistent"]').click();
+  await host.locator('aside').waitFor({ timeout: 5_000 });
+  await page.waitForFunction(
+    () => /Færdig ✓/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+    undefined,
+    { timeout: 150_000 },
+  );
+  ok('reopening the panel shows the run still finishes on its own', true);
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+
+  console.log('\n— Regression: Brug som kontekst is unchanged — still a chip, never a run (D-04b) —');
+  await page.locator('#doc').fill(Q1);
+  await page.locator('#doc').click();
+  await page.locator('#doc').press('ControlOrMeta+a');
+  await page.waitForTimeout(1400);
+  await host.locator('button', { hasText: 'Brug som kontekst' }).click();
+  await page.waitForTimeout(300);
+  const kontekstText = await shadowText();
+  ok('Brug som kontekst still produces a context chip', /Markeret tekst \(/.test(kontekstText));
+  ok(
+    'Brug som kontekst never starts an autonomous run — no transport bar appears',
+    !/Skriver\b/.test(kontekstText) && (await host.locator('button', { hasText: '⏸ Pause' }).count()) === 0,
+  );
+  await host.locator('button[title^="Fjern"]').first().click().catch(() => {});
+  await page.locator('#doc').fill(DOC_TEXT);
 } catch (err) {
   failed++;
   failures.push({ name: 'unexpected failure', detail: String(err) });
