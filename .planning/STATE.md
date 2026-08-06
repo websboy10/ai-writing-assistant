@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 7 Plan 2 executed — `POST /api/autonomous/answer` built,
-last_updated: "2026-08-06T20:18:20.351Z"
+stopped_at: Phase 7 Plan 3 executed — AutonomousRun engine + Besvar alle spørgsmål button built, tested end-to-end in real Chromium (12/12), committed. See 07-03-SUMMARY.md's What 07-04 needs to know section.
+last_updated: "2026-08-06T20:50:57.138Z"
 last_activity: 2026-08-05 — Bug sweep (37 findings, 20 fixed), 'Galley' monochrome
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -219,41 +219,65 @@ specific rejection messages for oversized/malformed/unsupported files
 ## Session Continuity
 
 Last session: 2026-08-06
-Stopped at: Phase 7 Plan 2 executed — `POST /api/autonomous/answer` built,
-tested (unit + live-model), and committed. See
-`.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-02-SUMMARY.md`
-for the full request/response contract 07-03 needs.
-Resume file: `.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-02-SUMMARY.md`
+Stopped at: Phase 7 Plan 3 executed — AutonomousRun engine (plan.ts,
+locator.ts, orchestrator.ts) + the "Besvar alle spørgsmål" panel button
+built, tested end-to-end in real Chromium against the live model (12/12,
+both a plain textarea and a contenteditable, Straks and Langsomt), and
+committed. See
+`.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-03-SUMMARY.md`
+for the full public surface 07-04 builds on.
+Resume file: `.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-03-SUMMARY.md`
 
-**Next step:** Plan 07-03 (the run engine that drives this route from the
-extension) — see 07-02-SUMMARY.md's "What 07-03 needs to know" section for the
-exact contract.
+**Next step:** Plan 07-04 (the "Besvar markeringen" entry point on the
+selection bar, whole-run pause/stop/undo transport bar, and the gap list)
+— see 07-03-SUMMARY.md's "What 07-04 needs to know" section for the exact
+public surface (`autonomous.run/pause/resume/stop/undo/dismiss`,
+`store.autoRun` shape) already built and ready to drive.
 
-**New backend surface this session:**
+**New extension surface this session:**
 
-- `POST /api/autonomous/answer` — auth → entitlement → quota(2) → detection
-  call → batched answer calls → refund-on-zero, same gate order as `/api/chat`.
-  `contentClass` is hardcoded `'real'` in this route only (never the `chat.ts:48`
-  defect below).
+- `apps/extension/insertion/autonomous/{plan,locator,orchestrator}.ts` —
+  `AutonomousRun` drives one `InsertionSession` per answer over a
+  `QuestionSource`, re-locating each question's live position immediately
+  before writing it (D-03), never up front.
+- `apps/extension/sidebar/autonomous.ts` + `store.autoRun` — the
+  whole-document entry point, ready for 07-04 to call with
+  `scope: 'selection'` too.
+- `scripts/verify-autonomous.mjs` (port 8789) — the live-Chromium E2E
+  suite for this capability; run with
+  `VITE_BACKEND_URL=http://127.0.0.1:8787 pnpm --filter extension build`
+  first (the default build points at the deployed backend, which does not
+  yet serve `/api/autonomous/answer`).
 
-- `apps/backend` now has its first test runner: `pnpm test` (node:test + tsx).
-- `pnpm verify:autonomous-api` — live-model proof script (question-mark,
-  imperative, numbered-field detection; ungrounded-question flagging).
-
-**Known pre-existing bug surfaced (not fixed, out of scope for 07-02):**
+**Known pre-existing bug surfaced (not fixed, out of scope for 07-02 or 07-03):**
 `apps/backend/src/supabase.ts`'s `rpc()` throws parsing `refund_quota`'s empty
 response body as JSON. Caught by the existing `.catch()` in both `chat.ts` and
-the new `autonomous.ts`, so it never reaches the user — but it means quota is
-NOT actually credited back on a zero-answer/zero-token run today, in either
-route. Worth a small fix in `supabase.ts` (skip `.json()` when body is empty)
-in a future plan.
+`autonomous.ts` (backend route), so it never reaches the user — but it means
+quota is NOT actually credited back on a zero-answer/zero-token run today, in
+either route. Worth a small fix in `supabase.ts` (skip `.json()` when body is
+empty) in a future plan.
+
+**Also noted, not fixed (07-03):** `scripts/verify.mjs` has the same
+2-arg `waitForFunction(fn, options)` timeout bug fixed in
+`verify-autonomous.mjs` (Playwright's real signature is
+`(fn, arg, options)`; the 2-arg form silently applies the default 30s
+timeout). Harmless there today because its waits happen to finish under
+30s, but worth a cleanup pass.
 
 **Blocked on the operator first:** the Google Cloud OAuth credential
 (`docs/SETUP.md` Job 4) is now a prerequisite, not an optional extra — Phase 7's
 primary Google Docs path is the Docs API, which needs that same Google Cloud
 project with the Docs API enabled. Roughly 10 minutes of clicking. Planning can
-proceed without it; execution of the Docs path cannot.
+proceed without it; execution of the Docs path (07-05) cannot.
 
 ## Decisions
 
 - [Phase 7]: 07-02: contentClass hardcoded to 'real' in autonomous.ts as a local const, never read from the request body (T-07-06 GDPR boundary for whole-document sends)
+- [Phase 07]: 07-03: orchestrator.ts imports adapterFor from insertion/index.ts, a circular import verified safe under Vite/Rollup since neither side evaluates the other's binding at module-init time
+- [Phase 07]: 07-03: QuestionSource gained an optional lastLocateReason() beyond the plan's literal locate() signature, so unplaced questions get a specific not-found vs ambiguous reason instead of one generic message
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 07 P03 | 150m | 3 tasks | 10 files |

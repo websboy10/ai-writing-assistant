@@ -168,13 +168,13 @@ answer on. Stated to the operator and chosen deliberately. Mitigated, inside tha
 decision, by widening source material to attached files (D-11) and listing the
 gaps in the panel rather than the document (D-12).
 
-**Plans:** 2/6 plans executed
+**Plans:** 3/6 plans executed
 
 Plans:
 
 - [x] 07-01-PLAN.md — Google Docs go/no-go spike: Chrome-managed Docs token and Find-based cursor positioning, proved against a real document
 - [x] 07-02-PLAN.md — Backend: the AI finds every question and answers it from the document plus attached files, flagging the ones it had nothing to go on
-- [ ] 07-03-PLAN.md — The run engine and the whole-document button, proven in a textarea and a rich-text editor
+- [x] 07-03-PLAN.md — The run engine and the whole-document button, proven in a textarea and a rich-text editor
 - [ ] 07-04-PLAN.md — "Besvar markeringen" writes directly, plus whole-run pause/stop/undo and the gap list
 - [ ] 07-05-PLAN.md — Google Docs: in place via Find and the Docs API read, with visible fallbacks when permission is declined
 - [ ] 07-06-PLAN.md — Acceptance scenario, permission disclosure, and the operator's real-browser walkthrough
@@ -200,4 +200,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6. Phase 3's spik
 | 4. Context & File Pipeline | 0/TBD | Not started | - |
 | 5. Conversation History | 0/TBD | Not started | - |
 | 6. Quota Hardening, Usage Transparency & Trust Polish | 0/TBD | Not started | - |
-| 7. Autonomous mode — answer every question in a document | 2/6 | In Progress|  |
+| 7. Autonomous mode — answer every question in a document | 3/6 | In Progress|  |
