@@ -284,61 +284,75 @@ have to send me anything.
 
 ---
 
-## Step 6.5 — A SECOND OAuth client, for Google Docs access (2 min)
+## Step 7 — What happens after sign-in is wired (my part)
 
-Added 2026-08-06 after Phase 7 research. The client from Step 6 powers **sign-in**.
-Reading and writing Google documents needs a *different* kind of client.
+Earlier drafts of this doc said I'd take the Docs permission from Supabase's
+sign-in token and refresh it on the backend. **That plan is out** — Supabase
+does not refresh a `provider_token`, and Google's tokens expire hourly, so
+making it work would have meant putting your Google **client secret** on our
+server. That directly contradicts what Step 6 promised you: the secret stays
+in Supabase, full stop.
 
-**Why two.** Supabase hands over a Google token at login but never refreshes it,
-and Google's tokens expire hourly. Making that path work would mean putting your
-Google **client secret** on our backend — exactly what Step 6 promised you'd
-never have to do. A Chrome Extension client avoids it entirely: Chrome holds and
-refreshes the token itself, and no secret exists to leak. It also lets us ask for
-document access the first time someone uses the feature, instead of frightening
-people at signup.
+Here's what happens instead (D-16/D-17), all inside the extension, no secret
+involved at any point:
+- The extension asks Chrome directly for a Docs token, using the second,
+  secret-less client from **Step 8** below (`chrome.identity.getAuthToken`).
+  Chrome caches and refreshes that token itself.
+- It reads the open document's structure with **one API request** —
+  `documents.get` — to get every paragraph's exact text and position.
+- Typing happens **locally**, the same way the existing Straks/Langsomt
+  insertion already works: Google's Find (Ctrl+F) moves the cursor to the
+  right question, then the extension types the answer in, letter by letter.
+  No further API calls, no write-quota limit, and it looks like someone
+  actually typing the document — because that mechanism is unchanged, it's
+  only *finding the right spot* that's new.
+- If any of that is declined or fails, it falls back to today's paste
+  mechanism, visibly, same as it does now.
+- I walk the whole flow in a real browser before calling any of it done.
 
-1. Google Cloud Console → confirm you're in the **AI Skriveassistent** project
-2. **APIs & Services** → **Credentials** *(newer console: **Clients**)*
-3. **+ Create credentials** → **OAuth client ID** *(newer: **+ Create client**)*
-4. **Application type: Chrome Extension**
-   > This time it genuinely is "Chrome Extension" — unlike Step 6a, which had to
-   > be "Web application" because sign-in runs through Supabase.
-5. **Name:**
+**You don't need to send me a client secret for any of this.** The Step 6
+secret lives in Supabase; I never need to see it. If you ever paste a secret
+into a chat, rotate it afterwards.
+
+---
+
+## Step 8 — Nøglen til dokumenterne (2 min)
+
+A **second** OAuth client, only for reading and writing documents — separate
+from the Step 6 client, which only handles sign-in. Two clients because they
+serve two different Google APIs behind two different code paths (see Step 7).
+
+1. Google Cloud Console → confirm you're in the **AI Skriveassistent** project.
+2. Left menu → **Clients** *(older console: **APIs & Services** → **Credentials**)*.
+3. **+ Create client** *(older: **+ Create credentials** → **OAuth client ID**)*.
+4. **Application type** — choose **Chrome Extension**.
+   > This time it genuinely is "Chrome Extension" — unlike Step 6a, which had
+   > to be "Web application" because sign-in runs through Supabase.
+5. **Name** — type:
    ```
-   AI Skriveassistent – Extension
+   AI Skriveassistent – Docs
    ```
 6. **Item ID** — paste:
    ```
    foidkbeinmfolejjjfjcokmmknimohof
    ```
-7. **Create**
+7. Click **Create**.
+8. Copy the **Client ID** it shows you.
 
-**This Client ID is NOT a secret — send it to me.** Chrome Extension clients have
-no secret, and the ID ships inside the extension's manifest where anyone can read
-it. That is by design and is safe. (The Step 6 client's *secret* is the one that
-must never leave Supabase.)
+**There is no client secret for this type of client — and that's the point.**
+Chrome Extension clients don't have one, so nothing secret ever enters this
+codebase. The Client ID itself isn't a secret either: it ships inside the
+extension's public manifest, where anyone installing the extension can read
+it anyway. Safe to commit, safe to paste anywhere.
 
 **Two known traps, handled in code:**
-- **Granular consent** — Google now lets a user approve sign-in while unticking
-  document access. The code must check `grantedScopes`; a partial grant must
-  never be treated as success.
-- **Pre-publication** — whether `chrome.identity.getAuthToken` works before the
-  extension is on the Web Store is unverified. It gets tested first, cheaply, in
-  Phase 7's opening spike rather than discovered late.
-
----
-
-## Step 7 — Tell me it's done (my part)
-
-Then I:
-- Ask Supabase for the Docs permission at sign-in and hold on to the Google token
-  (it's separate from the login session, and it expires hourly — I handle the refresh)
-- Build the Docs API read/write path for Phase 7
-- Keep today's paste mechanism as the fallback for anyone who declines
-- Walk the whole flow in a real browser before calling any of it done
-
-**You don't need to send me the client secret.** It lives in Supabase; I never
-need to see it. If you ever paste a secret into a chat, rotate it afterwards.
+- **Granular consent** — Google now lets a user approve sign-in while
+  unticking document access. The code checks `grantedScopes`; a partial grant
+  is never treated as success.
+- **Pre-publication** — whether `chrome.identity.getAuthToken` works before
+  the extension is on the Web Store was unverified. It's tested first,
+  cheaply, in Phase 7's opening spike (`07-SPIKE.md`) rather than discovered
+  late.
 
 ---
 

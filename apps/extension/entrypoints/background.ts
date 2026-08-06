@@ -2,8 +2,10 @@ import type { ChatErrorCode, ChatStreamEvent } from '@awa/shared';
 import {
   BACKEND_URL,
   CHAT_PORT,
+  DOCS_SCOPE,
   type ChatPortClientMsg,
   type ChatPortServerMsg,
+  type DocsParagraph,
   type OneShotRequest,
   type OneShotResponse,
   type StoredSession,
@@ -89,6 +91,102 @@ export default defineBackground(() => {
     if (token) headers.set('Authorization', `Bearer ${token}`);
     headers.set('x-awa-install', await installId());
     return fetch(`${BACKEND_URL}${path}`, { ...init, headers });
+  }
+
+  // ---- Google Docs API (D-16, D-17) ----
+  //
+  // T-07-01: the access token lives ONLY inside this closure. Every caller
+  // gets a result, never the token — never logged, never put in an error
+  // string, never written to chrome.storage. Chrome owns cache and refresh
+  // for tokens obtained through chrome.identity.getAuthToken; there is
+  // nothing for us to persist.
+
+  type DocsAuthOk = { ok: true; token: string };
+  type DocsAuthFail = { ok: false; status: 401 | 403; error: string };
+
+  /**
+   * T-07-02: `enableGranularPermissions` lets a user grant sign-in while
+   * unticking `documents`. Recent Chrome resolves an object carrying
+   * `grantedScopes`; older Chrome resolves a bare token string with no way to
+   * inspect what was granted. Where `grantedScopes` IS present, a partial
+   * grant is caught here and never treated as success. Where it is absent,
+   * this function cannot detect a partial grant by itself — the 403 that
+   * docs-get/docs-batch-update get back from Google when that happens is the
+   * authority in that case (see their handlers below).
+   */
+  async function docsAuth(interactive: boolean): Promise<DocsAuthOk | DocsAuthFail> {
+    // `enableGranularPermissions` is real (Chrome ships it) but missing from
+    // @types/chrome@0.0.287's TokenDetails, and the Promise overload it DOES
+    // declare only models the modern `{ token, grantedScopes }` shape — not
+    // the bare-string shape older Chrome actually resolves. Both gaps are
+    // widened here via a local, non-literal variable (so no excess-property
+    // check fires) and an `unknown` cast, then narrowed by hand at runtime.
+    const tokenDetails: chrome.identity.TokenDetails & { enableGranularPermissions?: boolean } = {
+      interactive,
+      enableGranularPermissions: true,
+    };
+    let result: string | { token?: string; grantedScopes?: string[] } | undefined;
+    try {
+      const raw: unknown = await chrome.identity.getAuthToken(tokenDetails);
+      result = raw as string | { token?: string; grantedScopes?: string[] } | undefined;
+    } catch {
+      result = undefined;
+    }
+    const token = typeof result === 'string' ? result : result?.token;
+    const grantedScopes = typeof result === 'string' ? undefined : result?.grantedScopes;
+    if (!token) {
+      return {
+        ok: false,
+        status: 401,
+        error: 'Google-adgang blev ikke givet — AI Skriveassistenten bruger reservevejen (indsæt) i stedet.',
+      };
+    }
+    if (grantedScopes && !grantedScopes.includes(DOCS_SCOPE)) {
+      await chrome.identity.removeCachedAuthToken({ token }).catch(() => {});
+      return {
+        ok: false,
+        status: 403,
+        error:
+          'Adgang til dokumentet blev ikke givet (fluebenet ved dokumentadgang var afkrydset fra) — AI Skriveassistenten bruger reservevejen (indsæt) i stedet.',
+      };
+    }
+    return { ok: true, token };
+  }
+
+  interface DocsTextRun {
+    content?: string;
+  }
+  interface DocsParagraphElement {
+    textRun?: DocsTextRun;
+  }
+  interface DocsParagraphBody {
+    elements?: DocsParagraphElement[];
+    paragraphStyle?: { namedStyleType?: string };
+  }
+  interface DocsStructuralElement {
+    startIndex?: number;
+    endIndex?: number;
+    paragraph?: DocsParagraphBody;
+  }
+
+  /** One DocsParagraph per non-empty paragraph, indices carried straight from the API. */
+  function extractDocsParagraphs(content: DocsStructuralElement[]): DocsParagraph[] {
+    const paragraphs: DocsParagraph[] = [];
+    let index = 0;
+    for (const el of content) {
+      const p = el.paragraph;
+      if (!p) continue;
+      const text = (p.elements ?? []).map((e) => e.textRun?.content ?? '').join('');
+      if (!text.trim()) continue;
+      paragraphs.push({
+        index: index++,
+        text,
+        startIndex: el.startIndex ?? 0,
+        endIndex: el.endIndex ?? 0,
+        namedStyleType: p.paragraphStyle?.namedStyleType,
+      });
+    }
+    return paragraphs;
   }
 
   // ---- one-shot router ----
@@ -220,6 +318,63 @@ export default defineBackground(() => {
           email,
         });
         return { ok: userRes?.ok ?? true, status: 200, data: { email } };
+      }
+      case 'docs-auth': {
+        const auth = await docsAuth(msg.interactive);
+        if (!auth.ok) return { ok: false, status: auth.status, error: auth.error };
+        return { ok: true, status: 200, data: { granted: true } };
+      }
+      case 'docs-get': {
+        const auth = await docsAuth(false);
+        if (!auth.ok) return { ok: false, status: auth.status, error: auth.error };
+        const fetchDoc = (bearer: string) =>
+          fetch(`https://docs.googleapis.com/v1/documents/${encodeURIComponent(msg.documentId)}`, {
+            headers: { Authorization: `Bearer ${bearer}` },
+          }).catch(() => null);
+        let res = await fetchDoc(auth.token);
+        if (res?.status === 401) {
+          // Cached token expired between docsAuth() and this fetch — clear it
+          // and retry once with a fresh one before giving up.
+          await chrome.identity.removeCachedAuthToken({ token: auth.token }).catch(() => {});
+          const retry = await docsAuth(false);
+          if (!retry.ok) return { ok: false, status: retry.status, error: retry.error };
+          res = await fetchDoc(retry.token);
+        }
+        if (!res) return { ok: false, status: 0, error: 'Google Docs API kunne ikke nås.' };
+        if (res.status === 403 || res.status === 404) {
+          return {
+            ok: false,
+            status: res.status,
+            error: 'Den Google-konto, der er logget ind i denne Chrome-profil, har ikke adgang til dette dokument.',
+          };
+        }
+        if (!res.ok) {
+          return { ok: false, status: res.status, error: `Google Docs API-fejl (HTTP ${res.status}).` };
+        }
+        const doc = (await res.json()) as { title?: string; body?: { content?: DocsStructuralElement[] } };
+        const paragraphs = extractDocsParagraphs(doc.body?.content ?? []);
+        return { ok: true, status: 200, data: { title: doc.title ?? '', paragraphs } };
+      }
+      case 'docs-batch-update': {
+        const auth = await docsAuth(false);
+        if (!auth.ok) return { ok: false, status: auth.status, error: auth.error };
+        const res = await fetch(
+          `https://docs.googleapis.com/v1/documents/${encodeURIComponent(msg.documentId)}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requests: msg.requests }),
+          },
+        ).catch(() => null);
+        if (!res) return { ok: false, status: 0, error: 'Google Docs API kunne ikke nås.' };
+        if (res.status === 429) {
+          return { ok: false, status: 429, error: 'Google begrænsede antallet af skrivninger — prøv igen om lidt.' };
+        }
+        if (!res.ok) {
+          return { ok: false, status: res.status, error: `Google Docs API-fejl (HTTP ${res.status}).` };
+        }
+        const data = (await res.json()) as { replies?: unknown[] };
+        return { ok: true, status: 200, data: { replies: data.replies ?? [] } };
       }
     }
   }
