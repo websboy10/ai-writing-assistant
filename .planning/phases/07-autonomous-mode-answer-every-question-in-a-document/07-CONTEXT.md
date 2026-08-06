@@ -77,6 +77,62 @@ operator. "Brug som kontekst" keeps its current behaviour, untouched.
   was originally scoped around is **superseded by D-05** for Docs. It survives
   only inside the D-06 fallback.
 
+### Google Docs, revised after research (2026-08-06)
+
+Research (`07-RESEARCH.md`) found two things that contradicted the decisions
+above. Both went back to the operator and were re-decided.
+
+- **D-16: Read with the API, position with Find, type with the existing engine.**
+  The Docs API caps writes at **60 requests/minute per user**. Letter-by-letter
+  at 30 wpm needs ~150/min, so an API-per-letter Langsomt is impossible. The
+  operator rejected every compromise ("we need to fix it. letter by letter"),
+  and the resolution is to stop using the API for writing at all:
+  1. **`documents.get`** — one request per run. Yields every question, its exact
+     text and its `startIndex`. This is what the API is genuinely good at.
+  2. **Docs' own Find (Ctrl+F)** — real DOM, not canvas. Fed the exact question
+     text from step 1, it moves the cursor to that question for us. This is the
+     positioning capability the canvas denies us.
+  3. **The existing `InsertionSession` + `GDocsAdapter`** — types letter by
+     letter into the live cursor via synthetic events. Local, unlimited, already
+     built, already tested.
+
+  **Quota cost: one read request per document, zero writes.** True
+  letter-by-letter, in place, top to bottom — the full operator requirement with
+  no compromise. It is also the *smaller* change: no second Langsomt path is
+  built, the existing engine is reused and only positioning is added.
+
+  `GDocsAdapter.prepare()` already collapses a selection to its end before
+  typing (gdocs.ts:88-102), which is exactly the state Find leaves behind — the
+  two fit together without modification.
+
+- **D-16a: Find-positioning is UNPROVEN and must be spiked first.** Same risk
+  class as the existing paste mechanism. The plan must prove it against a real
+  Google Doc before anything is built on top of it. **Fallback if it proves
+  unreliable:** `documents.batchUpdate` writes, applied bottom-up (highest index
+  first, per Google's documented ordering rule), which yields correct in-place
+  placement for Straks and degrades Langsomt to the D-02 block on Docs only.
+
+- **D-17: A second OAuth client, not the Supabase provider token.** Supabase
+  does **not** refresh `provider_token`, and Google's tokens expire hourly.
+  Making the Supabase path work would put the Google **client secret** on our
+  backend — contradicting what `docs/GOOGLE-SETUP.md` promised the operator.
+  Instead: a second OAuth client of type **Chrome Extension** in the same Google
+  Cloud project (D-07 still holds), used via `chrome.identity.getAuthToken()`.
+  Chrome caches and refreshes the token itself; no secret ever enters this
+  codebase. **This also enables incremental authorization** — document access is
+  requested the first time someone runs autonomous mode on a Doc, not at signup,
+  which is materially better for conversion.
+  - **Operator action required:** ~2 minutes creating that client. The extension
+    ID is already pinned (`foidkbeinmfolejjjfjcokmmknimohof`).
+  - **Unverified:** whether `getAuthToken` works before the extension is
+    published to the Web Store. Must be tested early — it is cheap to test and
+    expensive to discover late.
+  - **Granular consent trap:** Google now lets a user grant sign-in while
+    unticking `documents`. Always check `grantedScopes` before assuming access;
+    never let a partial grant look like success.
+  - The Supabase Google sign-in configured on 2026-08-06 stays exactly as it is
+    and keeps powering login.
+
 ### What counts as a question
 
 - **D-10:** **The AI decides.** The document (or the marked text) goes to the
