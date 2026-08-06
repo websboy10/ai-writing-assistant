@@ -86,9 +86,9 @@ to exactly one roadmap phase.
 
 - [ ] **AUTO-01**: User can answer every question in the open document with one button, each answer written directly beneath its question
 - [ ] **AUTO-02**: User can mark text holding one question or twenty, press "Besvar markeringen", and have every marked question answered in place — the panel asks Straks or Langsomt and then writes, with no generate-into-the-panel step
-- [ ] **AUTO-03**: The AI decides what counts as a question — question marks, numbered fields, imperative prompts and headings with blank space beneath all count; there is no rule-based detector
-- [ ] **AUTO-04**: Answers are built from the document itself plus any files already attached in the panel
-- [ ] **AUTO-05**: Questions the assistant had nothing to draw on are listed in the panel, never marked in the document and never a gate
+- [x] **AUTO-03**: The AI decides what counts as a question — question marks, numbered fields, imperative prompts and headings with blank space beneath all count; there is no rule-based detector
+- [x] **AUTO-04**: Answers are built from the document itself plus any files already attached in the panel
+- [x] **AUTO-05**: Questions the assistant had nothing to draw on are listed in the panel, never marked in the document and never a gate
 - [ ] **AUTO-06**: Each question's position is resolved at the moment it is needed, never all measured up front
 - [ ] **AUTO-07**: Straks and Langsomt are the entire interface — no review step, no approval gate, no third mode, no settings
 - [ ] **AUTO-08**: Langsomt types letter by letter starting at the first question and working downward, one answer at a time
@@ -228,9 +228,9 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | AUTO-01 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
 | AUTO-02 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
-| AUTO-03 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
-| AUTO-04 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
-| AUTO-05 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
+| AUTO-03 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
+| AUTO-04 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
+| AUTO-05 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 | AUTO-06 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
 | AUTO-07 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
 | AUTO-08 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
@@ -245,6 +245,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | AUTO-17 | Phase 7 — Autonomous mode: answer every question in a document | Pending |
 
 **Coverage:**
+
 - v1 requirements: 77 total (60 original + 17 AUTO added with Phase 7)
 - Mapped to phases: 77
 - Unmapped: 0 ✓

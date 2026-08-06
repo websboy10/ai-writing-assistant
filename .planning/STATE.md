@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: verifying
+stopped_at: Phase 7 Plan 2 executed — `POST /api/autonomous/answer` built,
+last_updated: "2026-08-06T20:18:20.351Z"
+last_activity: 2026-08-05 — Bug sweep (37 findings, 20 fixed), 'Galley' monochrome
+progress:
+  total_phases: 7
+  completed_phases: 0
+  total_plans: 6
+  completed_plans: 2
+  percent: 0
+---
+
 # Project State
 
 ## Project Reference
@@ -37,10 +53,13 @@ specific rejection messages for oversized/malformed/unsupported files
 (HIST-01/03).
 
 **Built but needs operator eyes (documented in TESTING.md):**
+
 - Google Docs adapter (paste-event via docs-texteventtarget-iframe, self-test +
   clipboard fallback) — automation has no Google login; THE priority manual test
+
 - Rich-editor insertion on real Gmail/LinkedIn/Slack/Notion (passes on
   equivalent harness editor)
+
 - Google OAuth button (needs operator's Google Cloud credential — SETUP.md Job 4)
 - Screenshot capture, drag-drop, theme toggle, resize persistence, SPA-nav
   remount, keyboard shortcut (all built; not in the automated suite)
@@ -49,9 +68,11 @@ specific rejection messages for oversized/malformed/unsupported files
 
 - Supabase project `ai-writing-assistant` (gkqpyqmuopqxumugszoa, eu-north-1):
   schema + RLS + quota RPCs applied; test user tester@example.com (confirmed)
+
 - **`mariams-guide` Supabase project was PAUSED (not deleted)** to free the
   2-project free-tier slot — zero users/sign-ins, data intact, restorable from
   the dashboard in ~1 min
+
 - Backend: Fastify on 127.0.0.1:8787 (local dev; Vercel-ready), serves /harness
 - OpenRouter key in backend .env only; never in extension code
 
@@ -60,24 +81,30 @@ specific rejection messages for oversized/malformed/unsupported files
 - Prisma dropped in favor of Supabase RPC/PostgREST with RLS — MCP-created
   projects don't expose a DB password for a Prisma DATABASE_URL; RLS +
   security-definer RPCs cover v1's needs with less machinery
+
 - Phases built together rather than sequentially — operator's /goal directive
   ("build the entire app, don't ask questions") supersedes phase-by-phase flow
+
 - 2026-08-06 simplification pass (operator directive "idiot friendly"):
   settings page removed (only Log ud remains), tone/operation/templates/
   real-data controls removed from UI, insertion reduced to two modes —
   Straks (instant) and Langsomt (letter-by-letter at ~30 wpm, hardcoded).
   Templates backend routes kept but unused by the UI.
+
 - **Compliance note**: the "contains real data" checkbox is gone from the UI;
   all requests now go out as contentClass 'synthetic' (free models). BEFORE
   real users: flip the backend to treat everything as 'real' (paid,
   no-training chain) via env/config — server-side enforcement unchanged.
+
 - Marked text now has two explicit functions (answer-below vs. context);
   insertion NEVER replaces a selection — adapters collapse to selection end
   and the answer is prefixed with a newline
+
 - Scanned PDFs OCR'd server-side (pdfjs render → tesseract dan+eng, max 6
   pages); all OCR now Danish+English. New backend deps: pdfjs-dist,
   @napi-rs/canvas (needs a Vercel-compat check at deploy time; tessdata
   cache lives in os.tmpdir())
+
 - Logo/icon generated via kie.ai (nano-banana), monochrome knot mark;
   manifest icons in apps/extension/public/icon, inline data-URI in the UI
 
@@ -86,12 +113,15 @@ specific rejection messages for oversized/malformed/unsupported files
 - Freemium: 7-day server-side trial (billing_init RPC) → hard paywall (402
   payment_required on /api/chat) → Stripe Checkout subscription 50 DKK/md
   (price_1U1Lf2GrmuDlJMN2u6PrgTcB, product prod_V1ORKbu7oE0CNj, TEST MODE)
+
 - Anti-abuse: one trial per extension install (x-awa-install header →
   trial_devices table); a device that used its week gives new accounts
   status 'expired' immediately
+
 - Sync channels: /billing/success page (server-side session retrieve),
   on-demand Stripe sync in getEntitlement, webhook /api/stripe/webhook
   (needs STRIPE_WEBHOOK_SECRET — set at Vercel deploy, not needed locally)
+
 - Full flow proven E2E incl. real test-mode checkout: scripts/verify-paywall.mjs
 - BEFORE LAUNCH: live-mode Stripe keys, webhook endpoint in dashboard,
   rename Stripe business name (shows "Chat sandbox" on checkout today),
@@ -103,19 +133,25 @@ specific rejection messages for oversized/malformed/unsupported files
   (project ai-skriveassistent-api, rootDirectory apps/backend, Fastify via
   api/index.ts adapter, maxDuration 300, all env vars set incl.
   STRIPE_WEBHOOK_SECRET; live Stripe webhook we_1U1OHYGrmuDlJMN2shs10ioT)
+
 - Landing LIVE: https://ai-skriveassistent.vercel.app (+privatliv,
   +handelsbetingelser)
+
 - Extension now DEFAULTS to the deployed backend
   (VITE_BACKEND_URL=http://127.0.0.1:8787 for local dev builds)
+
 - DEVIATION: OCR switched from tesseract.js to vision-model OCR
   (google/gemini-3.5-flash, provider data_collection deny, max_tokens 4000)
   — tesseract's WASM cannot ship reliably in serverless bundles, and vision
   reads Danish better. tesseract.js removed from deps.
+
 - Backend imports from @awa/shared are TYPE-ONLY by contract (package ships
   TS source which Node can't load when deployed); the two runtime constants
   are duplicated locally in files.ts with a sync note
+
 - pdfjs on serverless needs: explicit @napi-rs/canvas import + DOM globals +
   _resolveFilename redirect + explicit pdf.worker.mjs import (all in files.ts)
+
 - 33/33 E2E green with the extension running against the DEPLOYED backend
 - Operator guides: docs/STRIPE-LIVE.md, docs/CHROME-WEB-STORE.md
 
@@ -124,8 +160,10 @@ specific rejection messages for oversized/malformed/unsupported files
 - Live product prod_V1SRACC78tS4Gm, price price_1U1PWyGYgFaIZrpIrPedJujG
   (50 DKK/md, tax_behavior inclusive, tax_code SaaS personal), webhook
   we_1U1PWyGYgFaIZrpIsGIM1atH — all on Vercel production env
+
 - STRIPE_AUTOMATIC_TAX=1 in production (operator confirmed tax setup +
   MobilePay enabled); local dev stays on TEST keys deliberately
+
 - Verified live: cs_live checkout mints, webhook rejects bad signatures
 - REMAINING for operator: Stripe public business name still shows "Chat"
   (Settings → Business → Public details → "AI Skriveassistent")
@@ -142,6 +180,7 @@ specific rejection messages for oversized/malformed/unsupported files
 
 - Google Docs mechanism remains unverified against live Docs until the operator
   (or a signed-in session) tests it — self-test + clipboard fallback ship either way
+
 - Free OpenRouter models 429 unpredictably; fallback chain mitigates, observed live
 
 ## Accumulated Context
@@ -151,9 +190,11 @@ specific rejection messages for oversized/malformed/unsupported files
 - **Phase 7 added 2026-08-06**: Autonomous mode — answer every question in a
   document. Operator request. **Discussed the same day; decisions locked in
   `.planning/phases/07-*/07-CONTEXT.md` (D-01..D-15).** Not planned yet.
+
 - **Phase 7 absorbed the marked-text flow** rather than spawning a phase for it:
   "Besvar markeringen" is the same engine at a smaller scope, and must handle a
   marking containing many questions.
+
 - **Phase 7 chose to fix Google Docs properly, not work around it.** The
   original canvas/hidden-iframe reading assumption is superseded — the phase now
   builds on the Google Docs API, with the existing synthetic-paste mechanism
@@ -166,6 +207,7 @@ specific rejection messages for oversized/malformed/unsupported files
   paid for, listing text and package are ready (`docs/STORE-LISTING.md`), but
   the operator wants to iterate on the product first. Screenshots deliberately
   NOT taken — they would go stale with each UI change.
+
 - **2026-08-06 — the model-routing fix is deferred, knowingly.** All content
   still goes out as `contentClass: 'synthetic'` (free, training-enabled models)
   because the "contains real data" checkbox was removed from the UI but
@@ -177,16 +219,41 @@ specific rejection messages for oversized/malformed/unsupported files
 ## Session Continuity
 
 Last session: 2026-08-06
-Stopped at: Phase 7 context gathered — `07-CONTEXT.md` written and committed.
-Earlier the same session: Web Store package prepared and then paused by operator
-(localhost host_permissions removed from the store build, all listing copy
-written in `docs/STORE-LISTING.md`).
-Resume file: `.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-CONTEXT.md`
+Stopped at: Phase 7 Plan 2 executed — `POST /api/autonomous/answer` built,
+tested (unit + live-model), and committed. See
+`.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-02-SUMMARY.md`
+for the full request/response contract 07-03 needs.
+Resume file: `.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-02-SUMMARY.md`
 
-**Next step:** `/gsd:plan-phase 7`.
+**Next step:** Plan 07-03 (the run engine that drives this route from the
+extension) — see 07-02-SUMMARY.md's "What 07-03 needs to know" section for the
+exact contract.
+
+**New backend surface this session:**
+
+- `POST /api/autonomous/answer` — auth → entitlement → quota(2) → detection
+  call → batched answer calls → refund-on-zero, same gate order as `/api/chat`.
+  `contentClass` is hardcoded `'real'` in this route only (never the `chat.ts:48`
+  defect below).
+
+- `apps/backend` now has its first test runner: `pnpm test` (node:test + tsx).
+- `pnpm verify:autonomous-api` — live-model proof script (question-mark,
+  imperative, numbered-field detection; ungrounded-question flagging).
+
+**Known pre-existing bug surfaced (not fixed, out of scope for 07-02):**
+`apps/backend/src/supabase.ts`'s `rpc()` throws parsing `refund_quota`'s empty
+response body as JSON. Caught by the existing `.catch()` in both `chat.ts` and
+the new `autonomous.ts`, so it never reaches the user — but it means quota is
+NOT actually credited back on a zero-answer/zero-token run today, in either
+route. Worth a small fix in `supabase.ts` (skip `.json()` when body is empty)
+in a future plan.
 
 **Blocked on the operator first:** the Google Cloud OAuth credential
 (`docs/SETUP.md` Job 4) is now a prerequisite, not an optional extra — Phase 7's
 primary Google Docs path is the Docs API, which needs that same Google Cloud
 project with the Docs API enabled. Roughly 10 minutes of clicking. Planning can
 proceed without it; execution of the Docs path cannot.
+
+## Decisions
+
+- [Phase 7]: 07-02: contentClass hardcoded to 'real' in autonomous.ts as a local const, never read from the request body (T-07-06 GDPR boundary for whole-document sends)
