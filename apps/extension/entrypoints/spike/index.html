@@ -73,8 +73,14 @@
       <button id="run">Kør spike</button>
     </div>
     <div class="row">
+      <button id="run-full-test">Kør fuld Docs-test</button>
       <button id="copy" class="secondary">Kopiér rapport</button>
     </div>
+    <p class="hint">
+      "Kør fuld Docs-test" (07-05): kører hele autonome-tilstand-flowet mod dokumentet i URL-feltet ovenfor —
+      hvilken kilde blev valgt, degraderingsårsag hvis nogen, antal fundne/placerede/uplacerede spørgsmål og
+      forløbet tid. Den eneste automatiserbare test af Docs-vejen, der findes uden Playwright/Google-login.
+    </p>
     <pre id="report"></pre>
     <script type="module" src="./main.ts"></script>
   </body>

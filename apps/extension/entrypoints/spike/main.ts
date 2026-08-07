@@ -12,6 +12,7 @@ const SPIKE_MARKER = '⟪AWA-SPIKE⟫';
 
 const urlInput = document.getElementById('doc-url') as HTMLInputElement;
 const runButton = document.getElementById('run') as HTMLButtonElement;
+const runFullTestButton = document.getElementById('run-full-test') as HTMLButtonElement;
 const copyButton = document.getElementById('copy') as HTMLButtonElement;
 const reportEl = document.getElementById('report') as HTMLPreElement;
 
@@ -217,6 +218,80 @@ async function runSpike(docUrl: string): Promise<void> {
   log('=== P4 — Skrivning via API (docs-batch-update) ===');
   await runP4(documentId);
 }
+
+interface DocsFullTestResult {
+  ok: boolean;
+  stage?: string;
+  reason?: string;
+  mechanism?: string;
+  degradedReason?: string;
+  detected?: number;
+  placed?: number;
+  unplaced?: number;
+  elapsedMs?: number;
+}
+
+/**
+ * 07-05 task 3: the only automatable proof available for the Docs path —
+ * Playwright has no Google login, so this drives the whole
+ * resolveDocsSource → read → /api/autonomous/answer → AutonomousRun pipeline
+ * for real, inside the live Docs tab (via the content script's
+ * `awa-docs-full-test` listener), and reports what actually happened rather
+ * than what was assumed.
+ */
+async function runFullDocsTest(docUrl: string): Promise<void> {
+  const documentId = parseDocId(docUrl);
+  if (!documentId) {
+    log(
+      "FEJL: kunne ikke finde et dokument-id i URL'en. Forventet format: https://docs.google.com/document/d/<ID>/edit",
+    );
+    return;
+  }
+  log(`Dokument-id: ${documentId}`);
+  const tabId = await findDocsTab(documentId);
+  if (!tabId) {
+    log('FEJL: fandt ingen åben fane med dette dokument. Åbn dokumentet i en fane og prøv igen.');
+    return;
+  }
+  log('Kører hele autonom-tilstand-flowet (Straks, hele dokumentet) mod fanen...');
+  let result: DocsFullTestResult | undefined;
+  try {
+    result = await chrome.tabs.sendMessage(tabId, { type: 'awa-docs-full-test' });
+  } catch (e) {
+    log(
+      `FEJL: kunne ikke sende besked til dokument-fanen (${e instanceof Error ? e.message : 'ukendt fejl'}). Genindlæs fanen og prøv igen.`,
+    );
+    return;
+  }
+  if (!result?.ok) {
+    log(`Resultat: FEJL i trin "${result?.stage ?? 'ukendt'}" — ${result?.reason ?? 'intet svar fra fanen'}`);
+    return;
+  }
+  log(`Kilde valgt: ${result.mechanism ?? 'ukendt'}`);
+  if (result.degradedReason) log(`Degraderingsårsag: ${result.degradedReason}`);
+  log(`Fundet: ${result.detected ?? 0}  Placeret: ${result.placed ?? 0}  Uplaceret: ${result.unplaced ?? 0}`);
+  log(`Forløbet tid: ${result.elapsedMs ?? 0} ms`);
+}
+
+runFullTestButton.addEventListener('click', () => {
+  void (async () => {
+    reportLines = [];
+    reportEl.textContent = '';
+    runFullTestButton.disabled = true;
+    runFullTestButton.textContent = 'Kører...';
+    try {
+      log('=== Kør fuld Docs-test (07-05) ===');
+      await runFullDocsTest(urlInput.value.trim());
+    } catch (e) {
+      log(`UVENTET FEJL: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      runFullTestButton.disabled = false;
+      runFullTestButton.textContent = 'Kør fuld Docs-test';
+      log('');
+      log('=== Færdig ===');
+    }
+  })();
+});
 
 runButton.addEventListener('click', () => {
   void (async () => {
