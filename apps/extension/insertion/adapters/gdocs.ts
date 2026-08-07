@@ -43,10 +43,38 @@ export class GDocsAdapter implements InsertionAdapter {
     }
   }
 
+  /**
+   * The element Docs actually listens on — its contenteditable inside the
+   * hidden frame — NOT whatever happens to be focused.
+   *
+   * Measured 2026-08-07: `doc.activeElement` is sometimes that contenteditable
+   * and sometimes the frame's `<body>`, depending on whether anything inside
+   * the frame holds focus. Dispatching at `<body>` cannot work: the paste
+   * propagates body → html → document, so a listener bound to a contenteditable
+   * *inside* body never sees it. A 70-letter run logged `activeIsBody: true`
+   * for every chunk and put nothing in the document, while a run that resolved
+   * to `div[ce]` did reach Docs. That is the whole difference.
+   *
+   * Falls back to activeElement, then body, so a Docs restructure degrades to
+   * the old behaviour rather than to nothing at all.
+   */
   private targetEl(): HTMLElement | null {
     const doc = this.targetDoc();
     if (!doc) return null;
-    return (doc.activeElement as HTMLElement) ?? doc.body ?? null;
+    const editable = doc.querySelector<HTMLElement>('[contenteditable="true"], [contenteditable=""]');
+    if (editable) return editable;
+    const active = doc.activeElement as HTMLElement | null;
+    if (active && active !== doc.body) return active;
+    return doc.body ?? null;
+  }
+
+  /** Which branch of targetEl() produced the element — diagnostics only. */
+  private targetPick(el: HTMLElement | null): string {
+    const doc = this.targetDoc();
+    if (!doc || !el) return 'none';
+    if (el.isContentEditable) return 'contenteditable';
+    if (el === doc.body) return 'body(fallback)';
+    return 'activeElement';
   }
 
   /** INST-13: prove the mechanism exists before promising insertion. */
@@ -129,6 +157,7 @@ export class GDocsAdapter implements InsertionAdapter {
       sameEl: el === this.lastEl,
       sameIframe: this.iframe() === this.lastIframe,
       activeIsBody: el === this.targetDoc()?.body,
+      picked: this.targetPick(el),
       // Focus evidence. prepare() asks the frame to take focus and pastes
       // immediately; if Docs only processes a paste while its editor really
       // holds focus, a not-yet-settled focus would look exactly like "Docs
