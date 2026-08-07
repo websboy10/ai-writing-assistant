@@ -74,8 +74,17 @@
     </div>
     <div class="row">
       <button id="run-full-test">Kør fuld Docs-test</button>
+      <button id="run-space-probe">Kør mellemrums-prøve</button>
       <button id="copy" class="secondary">Kopiér rapport</button>
     </div>
+    <p class="hint">
+      "Kør mellemrums-prøve": den åbne fejl, hvor langsomt skrevet tekst lander uden mellemrum
+      ("detterikke"). Prøven skriver den samme streng på tre måder — som ét indsæt, bogstav for bogstav
+      med mellemrummet foran bogstavet (det Langsomt gør i dag), og bogstav for bogstav med mellemrummet
+      som sin egen bid — og læser dokumentet tilbage gennem API'et for at se hvilken af dem der beholder
+      sine mellemrum. Den retter intet; den afgør hvordan rettelsen skal skrives. Sæt markøren nederst i
+      dokumentet først. Markørerne ryddes op bagefter.
+    </p>
     <p class="hint">
       "Kør fuld Docs-test" (07-05): kører hele autonome-tilstand-flowet mod dokumentet i URL-feltet ovenfor —
       hvilken kilde blev valgt, degraderingsårsag hvis nogen, antal fundne/placerede/uplacerede spørgsmål og

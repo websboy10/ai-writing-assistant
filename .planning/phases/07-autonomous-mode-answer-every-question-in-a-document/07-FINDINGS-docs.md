@@ -7,7 +7,59 @@ document, which is the first time this code has ever met live Google Docs —
 
 ---
 
-## F-1 — Marking text on Docs never surfaces the selection bar (CONFIRMED, unfixed)
+## F-4 — Spaces are dropped on Docs (CONFIRMED, OPEN — needs one observation)
+
+**Symptom:** slow insertion into a real Doc lands as `I'mnotfamiliar`. Letters
+arrive, the spaces between them do not. Observed by the operator on 2026-08-07
+in the same run that first put text into a document successfully.
+
+**What is known.** `chunkText()` (`insertion/engine.ts`) sends one letter per
+paste with its whitespace LEADING it — the chunk is `" B"`, never a bare `" "`.
+So a space IS being handed to Docs on every write; something between that call
+and the document is removing it. Straks sends the whole string as one paste and
+is not known to be affected.
+
+**Why it is not fixed here.** Three fixes for this adapter have already been
+written from reasoning rather than observation (the guard, the false failure
+signal, the wrong target element), and all three were wrong. The most plausible
+explanation — Docs trims each individual paste — is a hypothesis, and the fix it
+implies (chunk Docs differently) is different from the fix implied by the next
+most plausible one. Guessing costs another debugging round.
+
+**What replaces the guess:** the whitespace probe, added 2026-08-07 to the spike
+page (`chrome-extension://<id>/spike.html` → **Kør mellemrums-prøve**). It writes
+`A B C` three ways into a real document — one paste; letter-by-letter with the
+space leading (what Langsomt does today); letter-by-letter with the space as its
+own chunk — then reads the document back **through the Docs API**, not off the
+screen, and prints what actually landed with spaces made visible. A non-breaking
+space is displayed differently from an ordinary one, because "swapped" and
+"dropped" need different fixes and look identical.
+
+The reading is decided in advance, in `runDocsSpaceProbe`'s comment, so the
+result cannot be interpreted into whichever fix is convenient:
+
+| Outcome | Fix |
+|---|---|
+| A keeps spaces, B does not, C does | send whitespace as its own chunk on Docs |
+| A keeps spaces, B and C do not | chunk Docs at word level; do not touch the engine |
+| A and B both keep spaces | the defect is not in this channel — look further up |
+| Nothing keeps spaces | not trimming; stop and re-investigate from the start |
+
+**Blast radius:** every Docs write path inherits it, including autonomous mode.
+
+---
+
+## F-1 — Marking text on Docs never surfaces the selection bar (CONFIRMED, FIXED 2026-08-07)
+
+**Fixed in `dd8a16c`.** `TargetTracker.selectionText()` now reads the hidden
+mirror on Docs, via `gdocsSelectionText()` in `target.ts`. That read had three
+copies (`GDocsAdapter.hasSelection`, `docs-source.ts`'s `markedMirrorText`, and
+now the tracker); all three point at the one function, because duplicated Docs
+resolutions in this codebase have already drifted apart once — see the note on
+`gdocsEventTarget`. Unverified against a real Doc.
+
+The original diagnosis, kept because it explains the shape of the bug:
+
 
 **Symptom:** the operator marks text in a Google Doc and neither "Besvar
 markeringen" nor "Brug som kontekst" ever appears. They pressed the autonomous

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 7 Plan 5 executed — Google Docs read path, Find
-last_updated: "2026-08-07T06:20:00.000Z"
-last_activity: 2026-08-05 — Bug sweep (37 findings, 20 fixed), 'Galley' monochrome
+stopped_at: Phase 7 code-complete (all 6 plans). Browser pass deferred by operator.
+last_updated: "2026-08-07T09:40:00.000Z"
+last_activity: 2026-08-07 — Phase 7 plan 06; F-1 and the contentClass defect fixed
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -26,13 +26,39 @@ in, arriving at a pace they can read along with and stop mid-flow.
 
 ## Current Position
 
-Phase: 1–6 built in a single autonomous run (operator-directed via /goal)
-Status: Built and machine-verified — awaiting operator walkthrough (see TESTING.md)
-Last activity: 2026-08-05 — Bug sweep (37 findings, 20 fixed), 'Galley' monochrome
-redesign, templates/search/export shipped; 19/19 automated browser checks pass
+Phase: 7 (autonomous mode) — all 6 plans executed, code-complete
+Status: **Built, not observed.** Everything Google Docs-specific is written and
+compiles; none of it has been seen working on a real document. The operator
+deferred the browser pass on 2026-08-07 ("forget the checks, just finish the
+build then we take the browser checks").
+Last activity: 2026-08-07 — plan 07-06 (acceptance scenario, Docs permission
+disclosure, TESTING.md walkthrough, 07-UAT.md), plus two open defects closed:
+F-1 (the selection bar never appeared on Docs) and the contentClass routing
+defect that sent all real user text to training-enabled free models.
 
-Progress: [████████░░] ~80% (built + machine-verified; operator UAT and
-real-site verification outstanding)
+Progress: [████████░░] ~85% (Phases 1–7 built; operator UAT and real-site
+verification outstanding for both v1 and autonomous mode)
+
+## Next session — start here
+
+1. **The whitespace probe.** Slow-typed text on Docs arrives without spaces
+   ("detterikke"), and every Docs write path inherits it. Deliberately NOT
+   fixed: three fixes for this adapter have been written from reasoning rather
+   than observation and all three were wrong. Open
+   `chrome-extension://<id>/spike.html` → **Kør mellemrums-prøve** on a real
+   document. Its interpretation table is fixed in advance in
+   `07-FINDINGS-docs.md` (F-4) — read the result against that table.
+2. **Re-run the spike.** P3 (Find) failed before `8e5e86d`; Ctrl+F was being
+   dispatched at the frame's `<body>`. Whether Find works now decides whether
+   Langsomt writes in place or falls back to API block writes.
+3. **The four browser suites**, none run since 07-06. They need the backend on
+   127.0.0.1:8787 and a build with `VITE_BACKEND_URL=http://127.0.0.1:8787`;
+   the current `.output` build points at production.
+4. **The walkthrough** — `TESTING.md` → "Autonomous mode", recorded into
+   `07-UAT.md`. The phase does not close until that is filled in.
+
+**Reload ritual after every rebuild:** reload at `chrome://extensions` AND
+Cmd+R the Docs tab. Skipping the second gives "Extension context invalidated".
 
 ## What exists and how it was verified
 

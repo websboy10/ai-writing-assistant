@@ -52,6 +52,80 @@ interface DocsFullTestResult {
   elapsedMs?: number;
 }
 
+/**
+ * The whitespace probe — the open defect where slow-typed text arrives on
+ * Docs with its spaces gone ("detterikke"), and every Docs write path
+ * inherits it.
+ *
+ * It is a probe and not a fix on purpose. Three fixes for the Docs adapter
+ * have already been written from reasoning rather than observation, and all
+ * three were wrong; the note in adapters/gdocs.ts about never reintroducing a
+ * success check "from reasoning, only from a signal actually observed" applies
+ * to this defect just as much. So this writes the SAME string three different
+ * ways and lets the document say which one survives:
+ *
+ *   P-A  one single paste of the whole string — the control. Straks uses this.
+ *   P-B  letter by letter with the space LEADING its letter (" B"), which is
+ *        exactly what chunkText() produces today, and what Langsomt sends.
+ *   P-C  letter by letter with the space as its OWN chunk (" ").
+ *
+ * Reading the result back through the Docs API rather than looking at the
+ * screen matters: the adapter cannot verify its own writes (canvas), and a
+ * space is precisely the character a person cannot reliably count by eye.
+ *
+ * What each outcome means, decided before the run so the answer can't be read
+ * to suit a preferred fix:
+ *   A keeps spaces, B loses them  → Docs trims each individual paste. Chunk
+ *                                   Docs differently; do not touch the engine.
+ *   A and B both keep them        → the defect is not in this channel at all.
+ *   C keeps them, B does not      → send whitespace as its own chunk on Docs.
+ *   nothing keeps them            → not trimming; stop and re-investigate.
+ */
+interface DocsSpaceProbeMsg {
+  type: 'awa-docs-space-probe';
+}
+
+function isDocsSpaceProbeMsg(msg: unknown): msg is DocsSpaceProbeMsg {
+  return !!msg && typeof msg === 'object' && (msg as { type?: unknown }).type === 'awa-docs-space-probe';
+}
+
+const SPACE_PROBE_TEXT = 'A B C';
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function runDocsSpaceProbe(): Promise<{ ok: boolean; stage?: string; reason?: string }> {
+  const adapter = new GDocsAdapter();
+  const prep = adapter.prepare();
+  if (!prep.ok) return { ok: false, stage: 'prepare', reason: prep.reason };
+
+  // Each variant sends its own marker first, as one paste, so the read-back
+  // can find it however badly the payload after it is mangled.
+  const variants: { marker: string; chunks: string[] }[] = [
+    { marker: '⟪AWA-SP-A⟫', chunks: [SPACE_PROBE_TEXT] },
+    { marker: '⟪AWA-SP-B⟫', chunks: ['A', ' B', ' C'] },
+    { marker: '⟪AWA-SP-C⟫', chunks: ['A', ' ', 'B', ' ', 'C'] },
+  ];
+
+  for (const v of variants) {
+    // A newline first: each variant needs its own paragraph, or the read-back
+    // cannot tell where one ends and the next begins.
+    const head = adapter.insert(`\n${v.marker}`);
+    if (!head.ok) return { ok: false, stage: `marker ${v.marker}`, reason: head.reason };
+    for (const chunk of v.chunks) {
+      const res = adapter.insert(chunk);
+      if (!res.ok) return { ok: false, stage: `chunk "${chunk}" of ${v.marker}`, reason: res.reason };
+      // Docs applies pastes on its own schedule (echoesAsync); at full speed
+      // the variants can interleave and the read-back would be measuring the
+      // race instead of the trimming.
+      await sleep(120);
+    }
+    await sleep(400);
+  }
+  return { ok: true };
+}
+
 async function runDocsFullTest(): Promise<DocsFullTestResult> {
   const startedAt = Date.now();
   let source;
@@ -177,6 +251,12 @@ export default defineContentScript({
       chrome.runtime.onMessage.addListener((msg: unknown, _sender, sendResponse) => {
         if (!isDocsFullTestMsg(msg)) return;
         void runDocsFullTest().then(sendResponse);
+        return true; // async response
+      });
+
+      chrome.runtime.onMessage.addListener((msg: unknown, _sender, sendResponse) => {
+        if (!isDocsSpaceProbeMsg(msg)) return;
+        void runDocsSpaceProbe().then(sendResponse);
         return true; // async response
       });
     }

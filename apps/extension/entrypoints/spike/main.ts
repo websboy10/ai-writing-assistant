@@ -13,6 +13,7 @@ const SPIKE_MARKER = '⟪AWA-SPIKE⟫';
 const urlInput = document.getElementById('doc-url') as HTMLInputElement;
 const runButton = document.getElementById('run') as HTMLButtonElement;
 const runFullTestButton = document.getElementById('run-full-test') as HTMLButtonElement;
+const runSpaceProbeButton = document.getElementById('run-space-probe') as HTMLButtonElement;
 const copyButton = document.getElementById('copy') as HTMLButtonElement;
 const reportEl = document.getElementById('report') as HTMLPreElement;
 
@@ -272,6 +273,146 @@ async function runFullDocsTest(docUrl: string): Promise<void> {
   log(`Fundet: ${result.detected ?? 0}  Placeret: ${result.placed ?? 0}  Uplaceret: ${result.unplaced ?? 0}`);
   log(`Forløbet tid: ${result.elapsedMs ?? 0} ms`);
 }
+
+/**
+ * The whitespace probe's read-back half (see runDocsSpaceProbe in
+ * entrypoints/content/index.tsx for the experiment and what each outcome
+ * means). The content script writes; this reads the document back through the
+ * API, because a missing space is exactly what an eye cannot count reliably on
+ * a canvas the adapter cannot verify.
+ */
+const SPACE_MARKERS = ['⟪AWA-SP-A⟫', '⟪AWA-SP-B⟫', '⟪AWA-SP-C⟫'] as const;
+const SPACE_LABELS: Record<string, string> = {
+  '⟪AWA-SP-A⟫': 'A — ét samlet indsæt (det Straks gør)',
+  '⟪AWA-SP-B⟫': 'B — bogstav for bogstav, mellemrum FORAN bogstavet (det Langsomt gør i dag)',
+  '⟪AWA-SP-C⟫': 'C — bogstav for bogstav, mellemrum som sin EGEN bid',
+};
+
+/** Spaces made countable — the whole point of the probe. */
+function visible(text: string): string {
+  // A non-breaking space is shown apart from an ordinary one on purpose:
+  // 'Docs swapped the character' and 'Docs dropped it' need different fixes
+  // and are indistinguishable on screen.
+  return text.replace(/ /g, '·').replace(/ /g, '⍽').replace(/\t/g, '→');
+}
+
+async function runSpaceProbe(docUrl: string): Promise<void> {
+  const documentId = parseDocId(docUrl);
+  if (!documentId) {
+    log("FEJL: kunne ikke finde et dokument-id i URL'en. Forventet format: https://docs.google.com/document/d/<ID>/edit");
+    return;
+  }
+  const tabId = await findDocsTab(documentId);
+  if (!tabId) {
+    log('FEJL: fandt ingen åben fane med dette dokument. Åbn dokumentet i en fane og prøv igen.');
+    return;
+  }
+  log('Sæt markøren nederst i dokumentet, hvis du ikke allerede har gjort det.');
+  log('Skriver de tre varianter... (tager ca. 5 sekunder)');
+
+  let write: { ok: boolean; stage?: string; reason?: string } | undefined;
+  try {
+    write = await chrome.tabs.sendMessage(tabId, { type: 'awa-docs-space-probe' });
+  } catch (e) {
+    log(`FEJL: kunne ikke sende besked til dokument-fanen (${e instanceof Error ? e.message : 'ukendt fejl'}). Genindlæs fanen og prøv igen.`);
+    return;
+  }
+  if (!write?.ok) {
+    log(`Resultat: FEJL i trin "${write?.stage ?? 'ukendt'}" — ${write?.reason ?? 'intet svar fra fanen'}`);
+    return;
+  }
+
+  // Docs syncs to its servers before documents.get can see the edit; reading
+  // immediately reports the document as it was before the probe.
+  log('Skrevet. Venter på at Docs synkroniserer, og læser så dokumentet tilbage...');
+  await new Promise((r) => setTimeout(r, 2500));
+
+  const reread = await oneShot({ kind: 'docs-get', documentId });
+  if (!reread.ok) {
+    log(`FEJL ved genlæsning: ${reread.error}. Markørerne står stadig i dokumentet — ryd op manuelt.`);
+    return;
+  }
+  const { paragraphs } = reread.data as { title: string; paragraphs: DocsParagraph[] };
+
+  log('');
+  log('=== Hvad dokumentet rent faktisk indeholder (· = mellemrum) ===');
+  const kept: Record<string, boolean> = {};
+  for (const marker of SPACE_MARKERS) {
+    const para = paragraphs.find((p) => p.text.includes(marker));
+    if (!para) {
+      log(`${SPACE_LABELS[marker]}`);
+      log(`  IKKE FUNDET — variantens markør nåede aldrig ind i dokumentet.`);
+      continue;
+    }
+    const payload = para.text.slice(para.text.indexOf(marker) + marker.length).replace(/\n$/, '');
+    kept[marker] = payload.includes(' ');
+    log(`${SPACE_LABELS[marker]}`);
+    log(`  skrevet:  "${visible('A B C')}"`);
+    log(`  landede:  "${visible(payload)}"`);
+    log(`  mellemrum bevaret: ${kept[marker] ? 'JA' : 'NEJ'}`);
+  }
+
+  log('');
+  log('=== Hvad det betyder ===');
+  const [A, B, C] = SPACE_MARKERS.map((m) => kept[m]);
+  if (A && !B && C) {
+    log('Docs beskærer hver enkelt indsættelse. Rettelsen: send mellemrummet som sin egen bid på Docs.');
+  } else if (A && !B && !C) {
+    log('Docs beskærer hver enkelt indsættelse, og en bid der KUN er et mellemrum overlever heller ikke.');
+    log('Rettelsen ligger i hvordan Docs deles op — ikke i motoren. Bid på ordniveau er næste kandidat.');
+  } else if (A && B) {
+    log('Begge beholder mellemrum. Så er fejlen ikke i denne kanal — den ligger et andet sted i vejen fra svar til dokument.');
+  } else if (!A) {
+    log('Selv ét samlet indsæt mister mellemrum. Det er ikke beskæring per indsættelse — stop og undersøg forfra.');
+  } else {
+    log('Blandet resultat. Kopiér rapporten uændret; den skal læses som den er, ikke fortolkes her.');
+  }
+
+  log('');
+  log('Rydder op...');
+  const ranges = SPACE_MARKERS.map((marker) => {
+    const para = paragraphs.find((p) => p.text.includes(marker));
+    if (!para) return null;
+    const i = para.text.indexOf(marker);
+    // The whole line, marker and payload: end of the paragraph minus its
+    // trailing newline, so the empty line the probe added goes too.
+    return { startIndex: para.startIndex + i, endIndex: para.endIndex - 1 };
+  })
+    .filter((r): r is { startIndex: number; endIndex: number } => r !== null && r.endIndex > r.startIndex)
+    // Bottom-up, so deleting one range never shifts the next one's indices.
+    .sort((a, b) => b.startIndex - a.startIndex);
+
+  if (ranges.length === 0) {
+    log('Intet at rydde op.');
+    return;
+  }
+  const del = await oneShot({
+    kind: 'docs-batch-update',
+    documentId,
+    requests: ranges.map((r) => ({ deleteContentRange: { range: { startIndex: r.startIndex, endIndex: r.endIndex } } })),
+  });
+  log(del.ok ? `Ryddet op — ${ranges.length} linje(r) fjernet.` : `Oprydning FEJLEDE — ${del.error}. Slet linjerne manuelt i dokumentet.`);
+}
+
+runSpaceProbeButton.addEventListener('click', () => {
+  void (async () => {
+    reportLines = [];
+    reportEl.textContent = '';
+    runSpaceProbeButton.disabled = true;
+    runSpaceProbeButton.textContent = 'Kører...';
+    try {
+      log('=== Mellemrums-prøve ===');
+      await runSpaceProbe(urlInput.value.trim());
+    } catch (e) {
+      log(`UVENTET FEJL: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      runSpaceProbeButton.disabled = false;
+      runSpaceProbeButton.textContent = 'Kør mellemrums-prøve';
+      log('');
+      log('=== Færdig ===');
+    }
+  })();
+});
 
 runFullTestButton.addEventListener('click', () => {
   void (async () => {
