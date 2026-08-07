@@ -34,7 +34,7 @@
  */
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
-import { readFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -577,6 +577,169 @@ try {
     'Brug som kontekst never starts an autonomous run — no transport bar appears',
     !/Skriver\b/.test(kontekstText) && (await host.locator('button', { hasText: '⏸ Pause' }).count()) === 0,
   );
+  await host.locator('button[title^="Fjern"]').first().click().catch(() => {});
+  await page.locator('#doc').fill(DOC_TEXT);
+
+  // ---- Acceptance scenario (07-06) ----
+  //
+  // The sections above probe features one at a time. This one walks the
+  // operator's own framing in a single uninterrupted flow, because that is
+  // the thing the phase exists for: a project leader sends a worker a
+  // document full of questions; the worker attaches the material they'd
+  // actually answer from, presses one button, watches the answers get typed
+  // in from the top down, and can take it all back out with one press.
+  //
+  // The attached file is what makes this more than a repeat of the sections
+  // above: D-11 says answers are built from the worker's own material, and
+  // that is only proven if a fact that exists NOWHERE on the page comes back
+  // out inside an answer.
+  console.log("\n— Acceptance scenario: the operator's own framing, start to finish —");
+
+  const SOURCE_FACT_A = 'Havfrue';
+  const SOURCE_FACT_B = '0,4 %';
+  const sourcePath = `${shotsDir}/acceptance-kilde.txt`;
+  writeFileSync(
+    sourcePath,
+    [
+      `Projektet ${SOURCE_FACT_A} er 87 % færdigt og leverer til tiden.`,
+      `Årets tre vigtigste resultater: lanceringen af ${SOURCE_FACT_A}-portalen, en fejlrate ned på ${SOURCE_FACT_B}, og 12 nye kunder.`,
+    ].join('\n'),
+    'utf8',
+  );
+
+  // 1. A fresh page load, still signed in, nothing else carried over.
+  await page.goto('http://127.0.0.1:8789/');
+  await host.waitFor({ state: 'attached', timeout: 10_000 });
+  await host.locator('button[title*="Skriveassistent"]').click();
+  await host.locator('aside').waitFor({ timeout: 5_000 });
+  await host.locator('textarea[placeholder*="Skriv til"]').waitFor({ timeout: 15_000 });
+  ok('a fresh page load is still signed in — no second login to start work', true);
+
+  // 2. Attach the worker's own material through the normal panel flow.
+  await host.locator('input[type="file"]').setInputFiles(sourcePath);
+  await page.waitForFunction(
+    () => /acceptance-kilde\.txt/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+    undefined,
+    { timeout: 20_000 },
+  );
+  ok('the attached file appears as a context chip, ready to answer from', true);
+
+  // 3. Click into the document, one button, Langsomt.
+  const acceptanceBefore = await page.locator('#doc').inputValue();
+  await page.locator('#doc').click();
+
+  // Reading the text that currently sits between two known questions — the
+  // only way to ask "has THIS question been answered yet" while the run is
+  // still going.
+  const between = (val, from, to) => {
+    const a = val.indexOf(from);
+    const b = val.indexOf(to);
+    return a === -1 || b === -1 || b < a ? '' : val.slice(a + from.length, b);
+  };
+
+  let acceptanceRun = { finished: false, attempt: MAX_ATTEMPTS };
+  let sawTopDown = false;
+  let topDownDetail = '';
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    await page.locator('#doc').fill(acceptanceBefore);
+    await page.locator('#doc').click();
+    await autoBtn.waitFor({ timeout: 5_000 });
+    await autoBtn.click();
+    const langsomtBtn = host.getByRole('button', { name: 'Langsomt', exact: true });
+    await langsomtBtn.waitFor({ timeout: 5_000 });
+    await langsomtBtn.click();
+
+    // 4. The first question is being answered before the second has been
+    //    touched. Sampled the moment the first gap starts growing — waiting
+    //    any longer and a fast run would already have reached question two,
+    //    which is the same evidence arriving too late to see.
+    try {
+      await page.waitForFunction(
+        ({ q1, q2 }) => {
+          const v = document.querySelector('#doc')?.value ?? '';
+          const a = v.indexOf(q1);
+          const b = v.indexOf(q2);
+          return a !== -1 && b !== -1 && v.slice(a + q1.length, b).trim().length > 0;
+        },
+        { q1: Q1, q2: Q2 },
+        { timeout: 60_000 },
+      );
+      const midVal = await page.locator('#doc').inputValue();
+      sawTopDown = between(midVal, Q2, Q3).trim().length === 0;
+      topDownDetail = `efter Q1="${between(midVal, Q1, Q2).trim().slice(0, 60)}" · efter Q2="${between(midVal, Q2, Q3).trim().slice(0, 60)}"`;
+    } catch {
+      topDownDetail = 'the first answer never started growing within 60s';
+    }
+    await page.screenshot({ path: `${shotsDir}/10-acceptance-mid-run.png` });
+
+    await page
+      .waitForFunction(
+        () => {
+          const t = document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '';
+          return /Færdig ✓/.test(t) || /ingen kunne besvares/.test(t) || /ikke fundet nogen spørgsmål/.test(t);
+        },
+        undefined,
+        { timeout: 240_000 },
+      )
+      .catch(() => {});
+    if (/Færdig ✓/.test(await shadowText())) {
+      acceptanceRun = { finished: true, attempt };
+      break;
+    }
+    if (attempt < MAX_ATTEMPTS) {
+      console.log(`  … attempt ${attempt} got a transient empty-answer notice, retrying (accepted live-model variance)`);
+      await host.locator('button', { hasText: 'Fortryd alle svar' }).click().catch(() => {});
+      await page.waitForTimeout(400);
+    }
+  }
+
+  ok('the whole scenario runs to a finished state, unattended', acceptanceRun.finished, `after ${acceptanceRun.attempt} attempt(s)`);
+  ok('answers arrive top-down — the first question is answered before the second is touched', sawTopDown, topDownDetail);
+
+  if (acceptanceRun.finished) {
+    const doneVal = await page.locator('#doc').inputValue();
+    const donePanel = await shadowText();
+    await page.screenshot({ path: `${shotsDir}/11-acceptance-done.png` });
+
+    const ansQ1 = between(doneVal, Q1, Q2).trim();
+    const ansQ2 = between(doneVal, Q2, Q3).trim();
+    const ansQ3 = between(doneVal, Q3, STATEMENT).trim();
+    const answered = [ansQ1, ansQ2, ansQ3].filter(Boolean).length;
+    ok(
+      'at least 2 of the 3 question shapes end up with an answer beneath them',
+      answered >= 2,
+      `Q1="${ansQ1.slice(0, 60)}" Q2="${ansQ2.slice(0, 60)}" Q3="${ansQ3.slice(0, 60)}"`,
+    );
+
+    // D-11 proven rather than assumed: neither fact appears anywhere on the
+    // page, so an answer can only contain one by having read the attachment.
+    const groundedHits = [ansQ1, ansQ2].filter((a) => a.includes(SOURCE_FACT_A) || a.includes(SOURCE_FACT_B)).length;
+    ok(
+      'the answers are built from the attached file — a fact that exists only in it comes back out',
+      groundedHits >= 1,
+      `Q1="${ansQ1.slice(0, 120)}" Q2="${ansQ2.slice(0, 120)}"`,
+    );
+
+    ok(
+      'the question nothing could ground is named in the panel, not marked in the document',
+      donePanel.includes('Uden grundlag i dine kilder') || donePanel.includes(UNGROUNDED),
+      donePanel.slice(0, 200),
+    );
+
+    // 6. One press puts the document back — compared in full, character for
+    //    character, not by substring. A partial restore that happens to
+    //    contain the original text would pass a looser check.
+    await host.locator('button', { hasText: 'Fortryd alle svar' }).click();
+    await page.waitForTimeout(800);
+    const restored = await page.locator('#doc').inputValue();
+    await page.screenshot({ path: `${shotsDir}/12-acceptance-undone.png` });
+    ok(
+      'one press restores the document character for character',
+      restored === acceptanceBefore,
+      `len ${restored.length} vs ${acceptanceBefore.length}`,
+    );
+  }
+
   await host.locator('button[title^="Fjern"]').first().click().catch(() => {});
   await page.locator('#doc').fill(DOC_TEXT);
 } catch (err) {

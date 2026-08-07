@@ -233,6 +233,32 @@ brugeren kan oprette konto uden at vælge endnu et kodeord. Der hentes kun
 e-mail og navn til kontooprettelsen.
 ```
 
+**`oauth2` (manifest-nøglen) — scope `https://www.googleapis.com/auth/documents`**
+
+```
+Udvidelsens ene formål er at indsætte tekst i den editor, brugeren arbejder i.
+Google Docs tegner sit dokument til et canvas, så der findes ingen tekst i
+siden at læse eller skrive i. Derfor er Docs-API'et den eneste måde at finde
+spørgsmålene i dokumentet og placere svaret under det rigtige af dem.
+
+Tilladelsen bedes der først om, når brugeren selv starter "Besvar alle
+spørgsmål" i et åbent Google-dokument — aldrig ved oprettelse af konto, og
+aldrig hvis funktionen ikke bruges. Der læses ét dokument, det brugeren har
+åbent, én gang per kørsel. Der skrives kun svarene, som almindelig tekst.
+Deling, rettigheder, kommentarer, versionshistorik og Drive røres aldrig — der
+bedes ikke om Drive-scope, så andre filer kan hverken ses eller listes.
+
+Afviser brugeren tilladelsen, virker funktionen stadig: svarene samles i én
+blok ved markøren, og panelet siger hvorfor placeringen er anderledes.
+```
+
+> **Til gennemgangen:** `auth/documents` er et *sensitive scope*. OAuth-appen
+> står i **Testing**-tilstand — den virker for op til 100 udtrykkeligt
+> tilføjede testbrugere uden Googles verifikation. **Før offentlig lancering
+> skal OAuth-appen gennem Googles verifikation** (separat proces fra Web
+> Store-reviewet, og typisk længere). Unlisted-udgivelse til betabrugere kan
+> køre på Testing-tilstanden i mellemtiden.
+
 **Remote code** *(Google spørger: bruger du fjernkode?)*
 
 ```
@@ -294,28 +320,22 @@ https://ai-skriveassistent.vercel.app/privatliv.html
 
 ## Blokering — skal afgøres, før du trykker Submit
 
-**Privatlivspolitikken lover noget, koden ikke gør i dag.**
+**~~Privatlivspolitikken lover noget, koden ikke gør i dag.~~ RETTET 2026-08-07.**
 
-Politikken på hjemmesiden siger: *"Personligt og reelt indhold sendes
-udelukkende til betalte modeller, hvor træning på dine data er slået fra."*
+Sådan så det ud: da afkrydsningsfeltet "indeholder rigtige data" blev fjernet i
+forenklingen den 6. august, blev den kode, der læste feltet, stående. Feltet var
+derfor permanent slået fra, og al tekst blev sendt afsted som "syntetisk" —
+altså til de gratis AI-modeller, der har lov til at træne på indholdet. Det var
+det stik modsatte af den offentlige politik.
 
-Sådan er koden ikke skrevet lige nu. Da afkrydsningsfeltet "indeholder rigtige
-data" blev fjernet i forenklingen den 6. august, blev der ikke lavet om på den
-kode, der læste feltet — så feltet er permanent slået fra, og **al tekst sendes
-afsted som "syntetisk", hvilket sender den til de gratis AI-modeller, der har
-lov til at træne på indholdet.**
+`apps/extension/sidebar/chat.ts` sender nu altid `real`, og der er ingen
+klientside-kontakt til at ændre det. Politikken er sand igen, og de tre
+erklæringer nederst i Privacy-fanen kan sættes med god samvittighed.
 
-Det betyder tre ting på én gang:
+**Prisen, som du selv skal tage stilling til:** hver eneste besked trækker nu på
+betalte modeller via OpenRouter-kontoen. Gratis-kæden bruges kun til vores egen
+testtrafik. Det er den regning, rettelsen flytter — ikke en teknisk risiko.
 
-1. Privatlivspolitikken, der ligger offentligt, er ikke sand i dag
-2. Fluebenet "jeg bruger ikke brugerdata til formål uden for udvidelsens
-   formål" ville ikke være rigtigt at sætte
-3. Det er et GDPR-problem i det øjeblik, den første rigtige bruger skriver
-   noget personligt
-
-Rettelsen er lille i kode (én linje i `apps/extension/sidebar/chat.ts:48` plus
-en serverside-håndhævelse), men den koster penge: betalte modeller trækker på
-OpenRouter-kontoen ved hver besked. Det er derfor, det er din beslutning og
-ikke bare noget, jeg har lavet om.
-
-**Anbefaling:** ret det, før du sender ind. Alt andet i denne pakke er klar.
+**Tilbage før Submit:** OAuth-appens verifikation hos Google (se
+`auth/documents` ovenfor) er den eneste rigtige blokering for en **offentlig**
+udgivelse. Unlisted til betabrugere kan sendes ind nu.

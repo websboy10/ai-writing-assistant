@@ -10,7 +10,9 @@ walkthrough is the proof that counts.
   running on its own. If it ever stops: `bash scripts/backend.sh start`
   (also: `stop` / `status`)
 - **Database & accounts**: hosted on Supabase (free tier, Stockholm region)
-- **AI**: your OpenRouter key, free models for everything not marked as real data
+- **AI**: your OpenRouter key. Everything you send now goes to paid,
+  no-training models — that's the only setting, and it matches the privacy
+  policy (fixed 2026-08-07). Free models are used only for our own test traffic.
 
 ## Test account (already created and confirmed)
 
@@ -89,12 +91,85 @@ Google account. It matters most — your first users live in Docs.
 If Docs insertion isn't working, the extension will say so and offer Copy
 instead — that's designed behavior, not a crash.
 
+## Autonomous mode — the 20-minute walkthrough
+
+This is the feature from Phase 7: a project leader sends a worker a document
+full of questions, the worker presses one button, and the answers get written
+in. Six checks. Say what you saw for each, including anything slow or ugly.
+
+**Before you start:** reload the extension at `chrome://extensions` **and**
+press Cmd+R on the document tab. Skipping the second gives "Extension context
+invalidated" — a panel that renders but does nothing.
+
+### 1. A plain text field (the easy case)
+
+Test page → the first textarea, which already holds five questions. Click into
+it → **Besvar alle spørgsmål** → **Straks**.
+
+*Correct:* every question keeps its own text, and an answer appears on the line
+directly beneath it. The one plain statement in the middle gets nothing. A
+question nothing in your material could answer still gets a real answer, and is
+named separately in the panel under "Uden grundlag i dine kilder" — never
+flagged inside the document itself.
+
+### 2. A rich-text editor
+
+Same page, second field (the contenteditable). Same button, but pick
+**Langsomt**.
+
+*Correct:* the answers type themselves out, first question first, working
+downward. **Pause** stops the whole run, not one answer; **Fortsæt** picks it
+up; **Fortryd alle svar** takes every answer back out in one press. Close the
+panel mid-run — the run must keep going without it.
+
+### 3. A real Google Doc — the one that matters
+
+Make a document with three questions in it, the kind you'd actually be sent.
+Open it, open the panel, **Besvar alle spørgsmål** → **Langsomt**.
+
+The first time, Google will ask for permission to access your documents. Say
+yes here (check 5 is where you say no).
+
+*Correct:* each answer typed under its own question, top down, your own
+formatting untouched. **Fortryd alle svar** brings it all back out.
+
+*Known open:* spaces may be missing inside slow-typed text on Docs
+("detterikke"). That's the whitespace bug in the table above, not a new fault —
+note whether you see it and move on.
+
+### 4. Ten questions at once, from a marking
+
+In the same document, mark a block of ten questions → **Besvar markeringen** →
+either mode.
+
+*Correct:* the panel asks Straks or Langsomt and then writes — no draft, no
+second Insert press. All ten answered in place, none skipped.
+
+### 5. Say no to Google
+
+Remove the permission at
+[myaccount.google.com/permissions](https://myaccount.google.com/permissions),
+or use a fresh Chrome profile. Run autonomous mode on a Doc again and
+**decline**.
+
+*Correct:* you still get answers — collected in one block at the cursor, each
+question repeated above its answer — and the panel states plainly why the
+placement is different. **What must not happen: nothing, silently.**
+
+### 6. The old behaviour still works
+
+Mark some text → **Brug som kontekst**.
+
+*Correct:* a chip appears above the message box and nothing is written into the
+document. Exactly as before — this button was not supposed to change.
+
 ## What deliberately doesn't work yet
 
 | Thing | Why | When |
 |---|---|---|
 | "Continue with Google" button | Needs the Google credential from `docs/SETUP.md` Job 4 (10 min, your Google account) | Whenever you want it |
-| Real personal data on paid no-training models | Works now via OpenRouter's trial allowance; needs ~$5 OpenRouter credit before beta users. The checkbox was removed from the UI — before real users, the backend flips to paid-only via config | Before first real user content |
+| Letter-by-letter spacing inside Google Docs | Each letter is its own paste and Docs appears to drop the space that comes with it, so slow insertion lands as "detterikke". Open — needs one observation in a real Doc before it can be fixed honestly (see the whitespace probe in the spike panel) | Next Docs session |
+| Google OAuth verification for autonomous mode | `auth/documents` is a sensitive scope. The app is in Testing mode: up to 100 users you add yourself, no verification. Public launch needs Google to verify the OAuth app | Before public launch |
 | Rich-editor insertion on Gmail/LinkedIn/Slack/Notion | Built and passing on an equivalent test editor; needs sign-ins to verify on the real sites — same as the Docs test above | Your walkthrough |
 
 ## One infrastructure note

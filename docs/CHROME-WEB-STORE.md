@@ -33,7 +33,8 @@ leverer al teksten færdigskrevet, du kopierer den ind:
   AI-skriveassistent, der indsætter tekst i felter, brugeren selv vælger
 - **Permission justifications** — jeg skriver begrundelsen for hver:
   `<all_urls>` (assistenten skal kunne indsætte tekst på den side, brugeren
-  arbejder på), `storage`, `activeTab`, `clipboardWrite`, `identity`
+  arbejder på), `storage`, `activeTab`, `clipboardWrite`, `identity` og
+  Google Docs-scopet `auth/documents` (autonom tilstand — se Trin 3½)
 - **Privacy policy URL**: `https://ai-skriveassistent.vercel.app/privatliv.html` ✅ (findes allerede)
 - **Data use**-skemaet: vi indsamler login-oplysninger og brugerindhold, kun
   til appens funktion, sælges ikke, deles ikke til reklame — jeg giver dig
@@ -43,6 +44,31 @@ leverer al teksten færdigskrevet, du kopierer den ind:
 - Anbefaling: start **Unlisted** — kun folk med linket kan installere.
   Perfekt til betabrugere, samme review-proces, og du kan skifte til Public
   senere uden ny godkendelse af selve udvidelsen.
+
+## Trin 3½ — Tjek før du trykker Submit (DIG — 2 min)
+
+**Udvidelsens ID skal være det samme som det, Google Docs-nøglen er udstedt til.**
+
+Autonom tilstand henter et Docs-token gennem en OAuth-klient af typen *Chrome
+Extension*, og den klient er bundet til ét bestemt udvidelses-ID. Passer de to
+ikke sammen, fejler tilladelsen med `bad client id` for hver eneste bruger —
+og alt andet i udvidelsen ser normalt ud imens.
+
+Vi har låst ID'et på forhånd: `wxt.config.ts` indeholder en `key`-værdi, og
+Chrome udleder altid ID'et af den. Derfor får butikken samme ID som din lokale
+kopi, i stedet for at finde på et nyt ved upload. **Kontrollér det alligevel én
+gang efter upload:** ID'et står øverst på udgivelsens side i devconsole, og det
+skal stå ord for ord som *Item ID* på OAuth-klienten i Google Cloud Console →
+*Credentials*. Er de forskellige, ret klienten (ikke udvidelsen) og gem.
+
+Samme fælde som Supabase-redirect-URL'en: begge peger på et ID, der skal være
+identisk to steder, og begge fejler tavst for brugeren, ikke for dig.
+
+**Og den store:** `auth/documents` er et *sensitive scope*. OAuth-appen står i
+**Testing**-tilstand — den dækker op til 100 testbrugere, du selv tilføjer, uden
+Googles verifikation. Til en **Unlisted** betaudgivelse er det nok. Skal
+udvidelsen være **Public**, skal OAuth-appen først verificeres af Google — en
+selvstændig proces oven i Web Store-reviewet, og typisk den langsomste af de to.
 
 ## Trin 4 — Indsend til review (1 klik)
 
