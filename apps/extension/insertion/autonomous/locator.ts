@@ -1,4 +1,4 @@
-import type { AutonomousParagraph } from '@awa/shared';
+import type { AutonomousAnswer, AutonomousParagraph } from '@awa/shared';
 import type { EditorKind } from '../types';
 import type { SavedTarget } from '../target';
 import { resolveDocsSource } from './docs-source';
@@ -31,6 +31,22 @@ export interface QuestionSource {
    * Optional so any future QuestionSource implementation may omit it.
    */
   lastLocateReason?(): string;
+  /**
+   * 07-05 addition: present ONLY on a source that cannot be driven through
+   * per-question locate()+InsertionSession typing at all — the Google Docs
+   * API write fallback (`GDocsApiWriteSource`), which writes over the
+   * network (docs-batch-update) instead of typing into a live cursor. When
+   * present, `AutonomousRun` calls it ONCE for the WHOLE run instead of
+   * looping locate()/runOneSession per answer. Absent on every DOM-typing
+   * source (DomSource, GDocsFindSource, GDocsPasteSource).
+   */
+  writeAll?(
+    answers: AutonomousAnswer[],
+    ctl: { isStopped: () => boolean; waitIfPaused: () => Promise<void> },
+    onProgress: (done: number, total: number) => void,
+  ): Promise<{ ok: boolean; reason?: string; unplaced: { questionText: string; reason: string }[] }>;
+  /** Counterpart to writeAll(): undoes every network write this run made, bottom-up, as one step. */
+  undoWrites?(): Promise<{ ok: boolean; reason?: string }>;
 }
 
 function truncate(s: string): string {

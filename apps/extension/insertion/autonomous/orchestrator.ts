@@ -71,6 +71,10 @@ export class AutonomousRun {
   private completed: { session: InsertionSession; label: string }[] = [];
   private currentSession: InsertionSession | null = null;
   private stopped = false;
+  // True once runViaWriteAll() has been entered — undo() must then route to
+  // source.undoWrites() (a network delete) instead of walking `completed`
+  // (which stays empty for this mechanism; nothing was ever typed).
+  private usedWriteAll = false;
   // A pause pressed BETWEEN two answers (no session currently running to
   // forward it to) must still hold the queue, not be silently swallowed —
   // resolved by making pause/resume flag-based here rather than only ever
@@ -174,8 +178,25 @@ export class AutonomousRun {
    * insertion order so removing a later answer never invalidates an
    * earlier one's offsets. Reports honestly which answers could not be
    * removed rather than claiming success.
+   *
+   * Async (07-05): the Docs API write fallback's undo is a real network
+   * call (a second docs-batch-update, deleting bottom-up), not a synchronous
+   * synthetic keystroke like every other adapter's undoAll(). The two
+   * callers (sidebar/autonomous.ts, and ChatView.tsx's fire-and-forget
+   * `onClick={() => autonomous.undo()}`) both already tolerate a Promise.
    */
-  undo(): { ok: boolean; reason?: string } {
+  async undo(): Promise<{ ok: boolean; reason?: string }> {
+    if (this.usedWriteAll) {
+      if (!this.source.undoWrites) {
+        return { ok: false, reason: 'Fortryd er ikke understøttet for denne skrivemetode.' };
+      }
+      const res = await this.source.undoWrites();
+      if (res.ok) {
+        this.state = 'idle';
+        this.cb.onRunState('idle', 'undone');
+      }
+      return res;
+    }
     const failures: string[] = [];
     const stillCompleted: typeof this.completed = [];
     for (const item of orderForUndo(this.completed)) {
@@ -219,6 +240,12 @@ export class AutonomousRun {
   }
 
   private async loop(): Promise<void> {
+    // 07-05: a source that cannot be typed into at all (the Docs API write
+    // fallback) short-circuits the whole per-question mechanism below.
+    if (this.source.writeAll) {
+      await this.runViaWriteAll();
+      return;
+    }
     // 'block' placement (D-02: no in-place mechanism available) composes
     // every answer into ONE session instead of locating each question —
     // still exactly one InsertionSession, still fully paced/pausable/
@@ -329,11 +356,13 @@ export class AutonomousRun {
   }
 
   /**
-   * D-02's block composition, driven as exactly ONE InsertionSession.
-   * `locate()` is called once, with placeholder arguments a block-placement
-   * source ignores by contract (GDocsPasteSource today; task 3 adds a
-   * second, GDocsApiWriteSource in Langsomt-degraded mode) — both return
-   * "wherever the cursor already is" regardless of what is passed in.
+   * D-02's block composition, driven as exactly ONE InsertionSession
+   * (07-05-PLAN.md task 3: "the orchestrator's block branch produces exactly
+   * one InsertionSession for the whole run"). `locate()` is called once,
+   * with placeholder arguments a block-placement source ignores by contract
+   * (GDocsPasteSource, and GDocsApiWriteSource in Langsomt-degraded mode) —
+   * both return "wherever the cursor already is" regardless of what is
+   * passed in.
    */
   private runBlockSession(): Promise<void> {
     return new Promise((resolve) => {
@@ -400,6 +429,35 @@ export class AutonomousRun {
         else session.start();
       })();
     });
+  }
+
+  /**
+   * The Docs API write fallback (GDocsApiWriteSource) bypasses the typing
+   * engine entirely — every "insert" is a network call, so there is no
+   * InsertionSession to drive. Pause/stop still work: `ctl.waitIfPaused`/
+   * `ctl.isStopped` reuse the SAME orchestrator-level flags the per-question
+   * loop already relies on (see pause()/stop()), so this needs no new
+   * transport machinery of its own.
+   */
+  private async runViaWriteAll(): Promise<void> {
+    if (!this.source.writeAll) return; // narrows the optional for TS; loop() already checked
+    this.usedWriteAll = true;
+    const result = await this.source.writeAll(
+      this.queue,
+      { isStopped: () => this.stopped, waitIfPaused: () => this.waitIfPausedBetween() },
+      (done, total) => this.reportProgress(0, 0, done, total),
+    );
+    for (const q of result.unplaced) this.cb.onUnplaced(q);
+    if (this.stopped) {
+      return; // stop() already set state + fired the callback (see pause()/stop() above)
+    }
+    if (!result.ok) {
+      this.state = 'error';
+      this.cb.onRunState('error', result.reason);
+      return;
+    }
+    this.state = 'done';
+    this.cb.onRunState('done');
   }
 
   private reportProgress(charsInAnswer = 0, charsTotal = 0, answersDoneOverride?: number, answersTotalOverride?: number): void {

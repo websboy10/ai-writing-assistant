@@ -1,4 +1,4 @@
-import type { AutonomousParagraph } from '@awa/shared';
+import type { AutonomousAnswer, AutonomousParagraph } from '@awa/shared';
 import type { DocsParagraph, OneShotRequest, OneShotResponse } from '@/utils/protocol';
 import type { EditorKind } from '../types';
 import type { SavedTarget } from '../target';
@@ -6,12 +6,12 @@ import { gdocsEventTarget } from '../target';
 import { GDocsAdapter } from '../adapters/gdocs';
 import { findAndPlaceCursor } from './docs-find';
 import type { QuestionSource } from './locator';
+import { orderForRun } from './plan';
+import { composeBlockText } from './orchestrator';
 
 /**
- * The Google Docs read path (D-05, D-16 steps 1-2) — GDocsFindSource (the
- * primary, zero-write path) and GDocsPasteSource (D-02/D-06's honest
- * fallback when Google access is not granted at all), plus the resolver
- * that picks between them, never silently.
+ * The Google Docs read/write path (D-05, D-16, D-16a) — three sources and
+ * the resolver that picks between them, never silently.
  *
  * 07-SPIKE.md was never produced (07-FINDINGS-docs.md: the operator's Phase 3
  * spike task was never run — no real Google account/document was available
@@ -19,10 +19,11 @@ import type { QuestionSource } from './locator';
  * explicit permission). D-16a's static "read a verdict file" plan therefore
  * cannot be followed literally. What replaces it: `resolveDocsSource` probes
  * Find LIVE, once, per run — a harmless Ctrl/Cmd+F + Escape with no insert()
- * call, so a failed probe leaves nothing behind to undo — before trusting it
- * as the placement mechanism. Task 3 (07-05-PLAN.md) adds the third source,
- * GDocsApiWriteSource, for when that probe fails on a granted document.
- * UNVERIFIED against a real Google Doc — see 07-05-SUMMARY.md.
+ * call, so a failed probe leaves nothing behind to undo — and picks
+ * `GDocsFindSource` or `GDocsApiWriteSource` from the RESULT, never from a
+ * hardcoded assumption of GO or NO-GO. This is what 07-05-PLAN.md's live
+ * instructions call for when no verdict file exists. UNVERIFIED against a
+ * real Google Doc — see 07-05-SUMMARY.md.
  */
 
 function oneShot(req: OneShotRequest): Promise<OneShotResponse> {
@@ -58,6 +59,10 @@ function linesToParagraphs(text: string): AutonomousParagraph[] {
     if (line) out.push({ index: out.length, text: line });
   }
   return out;
+}
+
+function docsBatchUpdate(documentId: string, requests: unknown[]): Promise<OneShotResponse> {
+  return oneShot({ kind: 'docs-batch-update', documentId, requests });
 }
 
 /**
@@ -175,6 +180,122 @@ class GDocsPasteSource implements QuestionSource {
   }
 }
 
+// ---- GDocsApiWriteSource — granted, but Find is not the mechanism (D-16a fallback) ----
+
+/**
+ * Writes over the network (`docs-batch-update`) instead of typing into a
+ * live cursor — the only source that implements `writeAll`/`undoWrites`
+ * rather than `locate()`. Straks writes each answer in place, bottom-up
+ * (07-RESEARCH.md "Pattern 2" — Google's own documented ordering rule: the
+ * highest paragraph index first, so every remaining question's captured
+ * `endIndex` stays valid without a re-read). Langsomt cannot be
+ * letter-by-letter here (60 writes/min cap vs ~150/min needed) and does NOT
+ * buffer a pseudo-typed illusion (07-05-PLAN.md task 3 explicitly rejects
+ * that) — it writes the whole composed block once, verified by the API's
+ * own response.
+ */
+class GDocsApiWriteSource implements QuestionSource {
+  readonly kind: EditorKind = 'gdocs';
+  readonly label = 'Google Docs-dokument';
+  readonly placement: 'in-place' | 'block';
+  readonly degradedReason: string;
+  private writtenRanges: { startIndex: number; endIndex: number }[] = [];
+
+  constructor(
+    private documentId: string,
+    private paragraphs: AutonomousParagraph[],
+    private ranges: Map<number, { startIndex: number; endIndex: number }>,
+    private mode: 'instant' | 'progressive',
+    findFailureReason: string,
+  ) {
+    this.placement = mode === 'instant' ? 'in-place' : 'block';
+    this.degradedReason =
+      mode === 'instant'
+        ? `Positionering med Docs' egen søgefunktion virker ikke lige nu (${findFailureReason}) — svarene skrives i stedet direkte ind via Google Docs API'et, ét ad gangen, nedefra og op i dokumentet, så placeringen forbliver korrekt.`
+        : `Google Docs API'et tillader højst 60 skrivninger i minuttet, og uden Docs' søgefunktion (${findFailureReason}) ville bogstav-for-bogstav-skrivning langt overskride det — svarene samles derfor i én blok og skrives på én gang i stedet for Langsomt.`;
+  }
+
+  async read(): Promise<AutonomousParagraph[]> {
+    return this.paragraphs;
+  }
+
+  lastLocateReason(): string {
+    return '';
+  }
+
+  /** Never actually reached — writeAll() is present for both modes on this source (see loop() in orchestrator.ts). */
+  async locate(): Promise<SavedTarget | null> {
+    return null;
+  }
+
+  private endOfDocument(): number {
+    let max = 1;
+    for (const r of this.ranges.values()) max = Math.max(max, r.endIndex);
+    return max;
+  }
+
+  async writeAll(
+    answers: AutonomousAnswer[],
+    ctl: { isStopped: () => boolean; waitIfPaused: () => Promise<void> },
+    onProgress: (done: number, total: number) => void,
+  ): Promise<{ ok: boolean; reason?: string; unplaced: { questionText: string; reason: string }[] }> {
+    if (this.mode === 'progressive') {
+      if (ctl.isStopped()) return { ok: true, unplaced: [] };
+      await ctl.waitIfPaused();
+      if (ctl.isStopped()) return { ok: true, unplaced: [] };
+      const text = `\n${composeBlockText(answers)}`;
+      const insertAt = this.endOfDocument();
+      const res = await docsBatchUpdate(this.documentId, [{ insertText: { location: { index: insertAt }, text } }]);
+      if (!res.ok) return { ok: false, reason: res.error, unplaced: [] };
+      this.writtenRanges.push({ startIndex: insertAt, endIndex: insertAt + text.length });
+      onProgress(answers.length, answers.length);
+      return { ok: true, unplaced: [] };
+    }
+
+    const ordered = orderForRun(answers, 'bottom-up');
+    const unplaced: { questionText: string; reason: string }[] = [];
+    let done = 0;
+    for (const answer of ordered) {
+      if (ctl.isStopped()) break;
+      // Sequential by design (D-03/Pattern 2): each write must land before
+      // the next index is decided, and pause must be honored between them.
+      await ctl.waitIfPaused();
+      if (ctl.isStopped()) break;
+      const range = this.ranges.get(answer.paragraphIndex);
+      if (!range) {
+        unplaced.push({
+          questionText: answer.questionText,
+          reason: 'Spørgsmålets placering i dokumentet er ukendt — det blev ikke skrevet.',
+        });
+        continue;
+      }
+      const text = `\n${answer.answer}`;
+      const res = await docsBatchUpdate(this.documentId, [
+        { insertText: { location: { index: range.endIndex }, text } },
+      ]);
+      if (!res.ok) return { ok: false, reason: res.error, unplaced };
+      this.writtenRanges.push({ startIndex: range.endIndex, endIndex: range.endIndex + text.length });
+      done += 1;
+      onProgress(done, ordered.length);
+    }
+    return { ok: true, unplaced };
+  }
+
+  async undoWrites(): Promise<{ ok: boolean; reason?: string }> {
+    if (this.writtenRanges.length === 0) return { ok: true };
+    // Same Pattern-2 ordering rule for deletes: highest range first, so
+    // deleting one never invalidates a not-yet-undone lower range's offsets.
+    const sorted = [...this.writtenRanges].sort((a, b) => b.startIndex - a.startIndex);
+    const res = await docsBatchUpdate(
+      this.documentId,
+      sorted.map((r) => ({ deleteContentRange: { range: { startIndex: r.startIndex, endIndex: r.endIndex } } })),
+    );
+    if (!res.ok) return { ok: false, reason: res.error };
+    this.writtenRanges = [];
+    return { ok: true };
+  }
+}
+
 // ---- the resolver ----
 
 function pasteReasonForNoAuth(authError: string | undefined): string {
@@ -204,11 +325,11 @@ function pasteReasonForFindFailure(findReason: string | undefined): string {
  * 3. `selection` scope: the Docs API has no cheap way to resolve a canvas
  *    selection's index bounds (F-1), so paragraphs come from the hidden
  *    mirror text and only the text-based Find mechanism can place answers
- *    in place; if Find fails, straight to the paste fallback.
+ *    in place; if Find fails, straight to the paste fallback (no indices to
+ *    fall back to `GDocsApiWriteSource` with).
  * 4. `document` scope, granted: one `docs-get` read, then a LIVE Find probe
  *    (see file header — replaces the never-produced 07-SPIKE.md verdict)
- *    decides `GDocsFindSource` or the paste fallback — task 3
- *    (07-05-PLAN.md) replaces that fallback branch with `GDocsApiWriteSource`.
+ *    decides `GDocsFindSource` vs `GDocsApiWriteSource`.
  */
 export async function resolveDocsSource(
   scope: 'document' | 'selection',
@@ -254,8 +375,5 @@ export async function resolveDocsSource(
 
   const probe = await findAndPlaceCursor(probeText);
   if (probe.ok) return new GDocsFindSource(read.paragraphs);
-  // Task 3 (07-05-PLAN.md) adds GDocsApiWriteSource here — the bottom-up
-  // Docs API write fallback for when Find genuinely does not work. Task 1's
-  // slice of the resolver falls back to the paste mechanism in the meantime.
-  return new GDocsPasteSource(scope, pasteReasonForFindFailure(probe.reason));
+  return new GDocsApiWriteSource(documentId, read.paragraphs, read.ranges, mode, probe.reason ?? 'ukendt årsag');
 }

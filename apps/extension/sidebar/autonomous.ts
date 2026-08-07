@@ -183,8 +183,12 @@ class Autonomous {
   stop(): void {
     this.active?.stop();
   }
-  undo(): void {
-    const res = this.active?.undo();
+  async undo(): Promise<void> {
+    // Async since 07-05: the Docs API write fallback's undo is a real
+    // network call, not a synchronous synthetic keystroke — ChatView.tsx's
+    // fire-and-forget `onClick={() => autonomous.undo()}` already discards
+    // whatever this returns, so no caller needed to change.
+    const res = await this.active?.undo();
     if (res && !res.ok) {
       useStore.getState().set({ error: res.reason ?? 'Fortryd fejlede.' });
     }
