@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 7 Plan 4 executed — Besvar markeringen writes directly (ten questions in one marking), whole-run transport bar + gap list, tested end-to-end in real Chromium (34/34), committed. See 07-04-SUMMARY.md's What 07-05 needs to know section.
-last_updated: "2026-08-06T21:40:00.000Z"
+stopped_at: Phase 7 Plan 5 executed — Google Docs read path, Find
+last_updated: "2026-08-07T06:20:00.000Z"
 last_activity: 2026-08-05 — Bug sweep (37 findings, 20 fixed), 'Galley' monochrome
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -218,26 +218,31 @@ specific rejection messages for oversized/malformed/unsupported files
 
 ## Session Continuity
 
-Last session: 2026-08-06
-Stopped at: Phase 7 Plan 4 executed — "Besvar markeringen" now asks
-Straks/Langsomt and writes directly into the marking (a ten-question
-marking behaves exactly like a one-question marking, the operator's
-explicit requirement), a new whole-run transport bar (pause/resume/stop/
-undo-all/hide) plus the gap list ("Uden grundlag i dine kilder") reachable
-from either entry point, and two real timing bugs found and fixed via the
-live-model E2E suite (pause silently dropped during the run's initial
-backend call and between answers). Tested end-to-end in real Chromium
-against the live model (34/34), `pnpm verify` still 33/33, `pnpm test`
-10/10, and committed. See
-`.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-04-SUMMARY.md`
-for the full public surface 07-05 builds on.
-Resume file: `.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-04-SUMMARY.md`
+Last session: 2026-08-07
+Stopped at: Phase 7 Plan 5 executed — Google Docs read path, resolver, Find
+positioning, and a Docs API write fallback are BUILT (`docs-source.ts`:
+`GDocsFindSource`/`GDocsApiWriteSource`/`GDocsPasteSource` + `resolveDocsSource()`),
+typechecked, and proven not to regress `pnpm verify` (33/33) or
+`pnpm verify:autonomous` (34/34) — but **none of the three new sources have
+ever executed against a real Google Doc**. Mid-session, a separate
+concurrent session (the operator's own) fixed a real bug in
+`gdocsEventTarget()` (`target.ts`, commit `8e5e86d`) and reported P1
+(token)/P2 (read)/P4 (write via `docs-batch-update`) all passing live —
+`GDocsApiWriteSource`'s core write mechanism has real positive evidence
+behind it. P3 (Find) still needs re-running after that fix; no
+`07-SPIKE.md` verdict exists. See
+`.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-05-SUMMARY.md`
+for the full "PENDING OPERATOR" list — exactly what to test on a real Doc
+and how.
+Resume file: `.planning/phases/07-autonomous-mode-answer-every-question-in-a-document/07-05-SUMMARY.md`
 
-**Next step:** Plan 07-05 (Google Docs) — see 07-04-SUMMARY.md's "What
-07-05 needs to know" section for the exact state `AutonomousRun`/
-`sourceFor` are now in (flag-based pause that holds under real timing,
-`start(startPaused)`, `undo()` reporting `'idle'` on success) and what
-still needs a Docs-aware `QuestionSource`.
+**Next step:** Plan 07-06 (the phase's closing human-verification plan) —
+every Docs-specific truth in 07-05's `must_haves` is unverified until the
+operator runs the "Kør fuld Docs-test" spike button (or the plain UI)
+against a real Google Doc. Also worth a one-line follow-up outside this
+plan's scope: `ChatView.tsx`'s `degradedReason` banner only renders when
+`placement === 'block'`, so `GDocsApiWriteSource`'s Straks-mode reason
+(API wrote instead of Find) is not currently shown, only stored.
 
 **New extension surface this session:**
 
@@ -246,13 +251,16 @@ still needs a Docs-aware `QuestionSource`.
   `AutonomousBar` uses for the whole document; a new `AutoRunBar` (sticky,
   styled like `InsertBar`) gives the whole run full transport controls and
   the gap list.
+
 - `apps/extension/insertion/autonomous/orchestrator.ts` — `pause()`/
   `start(startPaused)` now hold the queue between answers and during the
   initial backend call (previously a silent no-op in both windows);
   `undo()` reports `'idle'` on full success; new `remaining()` method for
   the clipboard-copy courtesy on a failed run.
+
 - `apps/extension/sidebar/autonomous.ts` — `loadingRun`/
   `pauseRequestedWhileLoading` flags backing the pause-during-load fix.
+
 - `scripts/verify-autonomous.mjs` — five new sections (ten-question
   selection, whole-run transport, typing race, gap list, panel
   independence) plus a `waitForFieldGrowth` helper — any new E2E assertion
@@ -288,6 +296,9 @@ proceed without it; execution of the Docs path (07-05) cannot.
 - [Phase 07]: 07-03: QuestionSource gained an optional lastLocateReason() beyond the plan's literal locate() signature, so unplaced questions get a specific not-found vs ambiguous reason instead of one generic message
 - [Phase 07]: 07-04: AutonomousRun.pause()/start() made flag-based (pausedBetween + resumeWaiters + startPaused) rather than purely session-forwarding, after live-model E2E timing proved a pause pressed between answers or during the initial backend call was a silent no-op
 - [Phase 07]: 07-04: AutonomousRun.undo() now transitions to 'idle' and resets progress on full success, mirroring InsertionSession's own idle+'undone' convention, so the panel stops claiming a run is still done after every answer was removed
+- [Phase 07]: 07-05: no 07-SPIKE.md verdict exists (never run) — resolveDocsSource() probes Find LIVE, once per run, instead of reading a hardcoded GO/NO-GO branch; picks GDocsFindSource or GDocsApiWriteSource from the actual result
+- [Phase 07]: 07-05: GDocsApiWriteSource always writes over the network for both Straks and Langsomt once a token is granted, never falling back to the undocumented synthetic-paste mechanism (per D-09, that route survives only inside the no-token fallback) — Langsomt on this source is one single verified write, not a second typed path or buffered pseudo-typing
+- [Phase 07]: 07-05: AutonomousRun.undo() and sourceFor() are now async (Docs API undo is a real network call; the Docs resolver needs to ask for a permission and read a document before a source can even be constructed)
 
 ## Performance Metrics
 
@@ -295,3 +306,4 @@ proceed without it; execution of the Docs path (07-05) cannot.
 |-------|------|----------|-------|
 | Phase 07 P03 | 150m | 3 tasks | 10 files |
 | Phase 07 P04 | 180m | 3 tasks | 5 files |
+| Phase 07 P05 | 150m | 3 tasks | 8 files |
