@@ -18,11 +18,31 @@ export function isGoogleDocs(): boolean {
   return location.host === 'docs.google.com' && !!document.querySelector(GDOCS_IFRAME);
 }
 
+/**
+ * The element Docs actually listens on, NOT whatever happens to be focused.
+ *
+ * `doc.activeElement` is sometimes Docs' contenteditable and sometimes the
+ * frame's `<body>`. An event dispatched at `<body>` propagates
+ * body → html → document and never reaches a listener bound to the
+ * contenteditable *inside* body, so it is silently ignored — measured against
+ * live Docs 2026-08-07 (see adapters/gdocs.ts:targetEl and the phase-07
+ * findings note, 07-FINDINGS-docs.md).
+ *
+ * This bug had two homes: the adapter's own targetEl() and this function.
+ * Fixing only the adapter left the Find-based cursor positioning
+ * (autonomous/docs-find.ts) still aiming at `<body>`, which is why the spike's
+ * P3 probe reported "the find bar did not appear" — Ctrl/Cmd+F was going
+ * nowhere. Keep the two resolutions in step; they must not drift again.
+ */
 export function gdocsEventTarget(): HTMLElement | null {
   const iframe = document.querySelector<HTMLIFrameElement>(GDOCS_IFRAME);
   const doc = iframe?.contentDocument;
   if (!doc) return null;
-  return (doc.activeElement as HTMLElement) ?? doc.body;
+  const editable = doc.querySelector<HTMLElement>('[contenteditable="true"], [contenteditable=""]');
+  if (editable) return editable;
+  const active = doc.activeElement as HTMLElement | null;
+  if (active && active !== doc.body) return active;
+  return doc.body;
 }
 
 function isTextInput(el: Element): el is HTMLInputElement | HTMLTextAreaElement {
