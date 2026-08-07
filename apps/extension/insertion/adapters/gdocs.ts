@@ -1,5 +1,6 @@
 import type { InsertionAdapter, InsertResult } from '../types';
 import { awaLog, describeNode } from '../debug';
+import { gdocsSelectionText } from '../target';
 
 /**
  * Google Docs adapter — the fragile one, by design kept fully isolated.
@@ -101,15 +102,11 @@ export class GDocsAdapter implements InsertionAdapter {
 
   /**
    * Docs mirrors the current document selection into the hidden input iframe
-   * (that's how native copy works) — non-empty body text means text is marked.
+   * (that's how native copy works) — non-empty mirrored text means text is
+   * marked. Delegates to target.ts so the mirror is read in exactly one place.
    */
   static hasSelection(): boolean {
-    try {
-      const doc = document.querySelector<HTMLIFrameElement>('iframe.docs-texteventtarget-iframe')?.contentDocument;
-      return !!doc?.body?.textContent?.trim();
-    } catch {
-      return false;
-    }
+    return !!gdocsSelectionText();
   }
 
   eventTarget(): EventTarget | null {

@@ -2,7 +2,7 @@ import type { AutonomousAnswer, AutonomousParagraph } from '@awa/shared';
 import type { DocsParagraph, OneShotRequest, OneShotResponse } from '@/utils/protocol';
 import type { EditorKind } from '../types';
 import type { SavedTarget } from '../target';
-import { gdocsEventTarget } from '../target';
+import { gdocsEventTarget, gdocsSelectionText } from '../target';
 import { GDocsAdapter } from '../adapters/gdocs';
 import { findAndPlaceCursor } from './docs-find';
 import type { QuestionSource } from './locator';
@@ -36,20 +36,12 @@ function parseDocumentId(): string | null {
 }
 
 /**
- * Docs mirrors the live selection's TEXT (not just a boolean) into the same
- * hidden iframe `GDocsAdapter.hasSelection()` already reads (F-1,
- * 07-FINDINGS-docs.md) — read directly here rather than through
- * `TargetTracker.selectionText()`, which does not yet have this branch (a
- * separate, still-open fix outside this plan's file list).
+ * Docs mirrors the live selection's TEXT (not just a boolean) into the hidden
+ * input frame (F-1, 07-FINDINGS-docs.md). This was a local copy of that read
+ * until `TargetTracker.selectionText()` gained the same branch; all three call
+ * sites now share target.ts's `gdocsSelectionText()`.
  */
-function markedMirrorText(): string {
-  try {
-    const doc = document.querySelector<HTMLIFrameElement>('iframe.docs-texteventtarget-iframe')?.contentDocument;
-    return doc?.body?.textContent?.trim() ?? '';
-  } catch {
-    return '';
-  }
-}
+const markedMirrorText = gdocsSelectionText;
 
 /** Local copy of locator.ts's private helper — DomSource's selection-text splitting, reused for the two Docs sources that read from the hidden mirror instead of the API. */
 function linesToParagraphs(text: string): AutonomousParagraph[] {

@@ -45,6 +45,26 @@ export function gdocsEventTarget(): HTMLElement | null {
   return doc.body;
 }
 
+/**
+ * The text Docs currently has marked, read from the hidden input frame.
+ *
+ * Docs mirrors the live selection into that frame — it is how native copy
+ * works — so this is the only way to see a selection on a page that paints its
+ * text to canvas. Single source of truth on purpose: the same read previously
+ * existed as `GDocsAdapter.hasSelection()` and as `markedMirrorText()` in
+ * autonomous/docs-source.ts, and duplicated Docs resolutions have already
+ * drifted apart once in this codebase (see gdocsEventTarget above). Both now
+ * delegate here.
+ */
+export function gdocsSelectionText(): string {
+  try {
+    const doc = document.querySelector<HTMLIFrameElement>(GDOCS_IFRAME)?.contentDocument;
+    return doc?.body?.textContent?.trim() ?? '';
+  } catch {
+    return ''; // cross-origin means the mechanism changed
+  }
+}
+
 function isTextInput(el: Element): el is HTMLInputElement | HTMLTextAreaElement {
   if (el instanceof HTMLTextAreaElement) return !el.readOnly && !el.disabled;
   if (el instanceof HTMLInputElement) {
@@ -150,6 +170,15 @@ export class TargetTracker {
       const a = el.selectionStart ?? 0;
       const b = el.selectionEnd ?? 0;
       if (b > a) return el.value.slice(a, b);
+    }
+    // Docs paints to canvas, so `document.getSelection()` is empty no matter
+    // how much text is marked — which meant the selection bar ("Besvar
+    // markeringen" / "Brug som kontekst") could never appear there at all
+    // (F-1). Docs mirrors the live selection into the same hidden input frame
+    // that native copy reads; `gdocsSelectionText()` is that mirror.
+    if (isGoogleDocs()) {
+      const mirrored = gdocsSelectionText();
+      if (mirrored) return mirrored;
     }
     return document.getSelection()?.toString() ?? '';
   }
