@@ -51,11 +51,24 @@ type SessionOutcome = 'done' | 'error' | 'stopped';
  * can slow down in that case. The transport bar must never show a countdown
  * or an ETA — either would become a lie the moment that throttling kicks in.
  */
+/** Shared with docs-source.ts's GDocsApiWriteSource (Langsomt's single-write
+ * block on the Docs API fallback) — the same "question, then its answer
+ * beneath it, in document order" composition regardless of which mechanism
+ * ultimately writes the result (typed via InsertionSession here, or a single
+ * network write there). Kept here rather than duplicated: orchestrator.ts
+ * has no dependency on any concrete QuestionSource, so a Docs-specific
+ * source importing this generic helper does not create a cycle. */
+export function composeBlockText(answers: AutonomousAnswer[]): string {
+  return orderForRun(answers, 'top-down')
+    .map((a) => `${a.questionText}\n${a.answer}`)
+    .join('\n\n');
+}
+
 export class AutonomousRun {
   private state: RunState = 'idle';
   private queue: AutonomousAnswer[];
   private queueIndex = 0;
-  private completed: { session: InsertionSession; answer: AutonomousAnswer }[] = [];
+  private completed: { session: InsertionSession; label: string }[] = [];
   private currentSession: InsertionSession | null = null;
   private stopped = false;
   // A pause pressed BETWEEN two answers (no session currently running to
@@ -168,7 +181,7 @@ export class AutonomousRun {
     for (const item of orderForUndo(this.completed)) {
       const res = item.session.undo();
       if (!res.ok) {
-        failures.push(`"${item.answer.questionText}": ${res.reason ?? 'ukendt årsag'}`);
+        failures.push(`"${item.label}": ${res.reason ?? 'ukendt årsag'}`);
         stillCompleted.push(item);
       }
     }
@@ -206,6 +219,14 @@ export class AutonomousRun {
   }
 
   private async loop(): Promise<void> {
+    // 'block' placement (D-02: no in-place mechanism available) composes
+    // every answer into ONE session instead of locating each question —
+    // still exactly one InsertionSession, still fully paced/pausable/
+    // undoable, just carrying the whole run's text at once.
+    if (this.source.placement === 'block') {
+      await this.runBlockSession();
+      return;
+    }
     while (this.queueIndex < this.queue.length) {
       if (this.stopped) return;
       // Holds the queue for a pause pressed BETWEEN two answers (see
@@ -281,7 +302,7 @@ export class AutonomousRun {
             return;
           }
           if (state === 'done') {
-            this.completed.push({ session, answer });
+            this.completed.push({ session, label: answer.questionText });
             this.currentSession = null;
             this.reportProgress();
             resolve('done');
@@ -307,10 +328,84 @@ export class AutonomousRun {
     });
   }
 
-  private reportProgress(charsInAnswer = 0, charsTotal = 0): void {
+  /**
+   * D-02's block composition, driven as exactly ONE InsertionSession.
+   * `locate()` is called once, with placeholder arguments a block-placement
+   * source ignores by contract (GDocsPasteSource today; task 3 adds a
+   * second, GDocsApiWriteSource in Langsomt-degraded mode) — both return
+   * "wherever the cursor already is" regardless of what is passed in.
+   */
+  private runBlockSession(): Promise<void> {
+    return new Promise((resolve) => {
+      void (async () => {
+        const target = await this.source.locate({ paragraphIndex: 0, questionText: '' });
+        if (!target) {
+          this.state = 'error';
+          this.cb.onRunState(
+            'error',
+            this.source.lastLocateReason?.() || 'Der blev ikke fundet et sted at indsætte svarene.',
+          );
+          resolve();
+          return;
+        }
+
+        const adapter = adapterFor(target);
+        const text = composeBlockText(this.queue);
+
+        const session = new InsertionSession(adapter, text, DEFAULT_PACING, {
+          onState: (state, detail) => {
+            if (state === 'paused') {
+              this.state = 'paused';
+              this.cb.onRunState('paused', detail);
+              return;
+            }
+            if (state === 'running') {
+              if (this.state !== 'writing') {
+                this.state = 'writing';
+                this.cb.onRunState('writing');
+              }
+              return;
+            }
+            if (state === 'done') {
+              this.completed.push({ session, label: 'hele blokken' });
+              this.currentSession = null;
+              // One session covers the whole queue — report it as fully done
+              // in one step rather than leaving answersDone at 0 (D-15: one
+              // run, one undo, whatever the placement).
+              this.reportProgress(0, 0, this.queue.length, this.queue.length);
+              this.state = 'done';
+              this.cb.onRunState('done');
+              resolve();
+              return;
+            }
+            if (state === 'error') {
+              this.currentSession = null;
+              this.state = 'error';
+              this.cb.onRunState('error', detail);
+              resolve();
+              return;
+            }
+            if (state === 'stopped') {
+              this.currentSession = null;
+              this.state = 'stopped';
+              this.cb.onRunState('stopped');
+              resolve();
+            }
+          },
+          onProgress: (inserted, total) => this.reportProgress(inserted, total),
+        });
+
+        this.currentSession = session;
+        if (this.mode === 'instant') session.insertInstant();
+        else session.start();
+      })();
+    });
+  }
+
+  private reportProgress(charsInAnswer = 0, charsTotal = 0, answersDoneOverride?: number, answersTotalOverride?: number): void {
     this.cb.onProgress({
-      answersDone: this.completed.length,
-      answersTotal: this.queue.length,
+      answersDone: answersDoneOverride ?? this.completed.length,
+      answersTotal: answersTotalOverride ?? this.queue.length,
       charsInAnswer,
       charsTotal,
     });

@@ -1,6 +1,7 @@
 import type { AutonomousParagraph } from '@awa/shared';
 import type { EditorKind } from '../types';
 import type { SavedTarget } from '../target';
+import { resolveDocsSource } from './docs-source';
 
 const BLOCK_SELECTOR = 'p, div, li, h1, h2, h3, h4, h5, h6';
 const REASON_PREVIEW_LEN = 60;
@@ -185,12 +186,21 @@ class DomSource implements QuestionSource {
   }
 }
 
-/** INST-04-style dispatch: pick the right source for the detected editor. */
-export function sourceFor(target: SavedTarget, scope: 'document' | 'selection'): QuestionSource {
+/**
+ * INST-04-style dispatch: pick the right source for the detected editor.
+ * Async since the gdocs branch (07-05) may need to ask for the `documents`
+ * permission and read the document before a QuestionSource can even be
+ * constructed — `mode` is needed there too (GDocsApiWriteSource's fallback
+ * behaves differently for Straks vs Langsomt), so it is threaded through
+ * from the one call site (`sidebar/autonomous.ts`) that already knows it.
+ */
+export async function sourceFor(
+  target: SavedTarget,
+  scope: 'document' | 'selection',
+  mode: 'instant' | 'progressive' = 'instant',
+): Promise<QuestionSource> {
   if (target.kind === 'gdocs') {
-    // Explicit refusal, never a silent mishandling — the Docs read/write
-    // path (D-16, D-16a) is 07-05's job, not this plan's.
-    throw new Error('Autonom tilstand understøtter endnu ikke Google Docs — det kommer i en senere fase.');
+    return resolveDocsSource(scope, mode);
   }
   return new DomSource(target, scope);
 }

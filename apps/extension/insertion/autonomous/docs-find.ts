@@ -33,11 +33,12 @@ export const FIND_INPUT_SELECTOR =
 
 const FIND_BAR_TIMEOUT_MS = 2000;
 const SELECTION_TIMEOUT_MS = 2000;
+const OCCURRENCE_ADVANCE_DELAY_MS = 150;
 const POLL_INTERVAL_MS = 50;
-// Google's find field is not documented to have a hard limit, but nothing
-// resembling a real question needs more than this — truncating avoids
-// sending a query so long Docs silently mishandles it.
-const FIND_QUERY_MAX_LENGTH = 300;
+// A short prefix is tried FIRST (07-05-PLAN.md task 2): a very long exact
+// query is more likely to fail on a trailing-whitespace/formatting mismatch
+// than a short one is to be ambiguous within a single question's own text.
+const FIND_QUERY_SHORT_LEN = 60;
 
 function isMacPlatform(): boolean {
   const platform =
@@ -50,6 +51,13 @@ function isMacPlatform(): boolean {
 function firstLine(text: string): string {
   const idx = text.indexOf('\n');
   return idx === -1 ? text : text.slice(0, idx);
+}
+
+/** Second attempt when the short prefix doesn't match — more context, still one line. */
+function firstSentence(text: string): string {
+  const line = firstLine(text);
+  const m = line.match(/^[^.!?]*[.!?]/);
+  return (m ? m[0] : line).trim();
 }
 
 async function waitFor(check: () => boolean, timeoutMs: number): Promise<boolean> {
@@ -79,17 +87,7 @@ function setFindValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
 }
 
-export async function findAndPlaceCursor(questionText: string): Promise<{ ok: boolean; reason?: string }> {
-  const eventTarget = gdocsEventTarget();
-  if (!eventTarget) {
-    return { ok: false, reason: 'Google Docs input target not found — is this a Docs tab with a document open?' };
-  }
-
-  const query = firstLine(questionText).slice(0, FIND_QUERY_MAX_LENGTH);
-  if (!query.trim()) {
-    return { ok: false, reason: 'Question text was empty after truncating to its first line.' };
-  }
-
+function openFindBar(eventTarget: EventTarget): void {
   const isMac = isMacPlatform();
   dispatchKey(eventTarget, {
     key: 'f',
@@ -100,7 +98,19 @@ export async function findAndPlaceCursor(questionText: string): Promise<{ ok: bo
     cancelable: true,
     ...(isMac ? { metaKey: true } : { ctrlKey: true }),
   });
+}
 
+/**
+ * One search attempt: type `query` into the find bar (opening it first if
+ * `input` is not already supplied), press Enter, and confirm via
+ * `hasSelection()`. Returns the input element on success so a caller can
+ * reuse it (duplicate-occurrence advancing) without a second Ctrl/Cmd+F.
+ */
+async function attemptFind(
+  eventTarget: EventTarget,
+  query: string,
+): Promise<{ ok: true; input: HTMLInputElement } | { ok: false; reason: string }> {
+  openFindBar(eventTarget);
   const barAppeared = await waitFor(
     () => !!document.querySelector<HTMLInputElement>(FIND_INPUT_SELECTOR),
     FIND_BAR_TIMEOUT_MS,
@@ -112,28 +122,86 @@ export async function findAndPlaceCursor(questionText: string): Promise<{ ok: bo
         "Docs' find bar did not appear within 2s — Ctrl/Cmd+F may not have reached the document, or Docs changed its find-bar markup (FIND_INPUT_SELECTOR is stale).",
     };
   }
-
   const input = document.querySelector<HTMLInputElement>(FIND_INPUT_SELECTOR);
   if (!input) {
     return { ok: false, reason: 'Find bar input vanished immediately after appearing.' };
   }
-
   setFindValue(input, query);
   dispatchKey(input, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true });
-
   const selected = await waitFor(() => GDocsAdapter.hasSelection(), SELECTION_TIMEOUT_MS);
-
-  // Close the find bar either way so the document keeps keyboard focus —
-  // leaving it open would make the next typed character search instead of
-  // insert.
-  dispatchKey(input, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
-
   if (!selected) {
+    // Leave the bar open for the caller to retry a different query in —
+    // closing and reopening between attempts risks racing Docs' own
+    // open-animation. The caller (or the final Escape below) always closes it.
     return {
       ok: false,
       reason: `Docs never reported a selection after searching for "${query.slice(0, 60)}" — Find may not have matched the text, or the hidden mirror channel (GDocsAdapter.hasSelection) did not update in time.`,
     };
   }
+  return { ok: true, input };
+}
 
+/**
+ * Positions the cursor at the `occurrence`-th match of `questionText`
+ * (1-based; default 1). Two identical questions in one run both resolve to
+ * the same Find query — the second call passes `occurrence: 2` so the run
+ * advances to the second match instead of re-landing on the first
+ * (07-05-PLAN.md task 2: "advance Find's internal position by pressing
+ * Enter again ... for the n-th duplicate").
+ */
+export async function findAndPlaceCursor(
+  questionText: string,
+  occurrence = 1,
+): Promise<{ ok: boolean; reason?: string }> {
+  const eventTarget = gdocsEventTarget();
+  if (!eventTarget) {
+    return { ok: false, reason: 'Google Docs input target not found — is this a Docs tab with a document open?' };
+  }
+
+  const shortQuery = firstLine(questionText).slice(0, FIND_QUERY_SHORT_LEN);
+  if (!shortQuery.trim()) {
+    return { ok: false, reason: 'Question text was empty after truncating to its first line.' };
+  }
+
+  let attempt = await attemptFind(eventTarget, shortQuery);
+  if (!attempt.ok) {
+    const sentenceQuery = firstSentence(questionText);
+    // Only worth a second attempt if it is a genuinely different (longer) query.
+    if (sentenceQuery && sentenceQuery !== shortQuery) {
+      attempt = await attemptFind(eventTarget, sentenceQuery);
+    }
+  }
+
+  if (!attempt.ok) {
+    // Nothing to close on this path — attemptFind never leaves an input
+    // reference behind when it fails at the "bar never appeared" stage, and
+    // when it fails after the bar DID appear, Escape is still owed.
+    const stale = document.querySelector<HTMLInputElement>(FIND_INPUT_SELECTOR);
+    if (stale) {
+      dispatchKey(stale, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+    }
+    return { ok: false, reason: attempt.reason };
+  }
+
+  const { input } = attempt;
+  // Advance to the n-th occurrence: Find already sits on the first match —
+  // press Enter (occurrence - 1) more times, reconfirming the mirror channel
+  // moved each time, before trusting the final position.
+  let ok = true;
+  let reason: string | undefined;
+  for (let i = 1; i < occurrence && ok; i++) {
+    dispatchKey(input, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true });
+    // Sequential by nature — each Enter must land before the next is sent.
+    await new Promise((resolve) => setTimeout(resolve, OCCURRENCE_ADVANCE_DELAY_MS));
+    ok = await waitFor(() => GDocsAdapter.hasSelection(), SELECTION_TIMEOUT_MS);
+    if (!ok) reason = `Kunne ikke avancere til forekomst ${i + 1} af "${shortQuery}" — Docs rapporterede ikke en ny markering.`;
+  }
+
+  // Close the find bar either way so the document keeps keyboard focus —
+  // leaving it open would make the next typed character search instead of
+  // insert. Every path above (success or failure) reaches this line.
+  dispatchKey(input, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+
+  if (!ok) return { ok: false, reason };
   return { ok: true };
 }

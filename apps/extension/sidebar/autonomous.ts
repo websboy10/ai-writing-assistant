@@ -35,9 +35,12 @@ class Autonomous {
       return;
     }
 
-    let source: ReturnType<typeof sourceFor>;
+    let source: Awaited<ReturnType<typeof sourceFor>>;
     try {
-      source = sourceFor(target, scope);
+      // mode is threaded through here (07-05): the Docs API write fallback
+      // behaves differently for Straks vs Langsomt (GDocsApiWriteSource),
+      // and this is the one call site that already knows which was chosen.
+      source = await sourceFor(target, scope, mode);
     } catch (err) {
       store.set({ error: err instanceof Error ? err.message : 'Kunne ikke læse spørgsmål fra dette felt.' });
       return;
@@ -45,7 +48,10 @@ class Autonomous {
 
     const paragraphs = await source.read();
     if (paragraphs.length === 0) {
-      store.set({ notice: 'Der blev ikke fundet nogen tekst at besvare i det valgte felt.' });
+      // A degraded Docs source that could not read at all (no Google access,
+      // whole-document scope — GDocsPasteSource) says so specifically rather
+      // than the generic "nothing found" notice (07-05-PLAN.md task 1).
+      store.set({ notice: source.degradedReason ?? 'Der blev ikke fundet nogen tekst at besvare i det valgte felt.' });
       return;
     }
 
