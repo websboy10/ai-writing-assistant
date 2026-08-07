@@ -129,6 +129,14 @@ export class GDocsAdapter implements InsertionAdapter {
       sameEl: el === this.lastEl,
       sameIframe: this.iframe() === this.lastIframe,
       activeIsBody: el === this.targetDoc()?.body,
+      // Focus evidence. prepare() asks the frame to take focus and pastes
+      // immediately; if Docs only processes a paste while its editor really
+      // holds focus, a not-yet-settled focus would look exactly like "Docs
+      // stopped consuming pastes" — and would explain why the same code
+      // succeeded on one run and failed on the next.
+      docHasFocus: this.targetDoc()?.hasFocus() ?? null,
+      topActive: describeNode(document.activeElement),
+      iframeIsTopActive: document.activeElement === this.iframe(),
     });
     this.lastEl = el;
     this.lastIframe = this.iframe();
@@ -137,25 +145,29 @@ export class GDocsAdapter implements InsertionAdapter {
     const delivered = el.dispatchEvent(
       new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }),
     );
-    awaLog('gdocs.insert.result', {
-      chunkIndex: this.chunksInserted,
-      // true here means NOBODY called preventDefault — i.e. Docs did not
-      // consume the paste, which this adapter treats as failure.
-      delivered,
-    });
-    // dispatchEvent returns true when NO listener called preventDefault —
-    // i.e. Docs did NOT consume the paste. That is the one affirmative
-    // failure signal this adapter has (Pitfall 4: the iframe can survive
-    // while Google removes the handler), so it must fail loudly, not report
-    // a silent "success" for text that never entered the document.
-    if (delivered) {
-      return {
-        ok: false,
-        verified: true,
-        reason:
-          'Google Docs did not accept the inserted text — Google may have changed how Docs receives input. Use Copy instead.',
-      };
-    }
+    awaLog('gdocs.insert.result', { chunkIndex: this.chunksInserted, notCancelled: delivered });
+    // `delivered` (dispatchEvent's return) is NOT a success signal, and must
+    // never be treated as one again.
+    //
+    // It reports only whether some listener called preventDefault(). Measured
+    // against live Google Docs on 2026-08-07: Docs consumes the paste and the
+    // text lands in the document, while dispatchEvent still returns true —
+    // Docs simply does not cancel the event. The operator watched the letter
+    // appear on screen in the same run that logged `delivered: true`.
+    //
+    // A code review added a fail-on-`delivered` branch (350d8ce, WR-01)
+    // reasoning that an uncancelled paste meant Docs had ignored it. That
+    // premise is false. The branch reported failure on every successful write,
+    // which aborted the paced run after its first letter and made instant
+    // insertion show an error over text that had actually arrived. It was the
+    // whole of the "Google Docs is broken" symptom.
+    //
+    // This adapter cannot confirm its own writes — Docs paints to canvas, so
+    // there is nothing to read back. That is why it returns verified:false and
+    // the UI says so honestly. The mechanism's real guard is selfTest() in
+    // prepare(), which fails loudly when the input frame is gone (INST-13).
+    // Do not reintroduce a success check here from reasoning; only from a
+    // signal actually observed against a live document.
     this.chunksInserted += 1;
     return { ok: true, verified: false };
   }
