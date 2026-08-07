@@ -23,11 +23,12 @@
 ## Where your text goes
 
 - Requests are processed by AI models via OpenRouter.
-- Content you mark as **"contains real data"** is routed exclusively to paid
-  endpoints with model training and prompt publication disabled. This is
-  enforced on our server and cannot be overridden from the extension.
-- Unmarked content may use free models, whose providers may train on inputs —
-  use the checkbox for anything sensitive.
+- **Everything you write or send is routed exclusively to paid endpoints with
+  model training and prompt publication disabled.** There is nothing to tick and
+  nothing to remember — it is the only setting. The routing is enforced on our
+  server and cannot be overridden from the extension.
+- Free models, whose providers may train on inputs, are used only for our own
+  synthetic test traffic — never for your content.
 
 ## Deletion
 

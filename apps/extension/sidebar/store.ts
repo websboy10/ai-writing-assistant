@@ -60,7 +60,6 @@ interface AwaState {
   notice: string | null;
   operation: PromptOperation;
   prefs: OutputPrefs;
-  containsRealData: boolean;
   // context
   context: ContextItem[];
   contextBusy: string | null;
@@ -99,7 +98,6 @@ export const useStore = create<AwaState>((set, get) => ({
   notice: null,
   operation: 'chat',
   prefs: { tone: 'neutral', length: 'same' },
-  containsRealData: false,
   context: [],
   contextBusy: null,
   insertStatus: null,

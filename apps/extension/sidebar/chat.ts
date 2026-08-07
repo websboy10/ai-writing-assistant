@@ -45,7 +45,16 @@ export function sendChat(userText: string, subject?: string): void {
     context: s.context.length ? s.context : undefined,
     prefs: s.prefs,
     conversationId: s.conversationId,
-    contentClass: s.containsRealData ? 'real' : 'synthetic',
+    // Always 'real' — the paid, no-training chain. This used to read a
+    // `containsRealData` flag set by a "contains real data" checkbox; the
+    // checkbox was removed from the UI but the read was left behind, so the
+    // flag was permanently false and EVERY request shipped as 'synthetic',
+    // routing real user text to free models whose providers may train on it —
+    // the exact opposite of PRIVACY.md. 'synthetic' is now only sent by paths
+    // that genuinely have no user data. Do not reintroduce a client-side
+    // switch here: the extension cannot be trusted to classify the user's own
+    // text, and the policy gate lives on the server (openrouter.ts, QUOT-05).
+    contentClass: 'real',
   };
 
   const port = chrome.runtime.connect({ name: CHAT_PORT });
