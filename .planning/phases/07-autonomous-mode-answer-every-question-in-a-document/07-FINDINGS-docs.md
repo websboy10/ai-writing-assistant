@@ -7,7 +7,28 @@ document, which is the first time this code has ever met live Google Docs —
 
 ---
 
-## F-4 — Spaces are dropped on Docs (CONFIRMED, OPEN — needs one observation)
+## F-4 — Spaces are dropped on Docs (ROOT-CAUSED 2026-08-17; fix undetermined)
+
+> **The observation was made on 2026-08-17.** Against a real document:
+> A (`A B C` in one paste) kept its spaces; B (space leading each letter, what
+> Langsomt does) and C (space as its own chunk) both lost them — the document
+> read `A B CABCABC`. That is the table's *"chunk Docs at word level; do not
+> touch the engine"* row: **Docs trims each individual paste, and only
+> whitespace interior to one paste survives.**
+>
+> The fix is still undetermined, deliberately. B and C both put the space at the
+> **front** of a chunk; nothing has tested the **end**, and that decides whether
+> any chunked path can carry a space at all. Variants D/E/F (ordinary space at
+> the end, NBSP at the end, NBSP at the front) are built and **not yet run** —
+> see `07-HANDOFF-2026-08-17.md` §3, where their reading is again fixed in
+> advance.
+>
+> Two runs before this one were **invalid** and nearly read as evidence: the
+> probe drives the document from another tab, and Docs discards a synthetic
+> paste when its input frame is unfocused while every success signal still reads
+> fine. See the handoff, §4. The original text below predates all of this.
+
+
 
 **Symptom:** slow insertion into a real Doc lands as `I'mnotfamiliar`. Letters
 arrive, the spaces between them do not. Observed by the operator on 2026-08-07

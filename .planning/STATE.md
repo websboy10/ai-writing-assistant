@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 7 code-complete (all 6 plans). Browser pass deferred by operator.
-last_updated: "2026-08-07T09:40:00.000Z"
-last_activity: 2026-08-07 — Phase 7 plan 06; F-1 and the contentClass defect fixed
+stopped_at: Phase 7 code-complete. Docs blocked on two fronts — OAuth client in the wrong Google project, and Docs trims every paste. See 07-HANDOFF-2026-08-17.md.
+last_updated: "2026-08-17T12:00:00.000Z"
+last_activity: 2026-08-17 — sign-in restored (Supabase had auto-paused); Docs paste-trimming root-caused; focus gate found
 progress:
   total_phases: 7
   completed_phases: 0
@@ -41,21 +41,37 @@ verification outstanding for both v1 and autonomous mode)
 
 ## Next session — start here
 
-1. **The whitespace probe.** Slow-typed text on Docs arrives without spaces
-   ("detterikke"), and every Docs write path inherits it. Deliberately NOT
-   fixed: three fixes for this adapter have been written from reasoning rather
-   than observation and all three were wrong. Open
-   `chrome-extension://<id>/spike.html` → **Kør mellemrums-prøve** on a real
-   document. Its interpretation table is fixed in advance in
-   `07-FINDINGS-docs.md` (F-4) — read the result against that table.
-2. **Re-run the spike.** P3 (Find) failed before `8e5e86d`; Ctrl+F was being
-   dispatched at the frame's `<body>`. Whether Find works now decides whether
-   Langsomt writes in place or falls back to API block writes.
-3. **The four browser suites**, none run since 07-06. They need the backend on
+**Read `.planning/phases/07-*/07-HANDOFF-2026-08-17.md` first.** It carries the
+evidence behind every item below; this list is only the order.
+
+1. **Does Docs insertion work on the normal product path?** Cursor in the
+   document → sidebar → ask for a sentence → **Straks** → does text appear?
+   One minute, never once run, and it decides what the rest is worth. Every
+   failure so far came through the spike page, which drives the document from
+   *another tab* — and Docs is now proven to discard synthetic pastes when its
+   input frame lacks focus.
+2. **The whitespace probe, variants D/E/F** — built 2026-08-17, not yet run.
+   Root cause is confirmed (Docs trims each paste; only interior whitespace
+   survives). D/E/F decide whether the fix is a few lines in the Docs chunker
+   or a change of strategy for Langsomt. Reading fixed in advance in the
+   handoff, §3.
+3. **The Docs API token.** Still refused: the OAuth client lives in Google's
+   empty `my-first-project`. Run P1, read `Chromes egen begrundelse`, then the
+   basic-scope test in the handoff, §2. Blocks the probe's API read-back and
+   the whole primary Docs path.
+4. **The marking bug (F-1)** — the operator reports marking on Docs still
+   surfaces no buttons, though the fix is in the build. Selector-agnostic probe
+   written, never run. Handoff §7.
+5. **The four browser suites**, none run since 07-06. They need the backend on
    127.0.0.1:8787 and a build with `VITE_BACKEND_URL=http://127.0.0.1:8787`;
    the current `.output` build points at production.
-4. **The walkthrough** — `TESTING.md` → "Autonomous mode", recorded into
+6. **The walkthrough** — `TESTING.md` → "Autonomous mode", recorded into
    `07-UAT.md`. The phase does not close until that is filled in.
+
+**Sign-in was down 2026-08-17** and is fixed — the Supabase project had
+auto-paused, which removes its DNS record. `dig +short
+gkqpyqmuopqxumugszoa.supabase.co` diagnoses it in one command. Nothing keeps
+the database awake, so it recurs; no decision taken (handoff §1).
 
 **Reload ritual after every rebuild:** reload at `chrome://extensions` AND
 Cmd+R the Docs tab. Skipping the second gives "Extension context invalidated".
