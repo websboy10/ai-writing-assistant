@@ -176,6 +176,8 @@ async function runSpike(docUrl: string): Promise<void> {
   } else {
     log(`Resultat: AFVIST (status ${authRes.status})`);
     log(`Baggrundsbesked: ${authRes.error}`);
+    const detail = (authRes.data as { detail?: string } | undefined)?.detail;
+    if (detail) log(`Chromes egen begrundelse: ${detail}`);
   }
   log('');
 
@@ -281,11 +283,14 @@ async function runFullDocsTest(docUrl: string): Promise<void> {
  * API, because a missing space is exactly what an eye cannot count reliably on
  * a canvas the adapter cannot verify.
  */
-const SPACE_MARKERS = ['⟪AWA-SP-A⟫', '⟪AWA-SP-B⟫', '⟪AWA-SP-C⟫'] as const;
+const SPACE_MARKERS = ['⟪AWA-SP-A⟫', '⟪AWA-SP-B⟫', '⟪AWA-SP-C⟫', '⟪AWA-SP-D⟫', '⟪AWA-SP-E⟫', '⟪AWA-SP-F⟫'] as const;
 const SPACE_LABELS: Record<string, string> = {
   '⟪AWA-SP-A⟫': 'A — ét samlet indsæt (det Straks gør)',
   '⟪AWA-SP-B⟫': 'B — bogstav for bogstav, mellemrum FORAN bogstavet (det Langsomt gør i dag)',
   '⟪AWA-SP-C⟫': 'C — bogstav for bogstav, mellemrum som sin EGEN bid',
+  '⟪AWA-SP-D⟫': 'D — mellemrum EFTER bogstavet ("D ", "E ", "F")',
+  '⟪AWA-SP-E⟫': 'E — haardt mellemrum EFTER bogstavet ("G\u00A0", "H\u00A0", "I")',
+  '⟪AWA-SP-F⟫': 'F — haardt mellemrum FORAN bogstavet ("J", "\u00A0K", "\u00A0L")',
 };
 
 /** Spaces made countable — the whole point of the probe. */
@@ -308,7 +313,21 @@ async function runSpaceProbe(docUrl: string): Promise<void> {
     return;
   }
   log('Sæt markøren nederst i dokumentet, hvis du ikke allerede har gjort det.');
-  log('Skriver de tre varianter... (tager ca. 5 sekunder)');
+
+  // Docs discards a synthetic paste while its input frame is unfocused, and
+  // says nothing — so a probe run from THIS page writes into a background tab
+  // and measures nothing (2026-08-17). Bringing the document forward is not a
+  // convenience here; without it the whole run is invalid.
+  try {
+    await chrome.tabs.update(tabId, { active: true });
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
+  } catch {
+    log('ADVARSEL: kunne ikke bringe dokumentet i forgrunden — klik selv ind i det nu.');
+  }
+  await new Promise((r) => setTimeout(r, 800));
+
+  log('Skriver de tre varianter... (tager ca. 5 sekunder). Lad dokumentet blive liggende øverst imens.');
 
   let write: { ok: boolean; stage?: string; reason?: string } | undefined;
   try {

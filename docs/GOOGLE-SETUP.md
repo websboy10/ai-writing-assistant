@@ -323,6 +323,17 @@ from the Step 6 client, which only handles sign-in. Two clients because they
 serve two different Google APIs behind two different code paths (see Step 7).
 
 1. Google Cloud Console → confirm you're in the **AI Skriveassistent** project.
+
+   > **This is the step that actually goes wrong.** On 2026-08-17 the client was
+   > created in Google's auto-made `my-first-project` instead, and nothing said
+   > so. That project has no consent screen, no `documents` scope and no test
+   > users, so Chrome got back *"Service has been disabled for this account"*,
+   > **no permission prompt ever appeared**, and adding test users to the right
+   > project changed nothing — the extension was authenticating against the
+   > wrong one. Check the project name in the picker at the top before clicking
+   > anything, and check it again after **Create**: the console silently drops
+   > you into the default project.
+
 2. Left menu → **Clients** *(older console: **APIs & Services** → **Credentials**)*.
 3. **+ Create client** *(older: **+ Create credentials** → **OAuth client ID**)*.
 4. **Application type** — choose **Chrome Extension**.

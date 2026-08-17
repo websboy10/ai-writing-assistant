@@ -95,10 +95,39 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Docs throws a synthetic paste away when its hidden input frame is not
+ * focused, and every signal we have still reports success — measured
+ * 2026-08-17: chunks 0-4 of a probe run vanished with `notCancelled: true`
+ * on each, and only the chunks written after the operator clicked into the
+ * document survived. The probe is driven from the spike page in another tab,
+ * so this is its default state, not an edge case.
+ *
+ * A run that writes some chunks unfocused produces data indistinguishable
+ * from trimming — the exact wrong answer the probe exists to prevent.
+ */
+function docsFrameHasFocus(): boolean {
+  if (!document.hasFocus()) return false;
+  const frame = document.querySelector<HTMLIFrameElement>('iframe.docs-texteventtarget-iframe');
+  try {
+    return frame?.contentDocument?.hasFocus() ?? false;
+  } catch {
+    return false;
+  }
+}
+
+const FOCUS_HINT =
+  'Dokumentet havde ikke tastatur-fokus, og Docs smider indsættelser væk i den tilstand — uden at sige det. Klik ind i dokumentet, så det har markøren, og lad det blive liggende øverst mens prøven kører.';
+
 async function runDocsSpaceProbe(): Promise<{ ok: boolean; stage?: string; reason?: string }> {
   const adapter = new GDocsAdapter();
   const prep = adapter.prepare();
   if (!prep.ok) return { ok: false, stage: 'prepare', reason: prep.reason };
+
+  // prepare() asks the frame for focus but cannot make a background tab
+  // active, and focus does not settle synchronously even when it can.
+  for (let i = 0; i < 20 && !docsFrameHasFocus(); i++) await sleep(100);
+  if (!docsFrameHasFocus()) return { ok: false, stage: 'fokus', reason: FOCUS_HINT };
 
   // Each variant sends its own marker first, as one paste, so the read-back
   // can find it however badly the payload after it is mangled.
@@ -106,6 +135,16 @@ async function runDocsSpaceProbe(): Promise<{ ok: boolean; stage?: string; reaso
     { marker: '⟪AWA-SP-A⟫', chunks: [SPACE_PROBE_TEXT] },
     { marker: '⟪AWA-SP-B⟫', chunks: ['A', ' B', ' C'] },
     { marker: '⟪AWA-SP-C⟫', chunks: ['A', ' ', 'B', ' ', 'C'] },
+    // 2026-08-17: A survived with its spaces, B and C lost theirs — so Docs
+    // trims each paste and only interior whitespace lives. B and C both put
+    // the space at the FRONT of a chunk; nothing has tested the end, and that
+    // decides whether any chunked path can keep a space at all (D) or whether
+    // a character Docs does not treat as trimmable is needed (E, F).
+    // Distinct letters per variant, because the markers themselves do not
+    // survive the write: the run-on result has to identify its own variants.
+    { marker: '⟪AWA-SP-D⟫', chunks: ['D ', 'E ', 'F'] },
+    { marker: '⟪AWA-SP-E⟫', chunks: ['G\u00A0', 'H\u00A0', 'I'] },
+    { marker: '⟪AWA-SP-F⟫', chunks: ['J', '\u00A0K', '\u00A0L'] },
   ];
 
   for (const v of variants) {
@@ -114,6 +153,10 @@ async function runDocsSpaceProbe(): Promise<{ ok: boolean; stage?: string; reaso
     const head = adapter.insert(`\n${v.marker}`);
     if (!head.ok) return { ok: false, stage: `marker ${v.marker}`, reason: head.reason };
     for (const chunk of v.chunks) {
+      // Re-checked per chunk, not just at the start: focus lost halfway
+      // through is what produced the contaminated 2026-08-17 run, where two
+      // variants were silently written into nothing and the third survived.
+      if (!docsFrameHasFocus()) return { ok: false, stage: `fokus (ved "${chunk}" i ${v.marker})`, reason: FOCUS_HINT };
       const res = adapter.insert(chunk);
       if (!res.ok) return { ok: false, stage: `chunk "${chunk}" of ${v.marker}`, reason: res.reason };
       // Docs applies pastes on its own schedule (echoesAsync); at full speed

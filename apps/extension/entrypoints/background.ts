@@ -102,7 +102,12 @@ export default defineBackground(() => {
   // nothing for us to persist.
 
   type DocsAuthOk = { ok: true; token: string };
-  type DocsAuthFail = { ok: false; status: 401 | 403; error: string };
+  // `detail` carries Chrome's own words for a refusal, which name the cause
+  // ("bad client id", "user is not signed in", "OAuth2 not granted or
+  // revoked"). `error` stays plain Danish for the user; without a separate
+  // field the refusal reached us as a bare 401 explaining nothing, and the
+  // Docs path went dark with no way to tell which of four setups was wrong.
+  type DocsAuthFail = { ok: false; status: 401 | 403; error: string; detail?: string };
 
   /**
    * T-07-02: `enableGranularPermissions` lets a user grant sign-in while
@@ -126,12 +131,18 @@ export default defineBackground(() => {
       enableGranularPermissions: true,
     };
     let result: string | { token?: string; grantedScopes?: string[] } | undefined;
+    let detail = '';
     try {
       const raw: unknown = await chrome.identity.getAuthToken(tokenDetails);
       result = raw as string | { token?: string; grantedScopes?: string[] } | undefined;
-    } catch {
+    } catch (e) {
+      detail = e instanceof Error ? e.message : String(e);
       result = undefined;
     }
+    // Some Chrome builds resolve undefined and report the reason on
+    // lastError instead of rejecting, which is exactly the shape a
+    // misconfigured client takes: no token, no prompt, no exception.
+    if (!detail && chrome.runtime.lastError?.message) detail = chrome.runtime.lastError.message;
     const token = typeof result === 'string' ? result : result?.token;
     const grantedScopes = typeof result === 'string' ? undefined : result?.grantedScopes;
     if (!token) {
@@ -139,6 +150,7 @@ export default defineBackground(() => {
         ok: false,
         status: 401,
         error: 'Google-adgang blev ikke givet — AI Skriveassistenten bruger reservevejen (indsæt) i stedet.',
+        detail: detail || 'Chrome gav ingen begrundelse.',
       };
     }
     if (grantedScopes && !grantedScopes.includes(DOCS_SCOPE)) {
@@ -321,7 +333,10 @@ export default defineBackground(() => {
       }
       case 'docs-auth': {
         const auth = await docsAuth(msg.interactive);
-        if (!auth.ok) return { ok: false, status: auth.status, error: auth.error };
+        // Only this route reports the refusal reason: it is the one the spike
+        // and the "why is Docs not working" path call. The read/write routes
+        // below stay quiet so a technical string can never surface mid-run.
+        if (!auth.ok) return { ok: false, status: auth.status, error: auth.error, data: { detail: auth.detail } };
         return { ok: true, status: 200, data: { granted: true } };
       }
       case 'docs-get': {
