@@ -8,6 +8,7 @@ import { findAndPlaceCursor } from './docs-find';
 import type { QuestionSource } from './locator';
 import { orderForRun } from './plan';
 import { composeBlockText } from './orchestrator';
+import { awaLog } from '../debug';
 
 /**
  * The Google Docs read/write path (D-05, D-16, D-16a) — three sources and
@@ -226,6 +227,27 @@ class GDocsApiWriteSource implements QuestionSource {
     return max;
   }
 
+  /**
+   * Where an answer for a paragraph ending at `endIndex` must be written.
+   *
+   * A paragraph's `endIndex` counts its own trailing newline, so it is really
+   * the FIRST character of the next paragraph. Writing there put the answer at
+   * the head of the following question — "KøbenhavnHvor mange dage har en
+   * uge?" — and, for the last paragraph, aimed at the very end of the body
+   * segment, which the API rejects outright (measured 2026-08-18: index 99,
+   * document end 99, HTTP 400, nothing written). Bottom-up ordering writes the
+   * LAST question first, so that 400 failed every run at zero answers, which
+   * is why autonomous mode on Docs had never once placed an answer.
+   *
+   * `endIndex - 1` is the position just before the paragraph's own newline —
+   * the end of the question's own line. With a leading "\n" the answer becomes
+   * the next paragraph, and the same rule holds for every paragraph including
+   * the last, which is also what keeps the index inside the segment.
+   */
+  private insertIndexFor(endIndex: number): number {
+    return Math.max(1, Math.min(endIndex - 1, this.endOfDocument() - 1));
+  }
+
   async writeAll(
     answers: AutonomousAnswer[],
     ctl: { isStopped: () => boolean; waitIfPaused: () => Promise<void> },
@@ -236,9 +258,12 @@ class GDocsApiWriteSource implements QuestionSource {
       await ctl.waitIfPaused();
       if (ctl.isStopped()) return { ok: true, unplaced: [] };
       const text = `\n${composeBlockText(answers)}`;
-      const insertAt = this.endOfDocument();
+      const insertAt = this.insertIndexFor(this.endOfDocument());
       const res = await docsBatchUpdate(this.documentId, [{ insertText: { location: { index: insertAt }, text } }]);
-      if (!res.ok) return { ok: false, reason: res.error, unplaced: [] };
+      if (!res.ok) {
+        awaLog('docs.api.write.fail', { mode: 'progressive', insertAt, google: (res.data as { detail?: string } | undefined)?.detail });
+        return { ok: false, reason: res.error, unplaced: [] };
+      }
       this.writtenRanges.push({ startIndex: insertAt, endIndex: insertAt + text.length });
       onProgress(answers.length, answers.length);
       return { ok: true, unplaced: [] };
@@ -262,22 +287,56 @@ class GDocsApiWriteSource implements QuestionSource {
         continue;
       }
       const text = `\n${answer.answer}`;
+      const insertAt = this.insertIndexFor(range.endIndex);
       const res = await docsBatchUpdate(this.documentId, [
-        { insertText: { location: { index: range.endIndex }, text } },
+        { insertText: { location: { index: insertAt }, text } },
       ]);
-      if (!res.ok) return { ok: false, reason: res.error, unplaced };
-      this.writtenRanges.push({ startIndex: range.endIndex, endIndex: range.endIndex + text.length });
+      if (!res.ok) {
+        awaLog('docs.api.write.fail', {
+          mode: 'instant',
+          insertAt,
+          endOfDocument: this.endOfDocument(),
+          google: (res.data as { detail?: string } | undefined)?.detail,
+        });
+        return { ok: false, reason: res.error, unplaced };
+      }
+      this.writtenRanges.push({ startIndex: insertAt, endIndex: insertAt + text.length });
       done += 1;
       onProgress(done, ordered.length);
     }
     return { ok: true, unplaced };
   }
 
+  /**
+   * Where the written answers actually sit NOW, which is not where they were
+   * written.
+   *
+   * Writes run bottom-up, so every later write inserts at a LOWER index and
+   * pushes each already-recorded (higher) range forward by its own length.
+   * Undoing at the recorded offsets therefore deleted the wrong characters —
+   * measured 2026-08-18: it ate "ar" out of "Hvor mange dage har en uge?" and
+   * "blaa" out of the third question while leaving two answers behind.
+   *
+   * The shift for a range is the total length of every insertion made after it
+   * at a position at or before its own start. Computed rather than assumed
+   * from the write order, so it stays correct if the ordering ever changes.
+   */
+  private currentRanges(): { startIndex: number; endIndex: number }[] {
+    return this.writtenRanges.map((r, i) => {
+      let shift = 0;
+      for (let j = i + 1; j < this.writtenRanges.length; j++) {
+        const later = this.writtenRanges[j];
+        if (later.startIndex <= r.startIndex) shift += later.endIndex - later.startIndex;
+      }
+      return { startIndex: r.startIndex + shift, endIndex: r.endIndex + shift };
+    });
+  }
+
   async undoWrites(): Promise<{ ok: boolean; reason?: string }> {
     if (this.writtenRanges.length === 0) return { ok: true };
     // Same Pattern-2 ordering rule for deletes: highest range first, so
     // deleting one never invalidates a not-yet-undone lower range's offsets.
-    const sorted = [...this.writtenRanges].sort((a, b) => b.startIndex - a.startIndex);
+    const sorted = this.currentRanges().sort((a, b) => b.startIndex - a.startIndex);
     const res = await docsBatchUpdate(
       this.documentId,
       sorted.map((r) => ({ deleteContentRange: { range: { startIndex: r.startIndex, endIndex: r.endIndex } } })),

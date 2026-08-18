@@ -110,6 +110,20 @@ export default defineBackground(() => {
   type DocsAuthFail = { ok: false; status: 401 | 403; error: string; detail?: string };
 
   /**
+   * Google's own explanation for a rejected Docs API call. Its error bodies are
+   * specific and actionable where an HTTP status is not, and reading the body
+   * is the only chance to get it — the response can be consumed once.
+   */
+  async function googleErrorMessage(res: Response): Promise<string> {
+    try {
+      const body = (await res.json()) as { error?: { message?: string; status?: string } };
+      return body.error?.message ?? body.error?.status ?? `HTTP ${res.status}`;
+    } catch {
+      return `HTTP ${res.status}`;
+    }
+  }
+
+  /**
    * T-07-02: `enableGranularPermissions` lets a user grant sign-in while
    * unticking `documents`. Recent Chrome resolves an object carrying
    * `grantedScopes`; older Chrome resolves a bare token string with no way to
@@ -386,7 +400,18 @@ export default defineBackground(() => {
           return { ok: false, status: 429, error: 'Google begrænsede antallet af skrivninger — prøv igen om lidt.' };
         }
         if (!res.ok) {
-          return { ok: false, status: res.status, error: `Google Docs API-fejl (HTTP ${res.status}).` };
+          // Google says exactly what is wrong with a rejected write ("Index
+          // 96 must be less than the end index of the referenced segment").
+          // Swallowing that is what turned a one-line index bug into an
+          // unexplained HTTP 400 — the same mistake the auth path made before
+          // it started reporting Chrome's own reason. User-facing text is
+          // unchanged; the reason rides along as `detail` for diagnostics.
+          return {
+            ok: false,
+            status: res.status,
+            error: `Google Docs API-fejl (HTTP ${res.status}).`,
+            data: { detail: await googleErrorMessage(res) },
+          };
         }
         const data = (await res.json()) as { replies?: unknown[] };
         return { ok: true, status: 200, data: { replies: data.replies ?? [] } };
