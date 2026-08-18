@@ -1,5 +1,4 @@
-import { gdocsEventTarget } from '../target';
-import { GDocsAdapter } from '../adapters/gdocs';
+import { gdocsEventTarget, gdocsSelectionTextNow } from '../target';
 
 /**
  * Positions the cursor in a Google Doc by driving Docs' own Find (Ctrl+F).
@@ -15,12 +14,12 @@ import { GDocsAdapter } from '../adapters/gdocs';
  * selection to its end before typing (gdocs.ts:88-102), which is exactly
  * the state Find leaves behind.
  *
- * Positioning can only be confirmed through the one read channel that
- * exists on a canvas-rendered page: `GDocsAdapter.hasSelection()`
- * (gdocs.ts:67), the hidden-mirror iframe that Docs itself mirrors the live
- * selection into. If that never flips true, this returns `ok: false` with a
- * reason — a timeout NEVER reports success, because a silent no-op here
- * would type the answer at the wrong place in the user's document.
+ * Confirmation takes two signals, because neither alone is enough. Docs' own
+ * match counter ("1 af 1" / "0 af 0") says whether the text EXISTS; the
+ * document's selection, read once the find bar has closed, says whether the
+ * CURSOR actually went there. A count without the selection check placed a
+ * second question's answer under the first. A timeout NEVER reports success —
+ * a silent no-op here types into the wrong part of the user's document.
  */
 
 // The find-bar input. Run against a live document 2026-08-18 — the spike this
@@ -46,6 +45,40 @@ export const FIND_INPUT_SELECTOR =
   '.docs-findbar-input input, input.docs-findbar-input-typebox, ' +
   'input[aria-label="Find in document" i], input[aria-label="Find i dokumentet" i], ' +
   'input[aria-label="Søg i dokument" i]';
+
+/**
+ * Docs' find bar, whose own match counter is the confirmation channel.
+ *
+ * The container class carries no language; the counter inside it reads
+ * "1 af 1" / "0 af 0" (Danish) or "1 of 1" / "0 of 0" (English), so only the
+ * two numbers are read and the word between them is ignored.
+ */
+const FIND_BAR_CONTAINER_SELECTOR =
+  '.appsDocsUiWizFindbarFindBarContainer, [class*="FindbarFindBarContainer"], .docs-findbar-container';
+
+/**
+ * How many matches Docs reports for the current query, or null when no
+ * counter can be read (an older find bar, or the bar is closed).
+ *
+ * Used to tell "no such text in the document" apart from "not confirmed yet",
+ * which the selection channel alone never could: while the find bar is open,
+ * focus and the selection mirror belong to the find field, so a read there
+ * times out even on a perfectly good match.
+ *
+ * It is only half the confirmation. The counter belongs to whatever query the
+ * bar last ran, so on its own it happily reports a stale match for a search
+ * that never happened — measured 2026-08-18, that put a second question's
+ * answer underneath the first. attemptFind clears the field before typing and
+ * still verifies the cursor afterwards.
+ */
+function findMatchTotal(): number | null {
+  const bar = document.querySelector<HTMLElement>(FIND_BAR_CONTAINER_SELECTOR);
+  if (!bar) return null;
+  // Digits can only come from the counter — the query lives in an <input>,
+  // whose value is not part of innerText.
+  const m = bar.innerText.match(/(\d+)\D+(\d+)/);
+  return m ? Number(m[2]) : null;
+}
 
 const FIND_BAR_TIMEOUT_MS = 2000;
 const SELECTION_TIMEOUT_MS = 2000;
@@ -117,44 +150,76 @@ function openFindBar(eventTarget: EventTarget): void {
 }
 
 /**
- * One search attempt: type `query` into the find bar (opening it first if
- * `input` is not already supplied), press Enter, and confirm via
- * `hasSelection()`. Returns the input element on success so a caller can
- * reuse it (duplicate-occurrence advancing) without a second Ctrl/Cmd+F.
+ * One search attempt: put `query` into the find bar, advance to the
+ * `occurrence`-th match, close the bar, and only then confirm that the
+ * document's cursor really moved there.
+ *
+ * The order matters and was arrived at by measurement, not preference:
+ *
+ * - The bar is opened with Ctrl/Cmd+F only when the input is not already
+ *   focused. Sending it again while the bar is open TOGGLES IT CLOSED, and a
+ *   closed bar still holds the previous query's match counter — which is how
+ *   a second question could report a confident match while the cursor never
+ *   moved, and its answer landed under the first question.
+ * - The previous query is cleared before the new one is typed, so a counter
+ *   left over from the last search can never be read as this search's result.
+ * - Confirmation happens AFTER Escape. With the bar still open the focus and
+ *   the selection mirror belong to the find field; once it closes, Docs
+ *   reports the match as the document's own selection, and comparing that to
+ *   the query proves the cursor is where the answer is about to be typed.
+ *   A match count alone never proved that.
  */
 async function attemptFind(
   eventTarget: EventTarget,
   query: string,
-): Promise<{ ok: true; input: HTMLInputElement } | { ok: false; reason: string }> {
-  openFindBar(eventTarget);
-  const barAppeared = await waitFor(
-    () => !!document.querySelector<HTMLInputElement>(FIND_INPUT_SELECTOR),
-    FIND_BAR_TIMEOUT_MS,
-  );
-  if (!barAppeared) {
+  occurrence = 1,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const findInput = () => document.querySelector<HTMLInputElement>(FIND_INPUT_SELECTOR);
+  const barIsOpen = () => {
+    const i = findInput();
+    return !!i && document.activeElement === i;
+  };
+
+  if (!barIsOpen()) {
+    openFindBar(eventTarget);
+    await waitFor(barIsOpen, FIND_BAR_TIMEOUT_MS);
+  }
+  const input = findInput();
+  if (!input || !barIsOpen()) {
     return {
       ok: false,
       reason:
-        "Docs' find bar did not appear within 2s — Ctrl/Cmd+F may not have reached the document, or Docs changed its find-bar markup (FIND_INPUT_SELECTOR is stale).",
+        "Docs' søgefelt kunne ikke åbnes — Ctrl/Cmd+F nåede ikke frem til dokumentet, eller Docs har ændret sit søgefelt (FIND_INPUT_SELECTOR er forældet).",
     };
   }
-  const input = document.querySelector<HTMLInputElement>(FIND_INPUT_SELECTOR);
-  if (!input) {
-    return { ok: false, reason: 'Find bar input vanished immediately after appearing.' };
-  }
+
+  setFindValue(input, '');
+  await new Promise((resolve) => setTimeout(resolve, OCCURRENCE_ADVANCE_DELAY_MS));
   setFindValue(input, query);
-  dispatchKey(input, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true });
-  const selected = await waitFor(() => GDocsAdapter.hasSelection(), SELECTION_TIMEOUT_MS);
-  if (!selected) {
-    // Leave the bar open for the caller to retry a different query in —
-    // closing and reopening between attempts risks racing Docs' own
-    // open-animation. The caller (or the final Escape below) always closes it.
+  const matched = await waitFor(() => (findMatchTotal() ?? 0) > 0, SELECTION_TIMEOUT_MS);
+  if (!matched) {
+    dispatchKey(input, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+    return { ok: false, reason: `Docs fandt ingen forekomst af "${query.slice(0, 60)}" i dokumentet.` };
+  }
+
+  // Enter moves to a match; one press per occurrence, all before the bar closes.
+  for (let i = 0; i < occurrence; i++) {
+    dispatchKey(input, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true });
+    await new Promise((resolve) => setTimeout(resolve, OCCURRENCE_ADVANCE_DELAY_MS));
+  }
+
+  dispatchKey(input, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+
+  const norm = (t: string) => t.replace(/\s+/g, ' ').trim().toLowerCase();
+  const wanted = norm(query);
+  const landed = await waitFor(() => norm(gdocsSelectionTextNow()) === wanted, SELECTION_TIMEOUT_MS);
+  if (!landed) {
     return {
       ok: false,
-      reason: `Docs never reported a selection after searching for "${query.slice(0, 60)}" — Find may not have matched the text, or the hidden mirror channel (GDocsAdapter.hasSelection) did not update in time.`,
+      reason: `Docs fandt "${query.slice(0, 60)}", men markøren stod ikke på træffet bagefter — svaret ville være havnet et forkert sted.`,
     };
   }
-  return { ok: true, input };
+  return { ok: true };
 }
 
 /**
@@ -162,8 +227,7 @@ async function attemptFind(
  * (1-based; default 1). Two identical questions in one run both resolve to
  * the same Find query — the second call passes `occurrence: 2` so the run
  * advances to the second match instead of re-landing on the first
- * (07-05-PLAN.md task 2: "advance Find's internal position by pressing
- * Enter again ... for the n-th duplicate").
+ * (07-05-PLAN.md task 2).
  */
 export async function findAndPlaceCursor(
   questionText: string,
@@ -179,45 +243,13 @@ export async function findAndPlaceCursor(
     return { ok: false, reason: 'Question text was empty after truncating to its first line.' };
   }
 
-  let attempt = await attemptFind(eventTarget, shortQuery);
+  let attempt = await attemptFind(eventTarget, shortQuery, occurrence);
   if (!attempt.ok) {
     const sentenceQuery = firstSentence(questionText);
     // Only worth a second attempt if it is a genuinely different (longer) query.
     if (sentenceQuery && sentenceQuery !== shortQuery) {
-      attempt = await attemptFind(eventTarget, sentenceQuery);
+      attempt = await attemptFind(eventTarget, sentenceQuery, occurrence);
     }
   }
-
-  if (!attempt.ok) {
-    // Nothing to close on this path — attemptFind never leaves an input
-    // reference behind when it fails at the "bar never appeared" stage, and
-    // when it fails after the bar DID appear, Escape is still owed.
-    const stale = document.querySelector<HTMLInputElement>(FIND_INPUT_SELECTOR);
-    if (stale) {
-      dispatchKey(stale, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
-    }
-    return { ok: false, reason: attempt.reason };
-  }
-
-  const { input } = attempt;
-  // Advance to the n-th occurrence: Find already sits on the first match —
-  // press Enter (occurrence - 1) more times, reconfirming the mirror channel
-  // moved each time, before trusting the final position.
-  let ok = true;
-  let reason: string | undefined;
-  for (let i = 1; i < occurrence && ok; i++) {
-    dispatchKey(input, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true });
-    // Sequential by nature — each Enter must land before the next is sent.
-    await new Promise((resolve) => setTimeout(resolve, OCCURRENCE_ADVANCE_DELAY_MS));
-    ok = await waitFor(() => GDocsAdapter.hasSelection(), SELECTION_TIMEOUT_MS);
-    if (!ok) reason = `Kunne ikke avancere til forekomst ${i + 1} af "${shortQuery}" — Docs rapporterede ikke en ny markering.`;
-  }
-
-  // Close the find bar either way so the document keeps keyboard focus —
-  // leaving it open would make the next typed character search instead of
-  // insert. Every path above (success or failure) reaches this line.
-  dispatchKey(input, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
-
-  if (!ok) return { ok: false, reason };
-  return { ok: true };
+  return attempt.ok ? { ok: true } : { ok: false, reason: attempt.reason };
 }

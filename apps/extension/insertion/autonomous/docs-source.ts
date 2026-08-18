@@ -202,9 +202,14 @@ class GDocsApiWriteSource implements QuestionSource {
     findFailureReason: string,
   ) {
     this.placement = mode === 'instant' ? 'in-place' : 'block';
+    // An empty findFailureReason means this source was CHOSEN, not fallen back
+    // to (Straks always writes through the API), so there is nothing to warn
+    // about — the answers still land under each question.
     this.degradedReason =
       mode === 'instant'
-        ? `Positionering med Docs' egen søgefunktion virker ikke lige nu (${findFailureReason}) — svarene skrives i stedet direkte ind via Google Docs API'et, ét ad gangen, nedefra og op i dokumentet, så placeringen forbliver korrekt.`
+        ? findFailureReason
+          ? `Positionering med Docs' egen søgefunktion virker ikke lige nu (${findFailureReason}) — svarene skrives i stedet direkte ind via Google Docs API'et, ét ad gangen, nedefra og op i dokumentet, så placeringen forbliver korrekt.`
+          : ''
         : `Google Docs API'et tillader højst 60 skrivninger i minuttet, og uden Docs' søgefunktion (${findFailureReason}) ville bogstav-for-bogstav-skrivning langt overskride det — svarene samles derfor i én blok og skrives på én gang i stedet for Langsomt.`;
   }
 
@@ -423,6 +428,22 @@ export async function resolveDocsSource(
 
   const probeText = read.paragraphs[0]?.text;
   if (!probeText) return new GDocsFindSource(read.paragraphs); // empty document — normal "nothing found" flow
+
+  // Straks writes through the API, by preference rather than as a fallback.
+  //
+  // Both paths were run against a real document 2026-08-18. The API path
+  // placed 3 of 3 answers, twice, with a byte-exact undo. Find placed 3 of 3
+  // on one run and 2 of 3 on the next, losing the document's LAST question —
+  // it is driving Docs' own search UI, so its timing is Docs' to decide, and
+  // a miss means an answer silently never arrives. Instant mode has nothing
+  // to gain from Find: the user is not watching it type, so the only thing
+  // that matters is that every answer lands in the right place.
+  //
+  // Langsomt still needs Find — the API cannot type letter by letter, and
+  // pacing is the whole point of that mode (D-04).
+  if (mode === 'instant') {
+    return new GDocsApiWriteSource(documentId, read.paragraphs, read.ranges, mode, '');
+  }
 
   const probe = await findAndPlaceCursor(probeText);
   if (probe.ok) return new GDocsFindSource(read.paragraphs);

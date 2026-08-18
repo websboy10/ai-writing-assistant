@@ -97,6 +97,24 @@ function gdocsHasMarkedText(): boolean {
  */
 export function gdocsSelectionText(): string {
   if (!gdocsHasMarkedText()) return '';
+  return gdocsSelectionTextNow();
+}
+
+/**
+ * The same read WITHOUT the cheap gate — for callers that must not miss a
+ * selection the mirror has not caught up with yet.
+ *
+ * Right after Find moves the cursor, the mirror still holds its idle
+ * placeholder for a moment, so the gate answers "nothing marked" and
+ * suppresses the copy that would have proved the match. That cost the last
+ * question of a run its answer.
+ *
+ * Use this only where no selection poll is running concurrently: asking Docs
+ * for the selection repeatedly WHILE it is being written to corrupted the
+ * document (see ChatView's paused poll). Find's confirmation qualifies —
+ * the poll is stopped for the duration of a run.
+ */
+export function gdocsSelectionTextNow(): string {
   const el = gdocsEventTarget();
   if (!el) return '';
   try {

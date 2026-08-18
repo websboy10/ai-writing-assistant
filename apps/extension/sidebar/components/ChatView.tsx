@@ -31,13 +31,26 @@ export function ChatView() {
 
   // Watch what's marked on the page so the two selection actions can offer
   // themselves the moment there is something to act on.
+  //
+  // Paused while text is being written. On Google Docs this read is not free:
+  // it asks Docs for the selection through the same hidden input frame that
+  // receives our writes, and doing that once a second DURING a run corrupted
+  // the document — an answer went missing and the frame's own placeholder
+  // characters landed in the text instead (measured 2026-08-18). Nothing is
+  // lost by pausing: the selection bar is hidden during a run anyway.
+  const writing =
+    s.autoRun?.state === 'writing' ||
+    s.autoRun?.state === 'paused' ||
+    s.insertStatus?.state === 'running' ||
+    s.insertStatus?.state === 'paused';
   useEffect(() => {
+    if (writing) return;
     const t = setInterval(() => {
       const text = inserter.selectionText();
       setLiveSelection((prev) => (prev === text ? prev : text));
     }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [writing]);
 
   function send() {
     const text = input.trim();
