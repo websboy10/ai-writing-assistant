@@ -23,13 +23,29 @@ import { GDocsAdapter } from '../adapters/gdocs';
  * would type the answer at the wrong place in the user's document.
  */
 
-// Best-known selector for Docs' find-bar input, covering the English and
-// Danish aria-labels observed in the wild, plus the class names historically
-// used by Docs' find UI. UNVERIFIED against a live document until this
-// file's own spike run (07-SPIKE.md) — proving or disproving this selector
-// is that run's entire purpose.
+// The find-bar input. Run against a live document 2026-08-18 — the spike this
+// file was waiting for — and every one of the four guessed selectors below
+// matched NOTHING. Docs' find bar is now a Material "wiz" component:
+//
+//   div.appsDocsUiWizFindbarFindBarContainer
+//     div.appsDocsUiWizFindbarFindInputContainer
+//       input[aria-label="Find i dokumentet"]   <- Danish UI; label follows
+//                                                  the user's Google account
+//
+// That is the whole reason Find "did not work": the synthetic Ctrl/Cmd+F DID
+// open the bar and DID focus the input (measured — identical to a real
+// keystroke), but nothing here could see it, so every run timed out and fell
+// back. The container class is matched first because it carries no language;
+// the aria-labels are kept only as a backstop, and the old class names remain
+// so an older Docs still resolves.
+//
+// Note the input exists in the DOM even while the bar is closed, so its mere
+// presence proves nothing — focus is the signal that the bar is really open.
 export const FIND_INPUT_SELECTOR =
-  '.docs-findbar-input input, input.docs-findbar-input-typebox, input[aria-label="Find in document" i], input[aria-label="Søg i dokument" i]';
+  '.appsDocsUiWizFindbarFindInputContainer input, [class*="FindbarFindInput"] input, ' +
+  '.docs-findbar-input input, input.docs-findbar-input-typebox, ' +
+  'input[aria-label="Find in document" i], input[aria-label="Find i dokumentet" i], ' +
+  'input[aria-label="Søg i dokument" i]';
 
 const FIND_BAR_TIMEOUT_MS = 2000;
 const SELECTION_TIMEOUT_MS = 2000;
