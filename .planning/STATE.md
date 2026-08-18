@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 7 code-complete. Docs blocked on two fronts — OAuth client in the wrong Google project, and Docs trims every paste. See 07-HANDOFF-2026-08-17.md.
-last_updated: "2026-08-17T12:00:00.000Z"
-last_activity: 2026-08-17 — sign-in restored (Supabase had auto-paused); Docs paste-trimming root-caused; focus gate found
+stopped_at: Google Docs WORKS end-to-end on the real product path — verified against a real document and read back from it. See 07-DOCS-VERIFIED-2026-08-18.md.
+last_updated: "2026-08-18T12:00:00.000Z"
+last_activity: 2026-08-18 — Docs fixed and verified: whitespace, F-1 marking, autonomous placement + undo, Find selector; backend redeployed (autonomous route was 404 in prod)
 progress:
   total_phases: 7
   completed_phases: 0
@@ -26,11 +26,13 @@ in, arriving at a pace they can read along with and stop mid-flow.
 
 ## Current Position
 
-Phase: 7 (autonomous mode) — all 6 plans executed, code-complete
-Status: **Built, not observed.** Everything Google Docs-specific is written and
-compiles; none of it has been seen working on a real document. The operator
-deferred the browser pass on 2026-08-07 ("forget the checks, just finish the
-build then we take the browser checks").
+Phase: 7 (autonomous mode) — all 6 plans executed, Docs verified on a real document
+Status: **Observed working.** The whole Google Docs surface was driven on the
+real product path in a real Chrome on 2026-08-18 and read back from the
+document itself: chat Straks/Langsomt/Fortryd, marking, Besvar markeringen,
+and Besvar alle spørgsmål (3/3 on three consecutive runs) with a byte-exact
+undo. Evidence and the remaining gaps:
+`.planning/phases/07-*/07-DOCS-VERIFIED-2026-08-18.md`.
 Last activity: 2026-08-07 — plan 07-06 (acceptance scenario, Docs permission
 disclosure, TESTING.md walkthrough, 07-UAT.md), plus two open defects closed:
 F-1 (the selection bar never appeared on Docs) and the contentClass routing
@@ -41,40 +43,40 @@ verification outstanding for both v1 and autonomous mode)
 
 ## Next session — start here
 
-**Read `.planning/phases/07-*/07-HANDOFF-2026-08-17.md` first.** It carries the
-evidence behind every item below; this list is only the order.
+**Read `.planning/phases/07-*/07-DOCS-VERIFIED-2026-08-18.md` first.** It holds
+the evidence for every Docs claim, and the honest list of what is still thin.
 
-1. **Does Docs insertion work on the normal product path?** Cursor in the
-   document → sidebar → ask for a sentence → **Straks** → does text appear?
-   One minute, never once run, and it decides what the rest is worth. Every
-   failure so far came through the spike page, which drives the document from
-   *another tab* — and Docs is now proven to discard synthetic pastes when its
-   input frame lacks focus.
-2. **The whitespace probe, variants D/E/F** — built 2026-08-17, not yet run.
-   Root cause is confirmed (Docs trims each paste; only interior whitespace
-   survives). D/E/F decide whether the fix is a few lines in the Docs chunker
-   or a change of strategy for Langsomt. Reading fixed in advance in the
-   handoff, §3.
-3. **The Docs API token.** Still refused: the OAuth client lives in Google's
-   empty `my-first-project`. Run P1, read `Chromes egen begrundelse`, then the
-   basic-scope test in the handoff, §2. Blocks the probe's API read-back and
-   the whole primary Docs path.
-4. **The marking bug (F-1)** — the operator reports marking on Docs still
-   surfaces no buttons, though the fix is in the build. Selector-agnostic probe
-   written, never run. Handoff §7.
-5. **The four browser suites**, none run since 07-06. They need the backend on
-   127.0.0.1:8787 and a build with `VITE_BACKEND_URL=http://127.0.0.1:8787`;
-   the current `.output` build points at production.
-6. **The walkthrough** — `TESTING.md` → "Autonomous mode", recorded into
-   `07-UAT.md`. The phase does not close until that is filled in.
+1. **Langsomt in autonomous mode on Docs** — the least-tested path. It is the
+   only one still using Find positioning (the API cannot type letter by
+   letter). Run it several times and count; Find measured ~50% on a
+   document's last question before the confirmation was tightened.
+2. **Decide the OAuth path.** `getAuthToken` worked in the test profile, but it
+   can only ever use the account Chrome itself is signed into — a real risk for
+   the Workspace/HR market, where an admin can disable it silently.
+   `launchWebAuthFlow` is the alternative and remains undecided.
+3. **Ungrounded answers.** With only questions marked and no source material,
+   the backend sometimes answers from general knowledge and sometimes returns
+   empty answer text, which writes blank lines into the document. Product
+   decision needed.
+4. **The four browser suites** have not been re-run against these changes.
+   They need the backend on 127.0.0.1:8787 and a build with
+   `VITE_BACKEND_URL=http://127.0.0.1:8787`; `.output` points at production.
+5. **`07-UAT.md`** still needs the operator's own walkthrough recorded; the
+   automated evidence is in the file named above.
 
-**Sign-in was down 2026-08-17** and is fixed — the Supabase project had
-auto-paused, which removes its DNS record. `dig +short
-gkqpyqmuopqxumugszoa.supabase.co` diagnoses it in one command. Nothing keeps
-the database awake, so it recurs; no decision taken (handoff §1).
+**Driving Docs from a script:** the one thing that made this session possible is
+reading the document back via `…/export?format=txt` with ordinary cookies — no
+OAuth needed. It must be called from OUTSIDE the Docs page (its CSP blocks the
+fetch). Without a read-back channel, a Docs "fix" cannot be verified at all,
+which is how four wrong ones were written.
+
+**Sign-in** depends on the Supabase project being awake; `dig +short
+gkqpyqmuopqxumugszoa.supabase.co` diagnoses a pause in one command. Nothing
+keeps it awake — the operator accepted that risk on 2026-08-18.
 
 **Reload ritual after every rebuild:** reload at `chrome://extensions` AND
-Cmd+R the Docs tab. Skipping the second gives "Extension context invalidated".
+Cmd+R the Docs tab. Note that `chrome.runtime.reload()` via CDP does not
+reliably pick up a new build; restarting Chrome does.
 
 ## What exists and how it was verified
 

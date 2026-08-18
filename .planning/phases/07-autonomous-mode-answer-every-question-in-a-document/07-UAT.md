@@ -5,9 +5,11 @@ they are reported, not as they are supposed to happen.** A criterion that half
 works is written down as half working.
 
 - **Script:** `TESTING.md` → "Autonomous mode — the 20-minute walkthrough"
-- **Status:** ⏳ not yet walked. Written 2026-08-07; the operator deferred the
-  browser pass to a later session ("forget the checks. just finish the build
-  then we take the browser checks").
+- **Status:** ⏳ operator walkthrough still not done. But the Google Docs
+  surface WAS driven end-to-end by script against a real document on
+  2026-08-18, and read back from the document itself — results and remaining
+  gaps in `07-DOCS-VERIFIED-2026-08-18.md`. Treat that as the evidence base;
+  this file still wants the operator's own eyes on the flow.
 - **Prerequisite the operator must confirm first:** the Doc saves their own
   typing ("Alle ændringer gemt"). Two debugging rounds on 2026-08-06 were spent
   against a Docs session that was offline — see F-3 in `07-FINDINGS-docs.md`.
