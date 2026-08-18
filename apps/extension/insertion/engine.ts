@@ -30,7 +30,7 @@ export class InsertionSession {
     private cb: InsertionCallbacks,
   ) {
     this.totalChars = text.length;
-    this.queue = chunkText(text);
+    this.queue = adapter.chunkText?.(text) ?? chunkText(text);
   }
 
   getState(): InsertionState {

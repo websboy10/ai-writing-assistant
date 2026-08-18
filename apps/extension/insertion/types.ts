@@ -30,6 +30,12 @@ export interface InsertionAdapter {
   /** The element that receives user keystrokes (for typing-race detection). */
   eventTarget(): EventTarget | null;
   /**
+   * Split the text into paced-mode chunks, when the editor cannot accept the
+   * default one-letter-with-leading-whitespace split. Only Google Docs needs
+   * this; everything else omits it and gets chunkText().
+   */
+  chunkText?(text: string): string[];
+  /**
    * True when the editor applies our write on its own schedule, so the
    * browser's edit report lands AFTER insert() has returned.
    *

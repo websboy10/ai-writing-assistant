@@ -113,6 +113,49 @@ export class GDocsAdapter implements InsertionAdapter {
     return this.targetDoc() ?? null;
   }
 
+  /**
+   * Docs discards a space that sits at either edge of an individual paste, so
+   * the engine's default split — one letter carrying its leading whitespace —
+   * loses every inter-word space and lands "Hejmeddigverden."
+   *
+   * Measured against a live document on 2026-08-18, reading the result back
+   * through Docs' own text export (no OAuth needed) rather than trusting the
+   * adapter, which cannot see its own writes:
+   *
+   *   ['A ', 'B ', 'C']        -> "ABC"                  space at the end: trimmed
+   *   ['D', ' E', ' F']        -> "DEF"                  space at the front: trimmed
+   *   ['He', 'j med di', 'g.'] -> "Hej med dig."         interior space: KEPT
+   *   ['Baz', '\nQux']         -> "Baz\nQux"             newline at the front: KEPT
+   *
+   * So the rule is narrower than "Docs trims whitespace": it trims *spaces* at
+   * a paste edge and leaves newlines alone. A space therefore survives whenever
+   * it is interior to one paste — which needs no NBSP substitution and no
+   * change to the engine, only a split that never breaks next to a space.
+   *
+   * Chunks stay one code point wherever that is legal, so paced mode still
+   * reads as typing; near a space the chunk grows to swallow the space and the
+   * character after it. Text with no breakable position (e.g. "A B C")
+   * collapses to a single paste, which is correct — that is what Straks does,
+   * and it keeps its spaces.
+   */
+  chunkText(text: string): string[] {
+    const cp = [...text]; // code points, so surrogate pairs never split
+    const isSpace = (c: string | undefined) => c === ' ' || c === '\t';
+    const isWs = (c: string | undefined) => c !== undefined && /\s/.test(c);
+    const out: string[] = [];
+    let start = 0;
+    let i = 0;
+    while (i < cp.length) {
+      i += 1; // every chunk carries at least one code point
+      // Breaking here is legal only when it leaves no whitespace at this
+      // chunk's end and puts no space at the next chunk's start.
+      while (i < cp.length && (isWs(cp[i - 1]) || isSpace(cp[i]))) i += 1;
+      out.push(cp.slice(start, i).join(''));
+      start = i;
+    }
+    return out;
+  }
+
   prepare(): InsertResult {
     const test = GDocsAdapter.selfTest();
     if (!test.ok) return { ok: false, verified: true, reason: test.reason };
