@@ -45,23 +45,67 @@ export function gdocsEventTarget(): HTMLElement | null {
   return doc.body;
 }
 
+/** Zero-width space / BOM — Docs' own padding, never content we want. */
+const ZERO_WIDTH = /[\u200B\uFEFF]/g;
+
 /**
- * The text Docs currently has marked, read from the hidden input frame.
+ * Cheap "is anything marked at all?" gate. Runs on a 1-second poll, so it may
+ * only read the DOM — the real text costs an event dispatch (below).
  *
- * Docs mirrors the live selection into that frame — it is how native copy
- * works — so this is the only way to see a selection on a page that paints its
- * text to canvas. Single source of truth on purpose: the same read previously
- * existed as `GDocsAdapter.hasSelection()` and as `markedMirrorText()` in
- * autonomous/docs-source.ts, and duplicated Docs resolutions have already
- * drifted apart once in this codebase (see gdocsEventTarget above). Both now
- * delegate here.
+ * Measured against a live document 2026-08-18: with nothing marked the hidden
+ * input frame holds two zero-width spaces; with text marked it holds a single
+ * non-breaking space. Neither is the selection. Anything that is not
+ * zero-width therefore means "something is marked".
  */
-export function gdocsSelectionText(): string {
+function gdocsHasMarkedText(): boolean {
   try {
     const doc = document.querySelector<HTMLIFrameElement>(GDOCS_IFRAME)?.contentDocument;
-    return doc?.body?.textContent?.trim() ?? '';
+    return (doc?.body?.textContent ?? '').replace(ZERO_WIDTH, '').length > 0;
   } catch {
-    return ''; // cross-origin means the mechanism changed
+    return false; // cross-origin means the mechanism changed
+  }
+}
+
+/**
+ * The text Docs currently has marked.
+ *
+ * The hidden input frame does NOT mirror the selection. That belief — repeated
+ * in three places in this codebase — is simply false, and measuring it settled
+ * F-1 ("marking text on Docs surfaces no buttons"), which survived the
+ * 2026-08-07 fix because the fix was built on it:
+ *
+ *   nothing marked -> "\u200B\u200B"   two zero-width spaces
+ *   text marked    -> "\u00A0"       one non-breaking space, never the text
+ *
+ * The old read was `body.textContent.trim()`, and trim() strips a non-breaking
+ * space but not a zero-width one — so it reported "2 tegn markeret" with
+ * nothing marked, and "" with text marked. Exactly backwards.
+ *
+ * Docs will however hand the selection over. Dispatching a synthetic `copy` at
+ * the same element that receives our synthetic paste makes Docs serialize the
+ * marked text into the DataTransfer we supply. Verified live: it returns the
+ * text whether or not the frame has focus, and it does NOT move focus, so it
+ * is safe on the selection poll while the user types in our sidebar. Nothing
+ * reaches the system clipboard — the event is untrusted and the DataTransfer
+ * is our own. Unlike paste, Docs cancels copy, so here dispatchEvent()
+ * returning false is a real signal rather than a misleading one.
+ *
+ * Single source of truth on purpose: `GDocsAdapter.hasSelection()` and
+ * `markedMirrorText()` in autonomous/docs-source.ts both delegate here, because
+ * duplicated Docs resolutions have already drifted apart once (see
+ * gdocsEventTarget above).
+ */
+export function gdocsSelectionText(): string {
+  if (!gdocsHasMarkedText()) return '';
+  const el = gdocsEventTarget();
+  if (!el) return '';
+  try {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', '');
+    el.dispatchEvent(new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }));
+    return dt.getData('text/plain').replace(ZERO_WIDTH, '').trim();
+  } catch {
+    return '';
   }
 }
 
