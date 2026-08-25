@@ -66,6 +66,48 @@ export function parseDetection(raw: string, paragraphCount: number): DetectedQue
 }
 
 /**
+ * Rescue for the one failure mode that loses a WHOLE run: the model abandons
+ * the index protocol entirely and stamps every answer with the same unusable
+ * index (measured: -1 on all five, used as shorthand for "no grounding").
+ * Every answer is then dropped as unaskable and the user — who has waited
+ * half a minute — is told nothing could be answered.
+ *
+ * The prompt asks for one answer per question in the same order, so position
+ * is a real signal. It is only trusted under conditions strict enough that a
+ * partially-correct reply can never be silently re-ordered onto the wrong
+ * questions, because a mis-assigned answer lands in the user's document:
+ *
+ *   - the reply holds exactly one item per question asked, and
+ *   - EVERY item is an object whose index is unusable — not one of them names
+ *     a question in this batch. A mixture means the model was addressing
+ *     questions by index after all, and position proves nothing.
+ */
+function positionalFallback(
+  items: unknown[],
+  asked: DetectedQuestion[],
+  askedByIndex: Map<number, DetectedQuestion>,
+): AutonomousAnswer[] | null {
+  if (items.length !== asked.length || asked.length === 0) return null;
+
+  const records: Record<string, unknown>[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== 'object') return null;
+    const rec = item as Record<string, unknown>;
+    if (Number.isInteger(rec.paragraphIndex) && askedByIndex.has(rec.paragraphIndex as number)) return null;
+    records.push(rec);
+  }
+
+  return records
+    .map((rec, i) => ({
+      paragraphIndex: asked[i].paragraphIndex,
+      questionText: asked[i].questionText,
+      answer: typeof rec.answer === 'string' ? rec.answer : '',
+      grounded: typeof rec.grounded === 'boolean' ? rec.grounded : false,
+    }))
+    .filter((a) => a.answer.trim().length > 0);
+}
+
+/**
  * Answers: only accepted for a paragraphIndex that was actually asked about
  * in this batch — a model cannot invent an answer for a question we never
  * sent it. `grounded` is coerced to false when missing or non-boolean: a
@@ -77,6 +119,9 @@ export function parseAnswers(raw: string, askedQuestions: DetectedQuestion[]): A
   if (!items) return [];
 
   const askedByIndex = new Map(askedQuestions.map((q) => [q.paragraphIndex, q]));
+
+  const positional = positionalFallback(items, askedQuestions, askedByIndex);
+  if (positional) return positional;
   const seen = new Set<number>();
   const out: AutonomousAnswer[] = [];
 
@@ -91,6 +136,13 @@ export function parseAnswers(raw: string, askedQuestions: DetectedQuestion[]): A
     if (seen.has(paragraphIndex as number)) continue;
 
     const answer = typeof rec.answer === 'string' ? rec.answer : '';
+    // An empty answer is not an answer. Writing it puts a blank line into the
+    // user's document under their question, which reads as a bug they caused
+    // — measured happening to 5 of 10 questions in one live run. Dropping it
+    // here means the question is simply left alone, and a run where EVERY
+    // answer came back empty falls into the existing "nothing could be
+    // answered" path, which refunds the quota and says so plainly.
+    if (!answer.trim()) continue;
     const grounded = typeof rec.grounded === 'boolean' ? rec.grounded : false;
 
     seen.add(paragraphIndex as number);

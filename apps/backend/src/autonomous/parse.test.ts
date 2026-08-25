@@ -107,3 +107,74 @@ test('Test 9: duplicate answers for the same paragraphIndex — first kept, rest
 test('parseAnswers never throws on non-JSON input', () => {
   assert.deepEqual(parseAnswers('nonsense response', asked), []);
 });
+
+// ── The whole-run rescue (measured against the live model 2026-08-25) ────────
+// The model answered all five questions with paragraphIndex -1, meaning "no
+// grounding". Every answer was dropped as unaskable and the run reported that
+// nothing could be answered — after the user had waited half a minute.
+
+test('Test 10: every index unusable and one answer per question — matched by position', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: -1, answer: 'Status er god', grounded: true },
+    { paragraphIndex: -1, answer: 'Ikke oplyst', grounded: false },
+  ]);
+  const out = parseAnswers(raw, asked);
+  assert.equal(out.length, 2);
+  assert.deepEqual(
+    out.map((a) => [a.paragraphIndex, a.questionText, a.answer]),
+    [
+      [0, 'Hvad er status?', 'Status er god'],
+      [2, 'Beskriv dine resultater', 'Ikke oplyst'],
+    ],
+  );
+});
+
+test('Test 11: a MIXED reply is never re-ordered by position — the good answer is kept, the bad one dropped', () => {
+  // One item names a real question, so the model was using indices after all.
+  // Position proves nothing here, and guessing would put an answer under the
+  // wrong question in the user's document.
+  const raw = JSON.stringify([
+    { paragraphIndex: -1, answer: 'Hører ingen steder hjemme', grounded: false },
+    { paragraphIndex: 2, answer: 'Rigtigt placeret svar', grounded: true },
+  ]);
+  const out = parseAnswers(raw, asked);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].paragraphIndex, 2);
+  assert.equal(out[0].answer, 'Rigtigt placeret svar');
+});
+
+test('Test 12: a wrong-length reply with unusable indices is dropped, not guessed', () => {
+  const raw = JSON.stringify([{ paragraphIndex: -1, answer: 'Kun ét svar til to spørgsmål', grounded: false }]);
+  assert.deepEqual(parseAnswers(raw, asked), []);
+});
+
+test('Test 13: the positional rescue still coerces a non-boolean grounded to false', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: -1, answer: 'Et', grounded: 'yes' },
+    { paragraphIndex: -1, answer: 'To' },
+  ]);
+  const out = parseAnswers(raw, asked);
+  assert.equal(out.length, 2);
+  assert.ok(out.every((a) => a.grounded === false));
+});
+
+test('Test 14: an empty answer is dropped — never written as a blank line under the question', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: 0, answer: '   ', grounded: false },
+    { paragraphIndex: 2, answer: 'Et rigtigt svar', grounded: true },
+  ]);
+  const out = parseAnswers(raw, asked);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].paragraphIndex, 2);
+});
+
+test('Test 15: the positional rescue drops empty answers too', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: -1, answer: '', grounded: false },
+    { paragraphIndex: -1, answer: 'Svar', grounded: true },
+  ]);
+  const out = parseAnswers(raw, asked);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].paragraphIndex, 2);
+  assert.equal(out[0].answer, 'Svar');
+});

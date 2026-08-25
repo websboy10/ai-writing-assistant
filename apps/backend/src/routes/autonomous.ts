@@ -4,7 +4,7 @@ import { verifyUser, rpc } from '../supabase.js';
 import { getEntitlement } from '../billing.js';
 import { collect } from '../autonomous/complete.js';
 import { detectionMessages, answerMessages } from '../autonomous/prompt.js';
-import { parseDetection, parseAnswers } from '../autonomous/parse.js';
+import { parseDetection, parseAnswers, type DetectedQuestion } from '../autonomous/parse.js';
 import { NoModelsError, PolicyError } from '../openrouter.js';
 
 // Kept in sync with packages/shared/src/index.ts. Values (not types) must be
@@ -116,8 +116,14 @@ export function autonomousRoutes(app: FastifyInstance): void {
     req.raw.on('close', () => abort.abort());
 
     try {
-      const detectionRaw = await collect(detectionMessages(autoReq), contentClass, abort.signal);
-      const detected = parseDetection(detectionRaw, paragraphs.length);
+      const detection = await collect(detectionMessages(autoReq), contentClass, abort.signal);
+      const detected = parseDetection(detection.text, paragraphs.length);
+      if (detected.length === 0 && detection.text.trim()) {
+        req.log.warn(
+          { finishReason: detection.finishReason, chars: detection.text.length, tail: detection.text.slice(-300) },
+          'detection produced no questions from a non-empty reply',
+        );
+      }
 
       // Zero questions found is a RESULT, not an error — the panel says so
       // plainly, and the quota charge for a run that did nothing is refunded.
@@ -129,12 +135,36 @@ export function autonomousRoutes(app: FastifyInstance): void {
         return reply.send(response);
       }
 
-      const answers: AutonomousAnswer[] = [];
+      const batches: DetectedQuestion[][] = [];
       for (let i = 0; i < detected.length; i += ANSWER_BATCH_SIZE) {
-        const batch = detected.slice(i, i + ANSWER_BATCH_SIZE);
-        const answerRaw = await collect(answerMessages(autoReq, batch), contentClass, abort.signal);
-        answers.push(...parseAnswers(answerRaw, batch));
+        batches.push(detected.slice(i, i + ANSWER_BATCH_SIZE));
       }
+
+      // Batches are independent — each carries the whole document as context
+      // and only its own questions — so running them one after another just
+      // made the user wait twice as long. Measured 2026-08-25: ten questions
+      // took up to 68s sequentially, and every second of that is a person
+      // watching a progress bar with nothing else to do.
+      const perBatch = await Promise.all(
+        batches.map(async (batch) => {
+          const completion = await collect(answerMessages(autoReq, batch), contentClass, abort.signal);
+          const parsed = parseAnswers(completion.text, batch);
+          if (parsed.length < batch.length) {
+            req.log.warn(
+              {
+                asked: batch.length,
+                parsed: parsed.length,
+                finishReason: completion.finishReason,
+                chars: completion.text.length,
+                tail: completion.text.slice(-300),
+              },
+              'answer batch parsed fewer answers than questions asked',
+            );
+          }
+          return parsed;
+        }),
+      );
+      const answers: AutonomousAnswer[] = perBatch.flat();
 
       if (answers.length === 0) {
         await rpc(user, 'refund_quota', { p_cost: 2 }).catch((refundErr) =>

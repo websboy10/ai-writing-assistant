@@ -61,7 +61,15 @@ export function answerMessages(req: AutonomousRequest, batch: DetectedQuestion[]
     'You answer questions found in a document, grounded in that document and any attached context material. ' +
       'Answer EVERY question you are given below, even if you find nothing to base it on — never skip one. ' +
       'Set "grounded" to true only when the answer is actually based on something in the document or the ' +
-      'attached context; set it to false when you had to guess or invent the answer.',
+      'attached context; set it to false when you had to guess or invent the answer. ' +
+      // Measured 2026-08-25: asked for an index "in any order", the model
+      // answered every question with paragraphIndex -1 as a stand-in for "no
+      // grounding", and every answer was then dropped as unaskable — the user
+      // waited 30s and was told nothing could be answered. The index is an
+      // address, never a verdict; groundedness has its own field.
+      'The "paragraphIndex" of each answer MUST be copied exactly from the bracketed number of the question ' +
+      'it answers. Never invent an index, never use -1, and never use an index that is not in the list below. ' +
+      'A question you cannot ground still gets its own real index and grounded:false.',
   );
 
   if (req.context?.length) {
@@ -80,7 +88,8 @@ export function answerMessages(req: AutonomousRequest, batch: DetectedQuestion[]
       `# Document${req.documentTitle ? `: ${req.documentTitle}` : ''}\n${paragraphLines(req)}\n\n` +
       `# Questions to answer\n${questionLines}\n\n` +
       'Output ONLY a bare JSON array — no prose before or after it, no markdown code fence — of objects ' +
-      'shaped { "paragraphIndex": number, "answer": string, "grounded": boolean }, one per question above, in any order.',
+      'shaped { "paragraphIndex": number, "answer": string, "grounded": boolean }: exactly one per question ' +
+      'above, in the SAME ORDER as the questions are listed.',
   };
 
   return [system, user];

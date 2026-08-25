@@ -1,24 +1,39 @@
 import type { ChatMessage, ContentClass } from '@awa/shared';
 import { streamChat } from '../openrouter.js';
 
+export interface Completion {
+  text: string;
+  /** 'length' means the reply was cut off at the token ceiling — see below. */
+  finishReason: string;
+}
+
 /**
  * Thin non-streaming wrapper around `streamChat`: this route needs the whole
  * response text before it can be parsed as JSON, not a token-by-token SSE
  * feed. Reuses the existing policy gate, ordered model fallback chain and
  * abort handling in openrouter.ts untouched — no second provider path.
+ *
+ * Returns the finish reason as well as the text, because a JSON reply that
+ * stopped at the token ceiling is a FRAGMENT: it parses to nothing, which is
+ * indistinguishable from "the model found nothing to say" unless the caller
+ * can see why the model stopped.
  */
 export async function collect(
   messages: ChatMessage[],
   contentClass: ContentClass,
   signal: AbortSignal,
-): Promise<string> {
+): Promise<Completion> {
   let text = '';
+  let finishReason = '';
   await streamChat(messages, contentClass, signal, {
     onToken: (t) => {
       text += t;
     },
     onMeta: () => {},
     onUsage: () => {},
+    onFinish: (reason) => {
+      finishReason = reason;
+    },
   });
-  return text;
+  return { text, finishReason };
 }
