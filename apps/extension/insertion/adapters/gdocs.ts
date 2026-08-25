@@ -80,7 +80,7 @@ export class GDocsAdapter implements InsertionAdapter {
 
   /** INST-13: prove the mechanism exists before promising insertion. */
   static selfTest(): { ok: boolean; reason?: string } {
-    if (location.host !== 'docs.google.com') return { ok: false, reason: 'Not a Google Docs page.' };
+    if (location.host !== 'docs.google.com') return { ok: false, reason: 'Dette er ikke et Google Docs-dokument.' };
     const iframe = document.querySelector<HTMLIFrameElement>('iframe.docs-texteventtarget-iframe');
     if (!iframe) {
       return {
@@ -92,10 +92,10 @@ export class GDocsAdapter implements InsertionAdapter {
     try {
       const doc = iframe.contentDocument;
       if (!doc || !doc.body) {
-        return { ok: false, reason: "Google Docs' input target is not accessible. Use Copy instead." };
+        return { ok: false, reason: "Google Docs’ skrivefelt kan ikke nås lige nu. Brug Kopiér i stedet." };
       }
     } catch {
-      return { ok: false, reason: "Google Docs' input target is not accessible. Use Copy instead." };
+      return { ok: false, reason: "Google Docs’ skrivefelt kan ikke nås lige nu. Brug Kopiér i stedet." };
     }
     return { ok: true };
   }
@@ -186,7 +186,7 @@ export class GDocsAdapter implements InsertionAdapter {
     const el = this.targetEl();
     if (!el) {
       awaLog('gdocs.insert.no-target', { chunkIndex: this.chunksInserted });
-      return { ok: false, verified: true, reason: 'Google Docs input target vanished mid-insertion.' };
+      return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt forsvandt midt i indsættelsen.' };
     }
     // Docs is suspected of swapping the element (or the whole iframe) between
     // writes; sameEl/sameIframe is the evidence that settles it.
@@ -243,7 +243,7 @@ export class GDocsAdapter implements InsertionAdapter {
 
   undoAll(): InsertResult {
     const el = this.targetEl();
-    if (!el) return { ok: false, verified: true, reason: 'Google Docs input target is gone.' };
+    if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt kan ikke nås længere.' };
     const platform =
       (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ??
       navigator.platform;

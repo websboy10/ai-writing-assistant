@@ -15,6 +15,33 @@
   --color-wash: var(--awa-wash);
   --font-machine: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
   --font-draft: Charter, Georgia, Cambria, 'Times New Roman', serif;
+
+  /*
+   * The scale. Seven named steps replacing fourteen ad-hoc pixel values that
+   * had accumulated across the components — a panel 400px wide cannot afford
+   * sizes that differ by half a pixel for no reason, because the eye reads the
+   * inconsistency long before it reads the words.
+   *
+   * Every step has one job, and `draft` and `lead` deliberately share a size:
+   * 15px is this panel's "this matters" size, set in serif when it is prose to
+   * read and in sans when it is an action to take.
+   */
+  --text-title: 22px;           /* serif — a view announces itself */
+  --text-title--line-height: 1.25;
+  --text-display: 18px;         /* serif — the empty page speaks */
+  --text-display--line-height: 1.4;
+  --text-draft: 15px;           /* serif — the assistant's own prose */
+  --text-draft--line-height: 1.7;
+  --text-lead: 15px;            /* sans — the one action that matters most */
+  --text-lead--line-height: 1.25;
+  --text-body: 13px;            /* sans — what you type and what you said */
+  --text-body--line-height: 1.5;
+  --text-ui: 12.5px;            /* sans — buttons and chips */
+  --text-ui--line-height: 1.4;
+  --text-aside: 11.5px;         /* sans — hints, footers, the quiet half */
+  --text-aside--line-height: 1.45;
+  --text-label: 10.5px;         /* mono caps — machinery only, see .awa-eyebrow */
+  --text-label--line-height: 1.2;
 }
 
 :host {
@@ -55,13 +82,48 @@
   .awa-caret { animation: none; }
 }
 
-/* Machine voice: eyebrows, labels, controls. */
+/*
+ * The machine voice — and ONLY the machine. Reserved for things the software
+ * reports about itself: a state word, a counter, a field label. It had spread
+ * to whole Danish sentences ("Du har markeret tekst · 163 tegn"), where
+ * uppercase mono with wide tracking shouts and makes Æ, Ø and Å genuinely hard
+ * to read at this size. Sentences now use .awa-note.
+ *
+ * Tracking is 0.1em, not 0.14em: the wider setting was pushing these labels
+ * toward the panel edge and buying nothing at 10.5px.
+ */
 .awa-eyebrow {
   font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
-  font-size: 10px;
-  letter-spacing: 0.14em;
+  font-size: var(--text-label);
+  line-height: 1.2;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
   color: var(--awa-graphite);
+}
+
+/*
+ * Content the panel says to you, as opposed to about itself. Sentence case,
+ * sans, quiet — a caption, not an announcement.
+ */
+.awa-note {
+  font-size: var(--text-aside);
+  line-height: 1.45;
+  color: var(--awa-graphite);
+}
+.awa-note b,
+.awa-note strong {
+  font-weight: 600;
+  color: var(--awa-ink);
+}
+
+/*
+ * A live number inside a sentence. Tabular figures only — so a count that
+ * changes as you drag a selection doesn't make the words around it jitter —
+ * without dragging the uppercase machine voice into ordinary prose.
+ */
+.awa-num {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Visible keyboard focus, monochrome. */

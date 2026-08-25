@@ -34,6 +34,27 @@ page.on('console', (m) => {
   const t = m.text();
   if (t.includes('AWA') || m.type() === 'error') awaLog.push(`[${m.type()}] ${t.slice(0, 200)}`);
 });
+// "Failed to load resource" in the console names no URL, so a page full of them
+// is unreadable. requestfailed does name it — which is what separates Docs'
+// own noise from a request the extension actually needs.
+//
+// `chrome-extension://invalid/` is Docs' own doing, NOT ours: measured
+// 2026-08-25, a Docs page produces exactly the same five of them with no
+// extension loaded at all. Docs probes for extension IDs it knows about, and
+// Chrome rewrites every miss to that URL. Counting them as our failures sends
+// the next person hunting a bug that does not exist.
+const BENIGN_FAILURE = /^chrome-extension:\/\/invalid\//;
+const failedRequests = new Map();
+page.on('requestfailed', (req) => {
+  const url = req.url();
+  if (BENIGN_FAILURE.test(url)) return;
+  let host = 'unparseable';
+  try {
+    host = new URL(url).host;
+  } catch {}
+  const key = `${host} — ${req.failure()?.errorText}`;
+  failedRequests.set(key, (failedRequests.get(key) ?? 0) + 1);
+});
 
 const host = page.locator('awa-sidebar');
 const shot = (name) => page.screenshot({ path: resolve(shotsDir, `docs-${name}.png`) }).catch(() => {});
@@ -57,7 +78,12 @@ const PAGE_SEL = '[class*="kix-page"]';
 async function clickIntoDoc() {
   const box = await page.locator(PAGE_SEL).first().boundingBox();
   if (!box) throw new Error(`no ${PAGE_SEL} — document did not render`);
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height - 140);
+  const view = page.viewportSize() ?? (await page.evaluate(() => ({ width: innerWidth, height: innerHeight })));
+  // A Docs page is ~1123px tall in a ~800px window, so the bottom of the page
+  // box is BELOW the viewport and a click there silently does nothing — the
+  // mouse never reaches the document and the test reads an empty export.
+  const y = Math.min(box.y + box.height - 140, view.height - 60);
+  await page.mouse.click(box.x + box.width / 2, y);
   await sleep(300);
 }
 
@@ -168,6 +194,177 @@ section('chat-progressive', async (docId) => {
   await shot('chat-progressive');
 });
 
+// ── Autonomous mode: the questions fixture ───────────────────────────────────
+
+const Q1 = 'Hvad er status på projektet?';
+const Q2 = 'Beskriv dine tre vigtigste resultater i år';
+const Q3 = '2. Hvilke områder vil du gerne udvikle?';
+const STATEMENT = 'Denne formular tager cirka fem minutter at udfylde.';
+const QUESTIONS = [Q1, Q2, Q3];
+
+/** Types the fixture into the real document, one paragraph per line. */
+async function writeQuestions(docId) {
+  await clickIntoDoc();
+  await page.keyboard.type([Q1, Q2, Q3, STATEMENT].join('\n'), { delay: 10 });
+  await sleep(2000);
+  const text = await waitForDoc(docId, (t) => QUESTIONS.every((q) => t.includes(q)), {
+    timeout: 60_000,
+    label: 'the questions to reach the document',
+  });
+  return text;
+}
+
+/** Waits for the run transport to reach a terminal state, and says which. */
+async function waitForRun(timeout) {
+  await page.waitForFunction(
+    () => {
+      const t = document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '';
+      return /Færdig ✓/.test(t) || /Stoppet/.test(t) || /Fejl/.test(t) || /ingen kunne besvares/.test(t) || /ikke fundet nogen spørgsmål/.test(t);
+    },
+    undefined,
+    { timeout },
+  );
+  const t = await page.evaluate(() => document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '');
+  if (/Færdig ✓/.test(t)) return 'done';
+  if (/ingen kunne besvares/.test(t)) return 'no-answers';
+  if (/ikke fundet nogen spørgsmål/.test(t)) return 'no-questions';
+  if (/Fejl/.test(t)) return 'error';
+  return 'stopped';
+}
+
+/** Every question keeps its text, and gains a non-empty line beneath it. */
+function answersUnderQuestions(text) {
+  const lines = text.split('\n');
+  return QUESTIONS.map((q) => {
+    const i = lines.findIndex((l) => l.trim() === q);
+    return { q, found: i !== -1, answer: i === -1 ? '' : (lines[i + 1] ?? '').trim() };
+  });
+}
+
+section('mark-selection', async (docId) => {
+  console.log('\n— Marking text in a real document —');
+  await writeQuestions(docId);
+  await clickIntoDoc();
+  await page.keyboard.press('ControlOrMeta+a');
+  await sleep(2500); // the selection poll runs once a second
+
+  const bar = host.locator('text=Du har markeret tekst');
+  const appeared = await bar
+    .waitFor({ timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false);
+  r.ok('marking text shows the selection bar', appeared);
+  if (appeared) {
+    const label = await host.locator('p', { hasText: 'Du har markeret tekst' }).first().textContent();
+    const claimed = Number(label?.match(/([\d.]+)\s*tegn/)?.[1]?.replace(/\./g, '') ?? 0);
+    r.ok('the character count is real, not a placeholder', claimed > 100, `label was ${JSON.stringify(label)}`);
+    r.ok('both selection actions are offered', (await host.getByRole('button', { name: 'Besvar markeringen', exact: true }).count()) > 0 && (await host.getByRole('button', { name: 'Brug som kontekst', exact: true }).count()) > 0);
+  }
+  await shot('mark-selection');
+
+  // Deselect: the bar must go away again, or it invites action on nothing.
+  await page.keyboard.press('ArrowRight');
+  await sleep(2500);
+  r.ok('deselecting hides the selection bar', (await host.locator('text=Du har markeret tekst').count()) === 0);
+});
+
+section('answer-selection', async (docId) => {
+  console.log('\n— Besvar markeringen (Straks) on a real document —');
+  const before = await writeQuestions(docId);
+  await clickIntoDoc();
+  await page.keyboard.press('ControlOrMeta+a');
+  await sleep(2500);
+
+  await host.getByRole('button', { name: 'Besvar markeringen', exact: true }).click();
+  await host.getByRole('button', { name: 'Straks', exact: true }).click();
+  const outcome = await waitForRun(180_000);
+  r.ok('the marked-selection run finishes', outcome === 'done', `outcome: ${outcome}`);
+
+  const after = await waitForDoc(docId, (t) => t.length > before.length + 20, {
+    timeout: 90_000,
+    label: 'answers to land under the marked questions',
+  }).catch(() => readDoc(ctx, docId));
+
+  const rows = answersUnderQuestions(after);
+  r.ok('every question survives the run verbatim', rows.every((x) => x.found), JSON.stringify(rows.map((x) => x.found)));
+  r.ok(
+    'every question has a non-empty answer directly beneath it',
+    rows.every((x) => x.answer.length > 0),
+    JSON.stringify(rows.map((x) => `${x.q.slice(0, 18)}→${x.answer.slice(0, 24) || '(none)'}`)),
+  );
+  r.ok('no answer was written under the plain statement', !(after.split('\n')[after.split('\n').findIndex((l) => l.trim() === STATEMENT) + 1] ?? '').trim());
+  await shot('answer-selection');
+});
+
+section('answer-document', async (docId) => {
+  console.log('\n— Besvar alle spørgsmål (Straks), whole document —');
+  const before = await writeQuestions(docId);
+  await clickIntoDoc();
+  await sleep(500);
+
+  await host.getByRole('button', { name: 'Besvar alle spørgsmål', exact: true }).click();
+  await host.getByRole('button', { name: 'Straks', exact: true }).click();
+  const outcome = await waitForRun(180_000);
+  r.ok('the whole-document run finishes', outcome === 'done', `outcome: ${outcome}`);
+
+  const after = await waitForDoc(docId, (t) => t.length > before.length + 20, {
+    timeout: 90_000,
+    label: 'answers to land in the document',
+  }).catch(() => readDoc(ctx, docId));
+
+  const rows = answersUnderQuestions(after);
+  r.ok('every question survives verbatim', rows.every((x) => x.found));
+  r.ok(
+    'every question has a non-empty answer beneath it',
+    rows.every((x) => x.answer.length > 0),
+    JSON.stringify(rows.map((x) => `${x.q.slice(0, 18)}→${x.answer.slice(0, 24) || '(none)'}`)),
+  );
+  r.ok('no blank line was written as an answer', !/\n\n\n/.test(after), JSON.stringify(after.slice(0, 160)));
+  const order = QUESTIONS.map((q) => after.indexOf(q));
+  r.ok('questions stay in document order', order.every((p, i) => p !== -1 && (i === 0 || p > order[i - 1])), JSON.stringify(order));
+  await shot('answer-document');
+
+  console.log('\n— Fortryd alle svar —');
+  await host.getByRole('button', { name: '↩ Fortryd alle svar', exact: true }).click();
+  const restored = await waitForDoc(docId, (t) => t.trim() === before.trim(), {
+    timeout: 90_000,
+    label: 'the document to be restored byte-for-byte',
+  }).catch(() => readDoc(ctx, docId));
+  r.ok(
+    'undo restores the document byte-for-byte',
+    restored.trim() === before.trim(),
+    `before ${before.trim().length} chars, after ${restored.trim().length}`,
+  );
+  await shot('answer-document-undone');
+});
+
+section('answer-document-slow', async (docId) => {
+  console.log('\n— Besvar alle spørgsmål (Langsomt) — the least-tested path —');
+  const before = await writeQuestions(docId);
+  await clickIntoDoc();
+  await sleep(500);
+
+  await host.getByRole('button', { name: 'Besvar alle spørgsmål', exact: true }).click();
+  await host.getByRole('button', { name: 'Langsomt', exact: true }).click();
+  const outcome = await waitForRun(300_000);
+  r.ok('the Langsomt whole-document run finishes', outcome === 'done', `outcome: ${outcome}`);
+
+  const after = await waitForDoc(docId, (t) => t.length > before.length + 20, {
+    timeout: 120_000,
+    label: 'Langsomt answers to land',
+  }).catch(() => readDoc(ctx, docId));
+
+  const rows = answersUnderQuestions(after);
+  r.ok('Langsomt: every question survives verbatim', rows.every((x) => x.found));
+  r.ok(
+    'Langsomt: every question has a non-empty answer beneath it',
+    rows.every((x) => x.answer.length > 0),
+    JSON.stringify(rows.map((x) => `${x.q.slice(0, 18)}→${x.answer.slice(0, 24) || '(none)'}`)),
+  );
+  r.ok('Langsomt: no glued words in the answers', !rows.some((x) => /[a-zæøå][A-ZÆØÅ]/.test(x.answer) || /\w{28,}/.test(x.answer)));
+  await shot('answer-document-slow');
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ctxDocIds = [];
@@ -201,6 +398,10 @@ try {
   if (awaLog.length) {
     console.log(`\n— console (AWA + errors), last 15 of ${awaLog.length} —`);
     for (const l of awaLog.slice(-15)) console.log(`  ${l}`);
+  }
+  if (failedRequests.size) {
+    console.log('\n— failed requests, by host —');
+    for (const [key, n] of [...failedRequests].sort((a, b) => b[1] - a[1])) console.log(`  ${String(n).padStart(3)}×  ${key}`);
   }
   for (const id of ctxDocIds) console.log(`\ndocument left at: https://docs.google.com/document/d/${id}/edit`);
   if (!KEEP) await ctx.close();

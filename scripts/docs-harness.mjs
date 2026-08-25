@@ -58,20 +58,31 @@ export async function launch({ headless = false } = {}) {
  * The read-back channel. Needs no OAuth — ordinary browser cookies are enough.
  * MUST be called from outside the Docs page: the page's own CSP blocks it.
  */
-export async function readDoc(ctx, docId, { attempts = 5 } = {}) {
+export async function readDoc(ctx, docId, { attempts = 6 } = {}) {
   let wait = 2000;
+  let lastReason = '';
   for (let i = 1; i <= attempts; i++) {
-    const res = await ctx.request.get(`https://docs.google.com/document/d/${docId}/export?format=txt`);
-    if (res.ok()) {
-      // Docs' txt export opens with a BOM; normalise its CRLFs so assertions
-      // can be written the way the text actually reads.
-      return (await res.text()).replace(/^﻿/, '').replace(/\r\n/g, '\n');
+    try {
+      const res = await ctx.request.get(`https://docs.google.com/document/d/${docId}/export?format=txt`, {
+        timeout: 20_000,
+      });
+      if (res.ok()) {
+        // Docs' txt export opens with a BOM; normalise its CRLFs so assertions
+        // can be written the way the text actually reads.
+        return (await res.text()).replace(/^﻿/, '').replace(/\r\n/g, '\n');
+      }
+      // Polling the export too eagerly earns a 429 — Google's quota, not a
+      // product failure — so back off rather than fail the run.
+      if (res.status() !== 429) throw new Error(`HTTP ${res.status()}`);
+      lastReason = 'HTTP 429';
+    } catch (err) {
+      // A dropped connection here says nothing about the extension. Retrying
+      // it is the difference between a real result and a flaky suite.
+      lastReason = String(err).slice(0, 120);
     }
-    // Polling the export too eagerly earns a 429 — this is Google's quota, not
-    // a product failure, so back off rather than fail the run.
-    if (res.status() !== 429 || i === attempts) throw new Error(`export failed: HTTP ${res.status()}`);
+    if (i === attempts) throw new Error(`export failed after ${attempts} attempts: ${lastReason}`);
     await new Promise((s) => setTimeout(s, wait));
-    wait *= 2;
+    wait = Math.min(wait * 2, 16_000);
   }
 }
 

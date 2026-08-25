@@ -42,10 +42,10 @@ export class ContentEditableAdapter implements InsertionAdapter {
   }
 
   prepare(): InsertResult {
-    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor is no longer on the page.' };
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet findes ikke længere på siden.' };
     this.el.focus();
     const sel = document.getSelection();
-    if (!sel) return { ok: false, verified: true, reason: 'Could not access the page selection.' };
+    if (!sel) return { ok: false, verified: true, reason: 'Markeringen på siden kunne ikke læses.' };
     if (this.savedRange && this.el.contains(this.savedRange.startContainer)) {
       // A marked selection is never replaced — collapse to its END so the
       // answer lands below it (the inserter prefixes a newline).
@@ -70,7 +70,7 @@ export class ContentEditableAdapter implements InsertionAdapter {
   }
 
   insert(chunk: string): InsertResult {
-    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor disappeared mid-insertion.' };
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet forsvandt midt i indsættelsen.' };
     const intact = this.verifyIntact();
     if (!intact.ok) return intact;
     if (document.activeElement !== this.el && !this.el.contains(document.activeElement)) {
@@ -105,7 +105,7 @@ export class ContentEditableAdapter implements InsertionAdapter {
     const after = this.textLength();
     const grewEnough = after - before >= Math.max(1, chunk.trim().length > 0 ? chunk.trim().length - 2 : 0);
     if (!grewEnough && chunk.trim().length > 0) {
-      return { ok: false, verified: true, reason: 'This editor rejected the inserted text.' };
+      return { ok: false, verified: true, reason: 'Feltet afviste teksten.' };
     }
     this.inserted += after - before;
     this.insertedText += chunk;
@@ -113,7 +113,7 @@ export class ContentEditableAdapter implements InsertionAdapter {
   }
 
   verifyIntact(): InsertResult {
-    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor is no longer on the page.' };
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet findes ikke længere på siden.' };
     if (this.inserted <= 0) return { ok: true, verified: true };
     const span = (this.el.textContent ?? '').slice(this.startOffset, this.startOffset + this.inserted);
     if (normalize(span) === normalize(this.insertedText)) return { ok: true, verified: true };
@@ -131,7 +131,7 @@ export class ContentEditableAdapter implements InsertionAdapter {
       ok: false,
       verified: true,
       reason:
-        'The editor content changed while insertion was paused, so continuing or undoing is no longer safe. Remove or keep the inserted text manually.',
+        'Teksten i feltet blev ændret, mens indsættelsen var på pause — den kan derfor hverken fortsættes eller fortrydes sikkert. Remove or keep the inserted text manually.',
     };
   }
 
@@ -152,7 +152,7 @@ export class ContentEditableAdapter implements InsertionAdapter {
   }
 
   undoAll(): InsertResult {
-    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The editor is no longer on the page.' };
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet findes ikke længere på siden.' };
     if (this.inserted <= 0) return { ok: true, verified: true };
     // Deleting [start, start+inserted] is only safe while that range still
     // contains exactly our text — otherwise it would take the user's edits
@@ -160,9 +160,9 @@ export class ContentEditableAdapter implements InsertionAdapter {
     const intact = this.verifyIntact();
     if (!intact.ok) return intact;
     const range = this.rangeFromOffsets(this.startOffset, this.startOffset + this.inserted);
-    if (!range) return { ok: false, verified: true, reason: 'Could not locate the inserted text to remove it.' };
+    if (!range) return { ok: false, verified: true, reason: 'Den indsatte tekst kunne ikke findes igen og blev derfor ikke fjernet.' };
     const sel = document.getSelection();
-    if (!sel) return { ok: false, verified: true, reason: 'Could not access the page selection.' };
+    if (!sel) return { ok: false, verified: true, reason: 'Markeringen på siden kunne ikke læses.' };
     this.el.focus();
     sel.removeAllRanges();
     sel.addRange(range);
@@ -191,7 +191,7 @@ export class ContentEditableAdapter implements InsertionAdapter {
     return {
       ok: success,
       verified: true,
-      reason: success ? undefined : 'The editor did not allow removing the inserted text.',
+      reason: success ? undefined : 'Feltet tillod ikke at fjerne den indsatte tekst.',
     };
   }
 

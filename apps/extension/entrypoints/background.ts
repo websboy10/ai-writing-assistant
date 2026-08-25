@@ -221,7 +221,7 @@ export default defineBackground(() => {
     handleOneShot(msg)
       .then(sendResponse)
       .catch((err) =>
-        sendResponse({ ok: false, status: 0, error: err instanceof Error ? err.message : 'unknown error' }),
+        sendResponse({ ok: false, status: 0, error: err instanceof Error ? err.message : 'Der opstod en ukendt fejl.' }),
       );
     return true; // async response
   });
@@ -239,7 +239,7 @@ export default defineBackground(() => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: msg.email, password: msg.password }),
         }).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Backend unreachable — is it running? (pnpm dev:backend)' };
+        if (!res) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
         const data = (await res.json()) as Record<string, unknown>;
         if (!res.ok) {
           const m = (data.error_description ?? data.msg ?? data.error ?? `HTTP ${res.status}`) as string;
@@ -267,11 +267,11 @@ export default defineBackground(() => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: msg.email }),
         }).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Backend unreachable' };
+        if (!res) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
         const data = (await res.json()) as Record<string, unknown>;
         return res.ok
           ? { ok: true, status: 200, data }
-          : { ok: false, status: res.status, error: String(data.error ?? data.msg ?? 'Reset failed') };
+          : { ok: false, status: res.status, error: String(data.error ?? data.msg ?? 'Adgangskoden kunne ikke nulstilles. Prøv igen.') };
       }
       case 'api': {
         const res = await apiFetch(msg.path, {
@@ -279,7 +279,7 @@ export default defineBackground(() => {
           headers: msg.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
           body: msg.body !== undefined ? JSON.stringify(msg.body) : undefined,
         }).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Backend unreachable — is it running? (pnpm dev:backend)' };
+        if (!res) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           const err = (data as { error?: string })?.error ?? `HTTP ${res.status}`;
@@ -297,7 +297,7 @@ export default defineBackground(() => {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           body: form,
         }).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Backend unreachable' };
+        if (!res) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           return { ok: false, status: res.status, error: (data as { error?: string })?.error ?? `HTTP ${res.status}` };
@@ -313,7 +313,7 @@ export default defineBackground(() => {
         const urlRes = await fetch(`${BACKEND_URL}/api/auth/google-url?redirect=${encodeURIComponent(redirect)}`).catch(
           () => null,
         );
-        if (!urlRes?.ok) return { ok: false, status: 0, error: 'Backend unreachable' };
+        if (!urlRes?.ok) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
         const { url } = (await urlRes.json()) as { url: string };
         let responseUrl: string | undefined;
         try {
@@ -331,7 +331,7 @@ export default defineBackground(() => {
         const access_token = params.get('access_token');
         const refresh_token = params.get('refresh_token');
         if (!access_token || !refresh_token) {
-          return { ok: false, status: 400, error: 'Google sign-in did not return a session. Use email/password instead.' };
+          return { ok: false, status: 400, error: 'Google-login gav ingen session. Log ind med e-mail og adgangskode i stedet.' };
         }
         const userRes = await fetch(`${BACKEND_URL}/api/usage`, {
           headers: { Authorization: `Bearer ${access_token}` },

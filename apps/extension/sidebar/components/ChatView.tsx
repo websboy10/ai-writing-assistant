@@ -11,7 +11,10 @@ import { ContextChips } from './ContextPanel';
 // overlay must render instantly. The serif is the assistant's voice (see
 // style.css — "Galley" design system).
 const SERIF = { fontFamily: 'Charter, Georgia, Cambria, serif' };
-const MONO = { fontFamily: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace" };
+
+/** In flight — as opposed to finished, stopped or failed, which are all states
+ *  the user is free to start a new run from. */
+const isRunActive = (state?: string) => state === 'writing' || state === 'paused';
 
 export function ChatView() {
   const s = useStore();
@@ -85,10 +88,10 @@ export function ChatView() {
       >
         {s.messages.length === 0 && (
           <div className="mt-10 space-y-2 text-center">
-            <p className="text-[17px] text-graphite" style={SERIF}>
+            <p className="text-display text-graphite" style={SERIF}>
               En blank side — klar når du er.
             </p>
-            <p className="text-[12px] text-graphite">
+            <p className="text-ui text-graphite">
               Spørg om hvad som helst. Træk filer til knappen i kanten, eller markér tekst på siden.
             </p>
           </div>
@@ -110,10 +113,15 @@ export function ChatView() {
             generate-into-the-panel-then-Insert two-step is gone on this
             path. "Brug som kontekst" is untouched (D-04b). Hidden while a
             run is active so a second run can't be started on top of it. */}
-        {liveSelection && !s.autoRun && (
+        {liveSelection && !isRunActive(s.autoRun?.state) && (
           <div className="space-y-1.5 rounded-xl border border-hairline p-2.5">
-            <p className="awa-eyebrow !text-ink">Du har markeret tekst · {liveSelection.length.toLocaleString('da-DK')} tegn</p>
-            <div className="flex flex-wrap gap-1.5 text-[12px]">
+            {/* A sentence about the user's own text, not a machine readout, so
+                it stays sentence case throughout — only the figure is tabular,
+                so it doesn't jitter the words as the selection grows. */}
+            <p className="awa-note !text-ink">
+              Du har markeret tekst · <span className="awa-num">{liveSelection.length.toLocaleString('da-DK')}</span> tegn
+            </p>
+            <div className="flex flex-wrap gap-1.5 text-ui">
               {!selExpanded ? (
                 <>
                   <button
@@ -156,7 +164,7 @@ export function ChatView() {
                 </>
               )}
             </div>
-            <p className="text-[11px] leading-snug text-graphite">
+            <p className="awa-note">
               <b>Besvar:</b> svarene skrives direkte ind i markeringen, lige under hvert spørgsmål. <b>Kontekst:</b> teksten
               vedhæftes som baggrundsviden.
             </p>
@@ -180,7 +188,7 @@ export function ChatView() {
             <button
               key={k}
               onClick={() => s.set({ prefs: { ...s.prefs, length: k } })}
-              className={`rounded-full px-2.5 py-0.5 text-[11.5px] transition-colors ${
+              className={`rounded-full px-2.5 py-0.5 text-aside transition-colors ${
                 (s.prefs.length ?? 'same') === k ? 'bg-ink text-paper' : 'border border-hairline hover:border-ink'
               }`}
             >
@@ -221,7 +229,7 @@ export function ChatView() {
             </button>
           )}
         </div>
-        <div className="flex justify-between gap-2 text-[11px] text-graphite">
+        <div className="flex justify-between gap-2 text-aside text-graphite">
           <button onClick={() => s.newConversation()} className="shrink-0 underline-offset-2 hover:text-ink hover:underline">
             + Ny samtale
           </button>
@@ -242,13 +250,18 @@ function AutonomousBar() {
   const s = useStore();
   const [expanded, setExpanded] = useState(false);
 
-  if (s.autoRun) return null;
+  // Hidden only while a run is genuinely in flight, so a second run cannot be
+  // started on top of the first. Once it has finished it must come back:
+  // hiding it until "Skjul" is pressed meant the panel's primary action simply
+  // vanished after every successful run, with nothing on screen saying why or
+  // how to get it back.
+  if (isRunActive(s.autoRun?.state)) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="rounded-full border border-hairline px-3 py-1 text-[12px] hover:border-ink"
+        className="rounded-full border border-hairline px-3 py-1 text-ui hover:border-ink"
         title="Finder hvert spørgsmål i det felt eller dokument, du sidst klikkede i, og skriver et svar under hvert af dem"
       >
         Besvar alle spørgsmål
@@ -260,7 +273,7 @@ function AutonomousBar() {
               setExpanded(false);
               void autonomous.run('document', 'instant');
             }}
-            className="rounded-full bg-ink px-3 py-1 text-[12px] text-paper hover:opacity-85"
+            className="rounded-full bg-ink px-3 py-1 text-ui text-paper hover:opacity-85"
             title="Skriver alle svar på én gang"
           >
             Straks
@@ -270,7 +283,7 @@ function AutonomousBar() {
               setExpanded(false);
               void autonomous.run('document', 'progressive');
             }}
-            className="rounded-full border border-hairline px-3 py-1 text-[12px] hover:border-ink"
+            className="rounded-full border border-hairline px-3 py-1 text-ui hover:border-ink"
             title="Skriver bogstav for bogstav, ét spørgsmål ad gangen, fra toppen af dokumentet"
           >
             Langsomt
@@ -312,7 +325,7 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
   const [copied, setCopied] = useState(false);
 
   if (m.role === 'user') {
-    return <div className="ml-10 whitespace-pre-wrap rounded-xl bg-wash px-3 py-2 text-[13px]">{m.content}</div>;
+    return <div className="ml-10 whitespace-pre-wrap rounded-xl bg-wash px-3 py-2 text-body">{m.content}</div>;
   }
 
   function saveEdit() {
@@ -336,10 +349,10 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={Math.min(14, Math.max(4, draft.split('\n').length + 1))}
-            className="awa-edit w-full rounded-xl border border-ink bg-paper px-3 py-2 text-[14.5px] leading-relaxed outline-none"
+            className="awa-edit w-full rounded-xl border border-ink bg-paper px-3 py-2 text-draft leading-relaxed outline-none"
             style={SERIF}
           />
-          <div className="flex gap-1.5 text-[12px]">
+          <div className="flex gap-1.5 text-ui">
             <button onClick={saveEdit} className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85">
               Gem
             </button>
@@ -349,13 +362,13 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
           </div>
         </div>
       ) : (
-        <div className="whitespace-pre-wrap border-l-2 border-hairline pl-3 text-[14.5px] leading-relaxed" style={SERIF}>
+        <div className="whitespace-pre-wrap border-l-2 border-hairline pl-3 text-draft leading-relaxed" style={SERIF}>
           {m.content}
           {m.streaming && <span className="awa-caret ml-0.5" />}
         </div>
       )}
       {!m.streaming && m.content && !editing && (
-        <div className="flex flex-wrap gap-1.5 pl-3 text-[12px]">
+        <div className="flex flex-wrap gap-1.5 pl-3 text-ui">
           <button
             onClick={() => inserter.start(m.content, 'instant')}
             className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
@@ -405,12 +418,12 @@ function InsertBar() {
         </span>
         <span className="awa-eyebrow">{pct}%</span>
       </div>
-      {st.detail && <div className="text-[12px] text-graphite">{st.detail}</div>}
+      {st.detail && <div className="text-ui text-graphite">{st.detail}</div>}
       {/* The galley line: ink advancing across paper. */}
       <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-wash">
         <div className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
       </div>
-      <div className="flex items-center gap-1.5 text-[11px]" style={MONO}>
+      <div className="flex items-center gap-1.5 text-ui">
         {st.state === 'running' && (
           <button onClick={() => inserter.pause()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
             ⏸ Pause
@@ -435,7 +448,7 @@ function InsertBar() {
           Skjul
         </button>
       </div>
-      <div className="truncate text-[11px] text-graphite">{st.targetLabel}</div>
+      <div className="truncate text-aside text-graphite">{st.targetLabel}</div>
     </div>
   );
 }
@@ -468,16 +481,16 @@ function AutoRunBar() {
         </span>
       </div>
       {st.detail === 'user-typing' && (
-        <div className="text-[12px] text-graphite">På pause — du begyndte at skrive. Fortsæt når du er klar.</div>
+        <div className="text-ui text-graphite">På pause — du begyndte at skrive. Fortsæt når du er klar.</div>
       )}
-      {st.placement === 'block' && st.degradedReason && <div className="text-[12px] text-graphite">{st.degradedReason}</div>}
+      {st.placement === 'block' && st.degradedReason && <div className="text-ui text-graphite">{st.degradedReason}</div>}
       {/* The galley line: ink advancing across paper. No countdown, no ETA — a
           backgrounded tab throttles Langsomt's timers, so any estimate here
           would just be a lie (D-14). */}
       <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-wash">
         <div className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
       </div>
-      <div className="flex items-center gap-1.5 text-[11px]" style={MONO}>
+      <div className="flex items-center gap-1.5 text-ui">
         {st.state === 'writing' && (
           <button onClick={() => autonomous.pause()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
             ⏸ Pause
@@ -502,9 +515,9 @@ function AutoRunBar() {
           Skjul
         </button>
       </div>
-      <div className="truncate text-[11px] text-graphite">{st.targetLabel}</div>
+      <div className="truncate text-aside text-graphite">{st.targetLabel}</div>
       {st.ungrounded.length > 0 && (
-        <div className="space-y-1 border-t border-hairline pt-2 text-[11px]">
+        <div className="space-y-1 border-t border-hairline pt-2 text-aside">
           <p className="awa-eyebrow !text-ink">Uden grundlag i dine kilder</p>
           <p className="text-graphite">
             {st.ungrounded.length} {st.ungrounded.length === 1 ? 'spørgsmål blev besvaret' : 'spørgsmål blev besvaret'} alligevel,
@@ -518,7 +531,7 @@ function AutoRunBar() {
         </div>
       )}
       {st.unplaced.length > 0 && (
-        <div className="space-y-1 border-t border-hairline pt-2 text-[11px]">
+        <div className="space-y-1 border-t border-hairline pt-2 text-aside">
           <p className="awa-eyebrow !text-ink">Kunne ikke placeres · {st.unplaced.length}</p>
           <ul className="list-disc space-y-0.5 pl-4 text-graphite">
             {st.unplaced.map((u, i) => (

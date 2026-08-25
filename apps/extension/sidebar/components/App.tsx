@@ -141,7 +141,7 @@ export function App() {
 
       {/* Right-attached modal: flush right edge, rounded left corners */}
       {open && (
-        <aside className="fixed right-0 top-1/2 z-[2147483646] flex h-[min(86vh,700px)] w-[400px] max-w-[92vw] -translate-y-1/2 flex-col overflow-hidden rounded-l-[26px] border border-r-0 border-hairline bg-paper/95 text-[14px] text-ink shadow-2xl shadow-black/30 backdrop-blur-xl">
+        <aside className="fixed right-0 top-1/2 z-[2147483646] flex h-[min(86vh,700px)] w-[400px] max-w-[92vw] -translate-y-1/2 flex-col overflow-hidden rounded-l-[26px] border border-r-0 border-hairline bg-paper/95 text-body text-ink shadow-2xl shadow-black/30 backdrop-blur-xl">
           {/* The ✕ and tabs are shrink-0; the chips in the middle give way
               instead — the close button must never be pushed off the edge. */}
           <header className="flex items-center gap-1.5 border-b border-hairline py-3 pl-3 pr-2">
@@ -224,11 +224,15 @@ function TabButton({
   title?: string;
 }) {
   return (
+    // Navigation, not machinery: these are the panel's three main destinations,
+    // and setting them in tracked uppercase mono made the top of a writing tool
+    // read like a terminal. Sentence case, with weight and inversion carrying
+    // the state — the same monochrome rule the rest of the system follows.
     <button
       onClick={onClick}
       title={title}
-      className={`awa-eyebrow whitespace-nowrap rounded-full px-2 py-1 transition-colors ${
-        active ? '!text-paper bg-ink' : 'hover:bg-wash hover:!text-ink'
+      className={`whitespace-nowrap rounded-full px-2.5 py-1 text-ui transition-colors ${
+        active ? 'bg-ink font-medium text-paper' : 'text-graphite hover:bg-wash hover:text-ink'
       }`}
     >
       {label}

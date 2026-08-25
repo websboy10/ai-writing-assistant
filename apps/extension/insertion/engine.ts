@@ -76,7 +76,7 @@ export class InsertionSession {
     const check = this.adapter.verifyIntact?.();
     if (check && !check.ok) {
       this.detachGuard();
-      return this.fail(check.reason ?? 'The text changed while paused — resuming is no longer safe.');
+      return this.fail(check.reason ?? 'Teksten blev ændret undervejs — indsættelsen kan ikke fortsættes sikkert.');
     }
     this.setState('running');
     this.tick();

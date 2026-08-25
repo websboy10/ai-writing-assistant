@@ -63,7 +63,7 @@ export function AuthView() {
       <p className="awa-eyebrow">
         {mode === 'signin' ? 'Log ind' : mode === 'signup' ? 'Ny konto' : 'Nulstil adgangskode'}
       </p>
-      <h2 className="font-draft text-[22px] leading-snug" style={{ fontFamily: 'Charter, Georgia, serif' }}>
+      <h2 className="font-draft text-title leading-snug" style={{ fontFamily: 'Charter, Georgia, serif' }}>
         {mode === 'signin'
           ? 'Fortsæt, hvor du slap.'
           : mode === 'signup'
@@ -110,7 +110,7 @@ export function AuthView() {
         </button>
       )}
 
-      <div className="flex justify-between text-[12px] text-graphite">
+      <div className="flex justify-between text-ui text-graphite">
         {mode === 'signin' ? (
           <>
             <button className="underline-offset-2 hover:text-ink hover:underline" onClick={() => setMode('signup')}>
@@ -135,7 +135,7 @@ export function Banner({ kind, text }: { kind: 'error' | 'info'; text: string })
   // notices stay quiet in graphite. No hue anywhere.
   return (
     <div
-      className={`rounded-xl px-3 py-2 text-[12.5px] ${
+      className={`rounded-xl px-3 py-2 text-ui ${
         kind === 'error'
           ? 'border-l-2 border-ink bg-wash font-medium text-ink'
           : 'border-l-2 border-hairline bg-wash text-graphite'

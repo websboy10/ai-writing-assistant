@@ -50,8 +50,8 @@ export function ContextChips() {
               title={`${c.name} · ${c.chars.toLocaleString('da-DK')} tegn`}
               className="relative flex max-w-[124px] items-center gap-1.5 rounded-lg border border-hairline bg-wash py-1.5 pl-2 pr-2.5"
             >
-              <span className="text-[13px] leading-none">{iconFor(c)}</span>
-              <span className="min-w-0 flex-1 truncate text-[10.5px] leading-tight">{c.name}</span>
+              <span className="text-body leading-none">{iconFor(c)}</span>
+              <span className="min-w-0 flex-1 truncate text-aside leading-tight">{c.name}</span>
               <button
                 onClick={() => s.removeContext(c.id)}
                 title={`Fjern ${c.name}`}
@@ -65,13 +65,13 @@ export function ContextChips() {
       )}
 
       {s.contextBusy && (
-        <div className="flex items-center gap-2 text-[12px] text-graphite">
+        <div className="flex items-center gap-2 text-ui text-graphite">
           <span className="h-3 w-3 animate-spin rounded-full border-2 border-ink border-t-transparent" />
           {s.contextBusy}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
+      <div className="flex flex-wrap items-center gap-1.5 text-ui">
         <button
           onClick={() => fileInput.current?.click()}
           className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink"
@@ -86,7 +86,7 @@ export function ContextChips() {
         >
           + Skærmbillede
         </button>
-        <span className="self-center text-[11px] text-graphite">eller træk filer til knappen i kanten</span>
+        <span className="self-center text-aside text-graphite">eller træk filer til knappen i kanten</span>
       </div>
 
       <input

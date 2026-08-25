@@ -90,13 +90,13 @@ export function HistoryView() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Søg i titler og beskeder…"
-          className="w-full rounded-xl border border-hairline bg-paper px-3 py-1.5 text-[13px] outline-none placeholder:text-graphite focus:border-ink"
+          className="w-full rounded-xl border border-hairline bg-paper px-3 py-1.5 text-body outline-none placeholder:text-graphite focus:border-ink"
         />
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3">
         {s.error && <Banner kind="error" text={s.error} />}
         {s.history.length === 0 && (
-          <p className="mt-8 text-center text-[13px] text-graphite">
+          <p className="mt-8 text-center text-body text-graphite">
             {query ? `Intet matcher "${query}".` : 'Ingen samtaler endnu. De vises her, når du chatter.'}
           </p>
         )}
@@ -104,11 +104,11 @@ export function HistoryView() {
           <div key={h.id} className="group rounded-xl border border-hairline px-3 py-2 hover:border-ink">
             <button onClick={() => void open(h.id)} className="block w-full text-left" disabled={busy === h.id}>
               <div className="truncate font-medium">{h.title || 'Uden titel'}</div>
-              <div className="text-[11.5px] text-graphite">
+              <div className="text-aside text-graphite">
                 {new Date(h.updatedAt).toLocaleString('da-DK')} · {h.messageCount} beskeder
               </div>
             </button>
-            <div className="mt-1 flex gap-2 text-[12px] opacity-0 transition group-hover:opacity-100">
+            <div className="mt-1 flex gap-2 text-ui opacity-0 transition group-hover:opacity-100">
               <button
                 onClick={() => void exportMd(h.id, h.title)}
                 disabled={busy === h.id}

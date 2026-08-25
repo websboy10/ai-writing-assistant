@@ -32,7 +32,7 @@ export class PlainAdapter implements InsertionAdapter {
   }
 
   prepare(): InsertResult {
-    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The target field is no longer on the page.' };
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet findes ikke længere på siden.' };
     this.el.focus();
     // A marked selection is never replaced — the answer lands BELOW it, so
     // the caret goes to the selection's end (the inserter prefixes a newline).
@@ -47,7 +47,7 @@ export class PlainAdapter implements InsertionAdapter {
   }
 
   insert(chunk: string): InsertResult {
-    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The target field disappeared mid-insertion.' };
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet forsvandt midt i indsættelsen.' };
     const loc = this.locateInserted();
     if (!loc.ok) return { ok: false, verified: true, reason: loc.reason };
     const v = this.el.value;
@@ -57,20 +57,20 @@ export class PlainAdapter implements InsertionAdapter {
     // Post-write verification (INST-11): read back what we wrote.
     const readBack = this.el.value.slice(pos, pos + chunk.length);
     if (readBack !== chunk) {
-      return { ok: false, verified: true, reason: 'The field rejected the inserted text (it was reverted).' };
+      return { ok: false, verified: true, reason: 'Feltet afviste teksten — den blev rullet tilbage.' };
     }
     this.insertedText += chunk;
     return { ok: true, verified: true };
   }
 
   verifyIntact(): InsertResult {
-    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The target field is no longer on the page.' };
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet findes ikke længere på siden.' };
     const loc = this.locateInserted();
     return loc.ok ? { ok: true, verified: true } : { ok: false, verified: true, reason: loc.reason };
   }
 
   undoAll(): InsertResult {
-    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'The target field is no longer on the page.' };
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet findes ikke længere på siden.' };
     if (!this.insertedText) return { ok: true, verified: true };
     const loc = this.locateInserted();
     if (!loc.ok) {
@@ -83,7 +83,7 @@ export class PlainAdapter implements InsertionAdapter {
     this.setValue(next, this.insertPos);
     const ok = this.el.value === next;
     if (ok) this.insertedText = '';
-    return { ok, verified: true, reason: ok ? undefined : 'The field did not accept the undo.' };
+    return { ok, verified: true, reason: ok ? undefined : 'Feltet tog ikke imod fortrydelsen.' };
   }
 
   /**
@@ -105,7 +105,7 @@ export class PlainAdapter implements InsertionAdapter {
     return {
       ok: false,
       reason:
-        'The field changed while insertion was paused and the inserted text could not be found again. Remove or keep it manually.',
+        'Feltet blev ændret, mens indsættelsen var på pause, og den indsatte tekst kunne ikke findes igen. Remove or keep it manually.',
     };
   }
 

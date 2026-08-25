@@ -235,12 +235,12 @@ export async function findAndPlaceCursor(
 ): Promise<{ ok: boolean; reason?: string }> {
   const eventTarget = gdocsEventTarget();
   if (!eventTarget) {
-    return { ok: false, reason: 'Google Docs input target not found — is this a Docs tab with a document open?' };
+    return { ok: false, reason: 'Google Docs’ skrivefelt blev ikke fundet — er dokumentet åbent i denne fane?' };
   }
 
   const shortQuery = firstLine(questionText).slice(0, FIND_QUERY_SHORT_LEN);
   if (!shortQuery.trim()) {
-    return { ok: false, reason: 'Question text was empty after truncating to its first line.' };
+    return { ok: false, reason: 'Spørgsmålet var tomt efter første linje og kunne derfor ikke findes i dokumentet.' };
   }
 
   let attempt = await attemptFind(eventTarget, shortQuery, occurrence);

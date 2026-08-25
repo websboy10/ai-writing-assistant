@@ -12,7 +12,7 @@ export async function call(msg: OneShotRequest): Promise<OneShotResponse> {
   // view where every action fails (WR-08). Only authed calls — a wrong
   // password on login is also a 401 and must not be relabelled.
   if (!res.ok && res.status === 401 && (msg.kind === 'api' || msg.kind === 'upload')) {
-    useStore.getState().set({ email: null, view: 'auth', error: 'Your session expired — sign in again.' });
+    useStore.getState().set({ email: null, view: 'auth', error: 'Din session er udløbet. Log ind igen for at fortsætte.' });
   }
   return res;
 }

@@ -34,10 +34,10 @@ export function PaywallView() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-8 text-center">
       <p className="awa-eyebrow">Prøveperioden er slut</p>
-      <h2 className="text-[22px] leading-snug" style={SERIF}>
+      <h2 className="text-title leading-snug" style={SERIF}>
         Skriv videre for 50 kr. om måneden.
       </h2>
-      <ul className="space-y-1.5 text-[13px] text-graphite">
+      <ul className="space-y-1.5 text-body text-graphite">
         <li>Ubegrænset skrivehjælp — hver dag</li>
         <li>Læser dine filer: PDF, Word, billeder, scanninger</li>
         <li>Indsætter direkte i dine dokumenter, også Google Docs</li>
@@ -45,17 +45,17 @@ export function PaywallView() {
       <button
         onClick={() => void open('checkout')}
         disabled={busy}
-        className="mt-1 rounded-full bg-ink px-6 py-2.5 text-[15px] font-medium text-paper hover:opacity-85 disabled:opacity-40"
+        className="mt-1 rounded-full bg-ink px-6 py-2.5 text-lead font-medium text-paper hover:opacity-85 disabled:opacity-40"
       >
         {busy ? 'Åbner…' : 'Opgrader — 50 kr./md.'}
       </button>
       {s.billing?.subscribed && (
-        <button onClick={() => void open('portal')} className="text-[12.5px] underline underline-offset-2 hover:text-ink">
+        <button onClick={() => void open('portal')} className="text-ui underline underline-offset-2 hover:text-ink">
           Administrér abonnement
         </button>
       )}
-      {err && <p className="text-[12.5px] font-medium text-ink">{err}</p>}
-      <p className="max-w-[260px] text-[11.5px] leading-relaxed text-graphite">
+      {err && <p className="text-ui font-medium text-ink">{err}</p>}
+      <p className="max-w-[260px] text-aside leading-relaxed text-graphite">
         Betalingen håndteres sikkert af Stripe. Ingen binding — opsig når som helst. Når betalingen er gennemført,
         låser panelet op af sig selv.
       </p>
