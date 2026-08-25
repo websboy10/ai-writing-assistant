@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { MAX_CONTEXT_ITEMS, type ParsedFile } from '@awa/shared';
 import { call } from '../api';
 import { addFilesToContext, newContextId as newId } from '../ingest';
@@ -13,6 +13,13 @@ import { useStore } from '../store';
 export function ContextChips() {
   const s = useStore();
   const fileInput = useRef<HTMLInputElement>(null);
+  // Which attachment is open for reading. Attaching a file was previously an
+  // act of faith: the chip said "Rapport.pdf · 12.480 tegn" and nothing could
+  // show you WHICH 12.480 characters. That matters most exactly where it is
+  // least visible — a screenshot or a scanned PDF goes through OCR, and a
+  // misread column of figures looks identical to a correct one from outside.
+  const [reading, setReading] = useState<string | null>(null);
+  const open = s.context.find((c) => c.id === reading) ?? null;
 
   async function screenshot() {
     if (s.context.length >= MAX_CONTEXT_ITEMS) {
@@ -62,6 +69,26 @@ export function ContextChips() {
     }
   }
 
+  if (open) {
+    return (
+      <div className="space-y-1.5 rounded-xl border border-hairline p-2.5">
+        <div className="flex items-baseline gap-2">
+          <p className="min-w-0 flex-1 truncate text-ui font-medium text-ink">{open.name}</p>
+          <button onClick={() => setReading(null)} className="shrink-0 text-ui text-graphite hover:text-ink">
+            Luk
+          </button>
+        </div>
+        <p className="awa-note">
+          <span className="awa-num">{open.chars.toLocaleString('da-DK')}</span> tegn blev hentet ud
+          {open.truncated ? ' (filen var længere og blev forkortet)' : ''}. Det er præcis denne tekst, assistenten får.
+        </p>
+        <pre className="max-h-[180px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-wash p-2 text-aside leading-relaxed">
+          {open.text}
+        </pre>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1.5">
       {s.context.length > 0 && (
@@ -69,11 +96,16 @@ export function ContextChips() {
           {s.context.map((c) => (
             <div
               key={c.id}
-              title={`${c.name} · ${c.chars.toLocaleString('da-DK')} tegn`}
               className="relative flex max-w-[124px] items-center gap-1.5 rounded-lg border border-hairline bg-wash py-1.5 pl-2 pr-2.5"
             >
-              <span className="text-body leading-none">{iconFor(c)}</span>
-              <span className="min-w-0 flex-1 truncate text-aside leading-tight">{c.name}</span>
+              <button
+                onClick={() => setReading(c.id)}
+                title={`${c.name} · ${c.chars.toLocaleString('da-DK')} tegn — klik for at læse hvad der blev hentet ud`}
+                className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-ink"
+              >
+                <span className="text-body leading-none">{iconFor(c)}</span>
+                <span className="min-w-0 flex-1 truncate text-aside leading-tight">{c.name}</span>
+              </button>
               <button
                 onClick={() => s.removeContext(c.id)}
                 title={`Fjern ${c.name}`}
