@@ -9,7 +9,8 @@
     "verify": "node scripts/verify.mjs",
     "verify:autonomous": "node scripts/verify-autonomous.mjs",
     "verify:autonomous-api": "node scripts/verify-autonomous-api.mjs",
-    "test": "pnpm --filter backend test"
+    "test": "pnpm --filter backend test && pnpm --filter extension test",
+    "typecheck": "pnpm --filter extension typecheck"
   },
   "devDependencies": {
     "playwright": "^1.49.0",
