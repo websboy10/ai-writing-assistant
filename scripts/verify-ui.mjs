@@ -52,6 +52,19 @@ await ctx.route('**/api/**', async (route) => {
   await route.continue();
 });
 
+// Leftover templates from an earlier run change what the panel renders, so
+// each run starts from the same place.
+{
+  const login = await ctx.request.post(`${EXPECTED_BACKEND}/api/auth/login`, {
+    data: { email: EMAIL, password: PASSWORD },
+  });
+  const token = (await login.json()).access_token;
+  const headers = { authorization: `Bearer ${token}` };
+  const existing = await (await ctx.request.get(`${EXPECTED_BACKEND}/api/templates`, { headers })).json();
+  for (const t of existing) await ctx.request.delete(`${EXPECTED_BACKEND}/api/templates/${t.id}`, { headers });
+  if (existing.length) console.log(`  (cleared ${existing.length} leftover template(s))`);
+}
+
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 const host = page.locator('awa-sidebar');
 const shot = (n) => page.screenshot({ path: resolve(shotsDir, `ui-${n}.png`) }).catch(() => {});
@@ -89,7 +102,7 @@ try {
   r.ok('empty state points at the new context buttons', empty.includes('Denne side'));
 
   // ---- all eight operations are reachable ---------------------------------
-  const opSelect = host.locator('select').first();
+  const opSelect = host.locator('select[title*="Hvad assistenten skal"]');
   r.ok('the Handling picker exists', (await opSelect.count()) > 0);
   const opValues = await opSelect.locator('option').evaluateAll((os) => os.map((o) => o.value));
   const EXPECTED_OPS = ['chat', 'summarize', 'rewrite', 'expand', 'simplify', 'explain', 'translate', 'continue'];
@@ -98,7 +111,10 @@ try {
     EXPECTED_OPS.every((o) => opValues.includes(o)),
     opValues.join(','),
   );
-  const toneValues = await host.locator('select').nth(1).locator('option').evaluateAll((os) => os.map((o) => o.value));
+  const toneValues = await host
+    .locator('select[title*="Tonefaldet"]')
+    .locator('option')
+    .evaluateAll((os) => os.map((o) => o.value));
   r.ok('tone is settable', toneValues.includes('formal') && toneValues.includes('casual'), toneValues.join(','));
 
   // ---- an operation without marked text says so ---------------------------
@@ -184,6 +200,30 @@ try {
   await page.waitForTimeout(300);
   const after = await composer.evaluate((el) => el.getBoundingClientRect().height);
   r.ok('the composer grows with what is typed', after > before + 10, `${before} -> ${after}`);
+
+  // ---- saved instructions round-trip --------------------------------------
+  const TPL = `Hold det under 150 ord, tredjeperson. ${Date.now()}`;
+  const TPL_NAME = `Husregler ${Date.now()}`;
+  await composer.fill(TPL);
+  await page.waitForTimeout(300);
+  await host.getByRole('button', { name: 'Gem som skabelon' }).click();
+  const nameField = host.locator('input[placeholder="Navn på skabelonen…"]');
+  await nameField.fill(TPL_NAME);
+  await host.getByRole('button', { name: 'Gem', exact: true }).click();
+  await page.waitForTimeout(2500);
+  r.ok('a template can be saved', (await panelText()).includes('er gemt'));
+
+  // Load it back from empty, which is the whole point of saving it.
+  await composer.fill('');
+  await page.waitForTimeout(300);
+  const tplSelect = host.locator('select[title*="gemt instruktion"]');
+  await tplSelect.selectOption({ label: TPL_NAME });
+  await page.waitForTimeout(500);
+  r.ok('choosing a saved template fills the composer', (await composer.inputValue()) === TPL);
+
+  await host.locator('button[title="Slet den valgte skabelon"]').click();
+  await page.waitForTimeout(2000);
+  r.ok('a template can be deleted', (await panelText()).includes('er slettet'));
 
   // ---- an unsent instruction survives collapsing the panel ----------------
   await composer.fill('en halvskrevet instruktion');

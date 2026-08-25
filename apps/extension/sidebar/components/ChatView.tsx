@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { OPERATION_LABELS, type PromptOperation } from '@awa/shared';
+import { OPERATION_LABELS, type PromptOperation, type PromptTemplate } from '@awa/shared';
+import { call } from '../api';
 import { autonomous } from '../autonomous';
 import { sendChat, stopGeneration } from '../chat';
 import { newContextId } from '../ingest';
@@ -255,6 +256,8 @@ export function ChatView() {
 
         <ContextChips />
 
+        <TemplateBar />
+
         <AutonomousBar />
 
         {/*
@@ -399,6 +402,131 @@ function AutonomousBar() {
             Langsomt
           </button>
         </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Saved instructions — the last feature that existed entirely on the server.
+ *
+ * A table, an RLS policy, a migration and three endpoints, all written in
+ * Danish and all finished, with nothing in the extension that ever called
+ * them. For the users this product was built for — an HR team writing forty
+ * performance reviews to the same house rules — retyping "hold det under 150
+ * ord, tredjeperson, ingen superlativer" forty times is the actual work.
+ *
+ * Hidden until it can do something: someone who has never saved a template and
+ * has not typed anything sees nothing here at all. The panel earns its rows.
+ */
+function TemplateBar() {
+  const s = useStore();
+  const [items, setItems] = useState<PromptTemplate[]>([]);
+  const [chosen, setChosen] = useState('');
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    void (async () => {
+      const res = await call({ kind: 'api', path: '/api/templates' });
+      if (res.ok) setItems(res.data as PromptTemplate[]);
+    })();
+  }, []);
+
+  async function save() {
+    const trimmed = name.trim();
+    const instructions = s.draft.trim();
+    if (!trimmed || !instructions) return;
+    const res = await call({
+      kind: 'api',
+      path: '/api/templates',
+      method: 'POST',
+      body: { name: trimmed, instructions },
+    });
+    if (!res.ok) {
+      s.set({ error: res.error ?? 'Skabelonen kunne ikke gemmes.' });
+      return;
+    }
+    setItems([res.data as PromptTemplate, ...items]);
+    setNaming(false);
+    setName('');
+    s.set({ notice: `Skabelonen "${trimmed}" er gemt.` });
+  }
+
+  async function remove() {
+    const t = items.find((i) => i.id === chosen);
+    if (!t) return;
+    const res = await call({ kind: 'api', path: `/api/templates/${t.id}`, method: 'DELETE' });
+    if (!res.ok) {
+      s.set({ error: res.error ?? 'Skabelonen kunne ikke slettes.' });
+      return;
+    }
+    setItems(items.filter((i) => i.id !== t.id));
+    setChosen('');
+    s.set({ notice: `Skabelonen "${t.name}" er slettet.` });
+  }
+
+  if (!items.length && !s.draft.trim() && !naming) return null;
+
+  if (naming) {
+    return (
+      <div className="flex items-center gap-1.5 text-ui">
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void save();
+            if (e.key === 'Escape') setNaming(false);
+          }}
+          maxLength={60}
+          placeholder="Navn på skabelonen…"
+          className="min-w-0 flex-1 rounded-full border border-hairline bg-paper px-2.5 py-1 outline-none placeholder:text-graphite focus:border-ink"
+        />
+        <button onClick={() => void save()} disabled={!name.trim()} className="rounded-full bg-ink px-3 py-1 text-paper disabled:opacity-40">
+          Gem
+        </button>
+        <button onClick={() => setNaming(false)} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
+          Annullér
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-ui">
+      {items.length > 0 && (
+        <select
+          value={chosen}
+          title="Hent en gemt instruktion ind i skrivefeltet"
+          onChange={(e) => {
+            setChosen(e.target.value);
+            const t = items.find((i) => i.id === e.target.value);
+            if (t) s.set({ draft: t.instructions });
+          }}
+          className="max-w-[180px] rounded-full border border-hairline bg-paper px-2 py-0.5 text-aside text-ink outline-none hover:border-ink focus:border-ink"
+        >
+          <option value="">Gemte instruktioner…</option>
+          {items.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      )}
+      {chosen && (
+        <button onClick={() => void remove()} title="Slet den valgte skabelon" className="px-1 text-graphite hover:text-ink">
+          ✕
+        </button>
+      )}
+      {s.draft.trim() && (
+        <button
+          onClick={() => setNaming(true)}
+          title="Gem det, der står i skrivefeltet, så du kan hente det frem igen"
+          className="rounded-full border border-hairline px-2.5 py-1 text-aside hover:border-ink"
+        >
+          Gem som skabelon
+        </button>
       )}
     </div>
   );

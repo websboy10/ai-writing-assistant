@@ -84,6 +84,13 @@ export interface ConversationSummary {
   messageCount: number;
 }
 
+/** A reusable instruction, saved per user. GET/POST/DELETE /api/templates */
+export interface PromptTemplate {
+  id: string;
+  name: string;
+  instructions: string;
+}
+
 export interface UsageInfo {
   used: number;
   limit: number;
