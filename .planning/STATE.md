@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Google Docs WORKS end-to-end on the real product path — verified against a real document and read back from it. See 07-DOCS-VERIFIED-2026-08-18.md.
-last_updated: "2026-08-18T12:00:00.000Z"
-last_activity: 2026-08-18 — Docs fixed and verified: whitespace, F-1 marking, autonomous placement + undo, Find selector; backend redeployed (autonomous route was 404 in prod)
+stopped_at: Production-readiness pass 2026-08-25 — Docs 27/27, an unauthenticated paywall bypass closed, seven unreachable writing operations surfaced. Two operator actions remain (OpenRouter credit, SUPABASE_SERVICE_ROLE_KEY).
+last_updated: "2026-08-25T21:00:00.000Z"
+last_activity: 2026-08-25 — markdown no longer lands as asterisks in the document; max_tokens made the good models reachable; auth speaks Danish; operations/tone/templates surfaced; SECURITY DEFINER RPCs locked down; Docs 27/27
 progress:
   total_phases: 7
   completed_phases: 0
@@ -43,26 +43,33 @@ verification outstanding for both v1 and autonomous mode)
 
 ## Next session — start here
 
-**Read `.planning/phases/07-*/07-DOCS-VERIFIED-2026-08-18.md` first.** It holds
-the evidence for every Docs claim, and the honest list of what is still thin.
+Everything the previous list asked for is done. Written 2026-08-25.
 
-1. **Langsomt in autonomous mode on Docs** — the least-tested path. It is the
-   only one still using Find positioning (the API cannot type letter by
-   letter). Run it several times and count; Find measured ~50% on a
-   document's last question before the confirmation was tightened.
-2. **Decide the OAuth path.** `getAuthToken` worked in the test profile, but it
-   can only ever use the account Chrome itself is signed into — a real risk for
-   the Workspace/HR market, where an admin can disable it silently.
-   `launchWebAuthFlow` is the alternative and remains undecided.
-3. **Ungrounded answers.** With only questions marked and no source material,
-   the backend sometimes answers from general knowledge and sometimes returns
-   empty answer text, which writes blank lines into the document. Product
-   decision needed.
-4. **The four browser suites** have not been re-run against these changes.
-   They need the backend on 127.0.0.1:8787 and a build with
-   `VITE_BACKEND_URL=http://127.0.0.1:8787`; `.output` points at production.
-5. **`07-UAT.md`** still needs the operator's own walkthrough recorded; the
-   automated evidence is in the file named above.
+1. ~~Langsomt in autonomous mode on Docs~~ — **done.** The full suite is 27/27,
+   and the marking path was run seven times for a reliability figure. All three
+   write paths were confirmed by name and none degraded.
+2. ~~Decide the OAuth path~~ — **decided: keep `getAuthToken`.** The failure it
+   can produce is honest and specific ("the Google account signed into this
+   Chrome profile does not have access to this document"), and the Find path
+   needs no OAuth at all. TESTING.md now records exactly which capabilities the
+   Google approval gates — only whole-document answering and "+ Denne side" on
+   Docs — so a first release need not wait for it.
+3. ~~Ungrounded answers~~ — **closed.** Empty answer strings were the cause;
+   they are now forbidden by the prompt, retried once when a whole batch comes
+   back empty, and dropped by the parser as a last line of defence so a blank
+   line can never be written into someone's document.
+4. ~~The four browser suites~~ — **all re-run**, plus three new ones:
+   `verify:ui` (the panel), `verify:rls` (the paywall and quota under attack),
+   and `verify:prod` (the whole thing against the deployed backend). See
+   TESTING.md for what each proves and what it costs in quota.
+5. **`07-UAT.md` still needs the operator's own walkthrough.** Unchanged — this
+   is the one thing automation cannot supply.
+
+**Two things only the operator can do**, both in TESTING.md:
+OpenRouter has 0 kr. of credit, so every request runs on the cheapest model in
+the chain; and `SUPABASE_SERVICE_ROLE_KEY` is not set in Vercel, which leaves
+the Stripe push channels unable to write (harmless — the on-demand sync still
+unlocks a paying customer, proven 6/6).
 
 **Driving Docs from a script:** the one thing that made this session possible is
 reading the document back via `…/export?format=txt` with ordinary cookies — no

@@ -145,6 +145,25 @@ async function waitForFieldGrowth(selector, baseLen, timeoutMs) {
  * empty-answer runs (see file header). Returns { finished, elapsed } —
  * finished=false only after MAX_ATTEMPTS transient failures in a row.
  */
+/**
+ * How long Langsomt is ALLOWED to take, derived rather than guessed.
+ *
+ * Langsomt types at DEFAULT_PACING.wpm (30 words/min, 5 chars/word) = 400ms a
+ * character, by design — it is the mode whose whole point is that you can read
+ * along and stop it. Three answers of ~120 characters is therefore ~2.5 minutes
+ * of typing before a single second of thinking is counted.
+ *
+ * The budget was a flat 150_000, which was already inside the noise: on
+ * 2026-08-25 the answers got longer (they started actually using the attached
+ * file instead of saying "the document does not mention this") and the run
+ * tipped over the edge, failing a suite in which nothing was wrong. A number
+ * derived from the pacing cannot rot the same way — if the pace changes, this
+ * follows.
+ */
+const LANGSOMT_CHARS_BUDGET = 3 * 200; // three answers, generous length each
+const MS_PER_CHAR = 60_000 / (30 * 5);
+const LANGSOMT_BUDGET_MS = Math.round(LANGSOMT_CHARS_BUDGET * MS_PER_CHAR) + 90_000; // + thinking time
+
 async function runAutonomous(host, autoBtn, modeLabel, perAttemptTimeoutMs) {
   const modeBtn = host.getByRole('button', { name: modeLabel, exact: true });
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -301,7 +320,7 @@ try {
   await page.locator('#doc-ce').click();
   await autoBtn.waitFor({ timeout: 5_000 });
 
-  const langsomtResult = await runAutonomous(host, autoBtn, 'Langsomt', 150_000);
+  const langsomtResult = await runAutonomous(host, autoBtn, 'Langsomt', LANGSOMT_BUDGET_MS);
   ok('Langsomt run reports finished', langsomtResult.finished, `after ${langsomtResult.attempt} attempt(s)`);
   // Human tempo: letter-by-letter must take seconds, not arrive as a disguised paste.
   ok('Langsomt is actually human-paced', langsomtResult.elapsed > 3, `took ${langsomtResult.elapsed.toFixed(1)}s`);
