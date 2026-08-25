@@ -238,6 +238,13 @@ export default defineBackground(() => {
 
   // ---- one-shot router ----
 
+  // Every user-facing failure string in this file is Danish and actionable.
+  // OFFLINE is what a dead fetch means; UNEXPECTED covers the replies the
+  // backend never wrote — a gateway 502, an HTML error page — where the only
+  // honest thing to say is "not you, try again".
+  const OFFLINE = 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.';
+  const UNEXPECTED = 'Serveren svarede uventet. Prøv igen om et øjeblik.';
+
   chrome.runtime.onMessage.addListener((msg: OneShotRequest, _sender, sendResponse) => {
     handleOneShot(msg)
       .then(sendResponse)
@@ -260,7 +267,7 @@ export default defineBackground(() => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: msg.email, password: msg.password }),
         }).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
+        if (!res) return { ok: false, status: 0, error: OFFLINE };
         const data = (await res.json()) as Record<string, unknown>;
         if (!res.ok) {
           return { ok: false, status: res.status, error: danishAuthError(msg.kind, res.status, data) };
@@ -287,7 +294,7 @@ export default defineBackground(() => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: msg.email }),
         }).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
+        if (!res) return { ok: false, status: 0, error: OFFLINE };
         const data = (await res.json()) as Record<string, unknown>;
         return res.ok
           ? { ok: true, status: 200, data }
@@ -299,10 +306,10 @@ export default defineBackground(() => {
           headers: msg.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
           body: msg.body !== undefined ? JSON.stringify(msg.body) : undefined,
         }).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
+        if (!res) return { ok: false, status: 0, error: OFFLINE };
         const data = await res.json().catch(() => null);
         if (!res.ok) {
-          const err = (data as { error?: string })?.error ?? `HTTP ${res.status}`;
+          const err = (data as { error?: string })?.error ?? UNEXPECTED;
           return { ok: false, status: res.status, error: err, data };
         }
         return { ok: true, status: res.status, data };
@@ -317,10 +324,10 @@ export default defineBackground(() => {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           body: form,
         }).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
+        if (!res) return { ok: false, status: 0, error: OFFLINE };
         const data = await res.json().catch(() => null);
         if (!res.ok) {
-          return { ok: false, status: res.status, error: (data as { error?: string })?.error ?? `HTTP ${res.status}` };
+          return { ok: false, status: res.status, error: (data as { error?: string })?.error ?? UNEXPECTED };
         }
         return { ok: true, status: 200, data };
       }
@@ -333,7 +340,7 @@ export default defineBackground(() => {
         const urlRes = await fetch(`${BACKEND_URL}/api/auth/google-url?redirect=${encodeURIComponent(redirect)}`).catch(
           () => null,
         );
-        if (!urlRes?.ok) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
+        if (!urlRes?.ok) return { ok: false, status: 0, error: OFFLINE };
         const { url } = (await urlRes.json()) as { url: string };
         let responseUrl: string | undefined;
         try {
@@ -522,7 +529,10 @@ export default defineBackground(() => {
             event: {
               type: 'error',
               code: (data.code ?? 'upstream_error') as ChatErrorCode,
-              message: data.error ?? `Request failed (HTTP ${res.status})`,
+              // The backend phrases every error it knows about in Danish. This
+              // fallback is for the ones it never sent — a gateway 502, an HTML
+              // error page — so it must be Danish too, and must not name HTTP.
+              message: data.error ?? `Serveren svarede uventet. Prøv igen om et øjeblik.`,
             },
           });
           send({ type: 'closed' });
@@ -532,6 +542,13 @@ export default defineBackground(() => {
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        // A stream can end having said nothing at all: headers sent, then the
+        // function dies (Vercel timeout, upstream reset) before a single token.
+        // Measured against production 2026-08-25 — three requests in a row
+        // closed cleanly in under a second with zero frames. Nothing downstream
+        // could tell that apart from a finished answer, so the panel returned
+        // to idle with an empty bubble and the user was never told to retry.
+        let delivered = false;
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -549,20 +566,34 @@ export default defineBackground(() => {
             }
             try {
               const event = JSON.parse(line.slice(6)) as ChatStreamEvent;
+              if (event.type === 'token' || event.type === 'error') delivered = true;
               send({ type: 'event', event });
             } catch {
               // ignore malformed frame
             }
           }
         }
-      } catch (err) {
-        if (!abort.signal.aborted) {
+        if (!delivered && !abort.signal.aborted) {
           send({
             type: 'event',
             event: {
               type: 'error',
               code: 'upstream_error',
-              message: `Connection to the backend failed: ${err instanceof Error ? err.message : 'unknown'}. Is it running? (pnpm dev:backend)`,
+              message: 'Forbindelsen blev afbrudt, før svaret nåede frem. Prøv igen.',
+            },
+          });
+        }
+      } catch (err) {
+        if (!abort.signal.aborted) {
+          // The technical cause belongs in the console, where a developer looks;
+          // the user gets the one thing they can act on.
+          console.error('[awa] chat stream failed', err);
+          send({
+            type: 'event',
+            event: {
+              type: 'error',
+              code: 'upstream_error',
+              message: 'Der er ingen forbindelse til serveren lige nu. Tjek dit internet, og prøv igen.',
             },
           });
         }
