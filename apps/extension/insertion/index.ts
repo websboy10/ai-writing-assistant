@@ -20,6 +20,7 @@ export type { SavedTarget } from './target';
 export { AutonomousRun } from './autonomous/orchestrator';
 export type { RunState, RunProgress, RunCallbacks } from './autonomous/orchestrator';
 export { sourceFor } from './autonomous/locator';
+export { parseDocumentId } from './autonomous/docs-source';
 export type { QuestionSource } from './autonomous/locator';
 
 /** INST-04: pick the right adapter for the detected editor automatically. */

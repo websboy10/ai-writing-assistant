@@ -72,6 +72,20 @@ export function ChatView() {
   const [selExpanded, setSelExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickBottom = useRef(true);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  // Grow to fit what has been typed, up to a quarter of the panel.
+  //
+  // A fixed two-row box with a drag handle asks the user to resize a text field
+  // by hand every time they write more than a sentence — in a panel where a
+  // paragraph-long instruction ("omskriv det her, men behold tallene og gør det
+  // kortere") is the normal case, not the long tail.
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = 'auto'; // shrink first, or it can only ever grow
+    el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
+  }, [input]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -107,6 +121,16 @@ export function ChatView() {
   const op = s.operation;
   const subject = op === 'chat' ? '' : liveSelection;
   const canSend = op === 'chat' ? !!input.trim() : !!subject;
+
+  // A notice reports something that already went fine ("filen var lang, de
+  // første 40.000 tegn er vedhæftet"). It has no action attached, so leaving it
+  // on screen until the user swats it just costs them panel height. An error
+  // stays: it may still be unread, and sending again clears it anyway.
+  useEffect(() => {
+    if (!s.notice) return;
+    const t = setTimeout(() => useStore.getState().set({ notice: null }), 8000);
+    return () => clearTimeout(t);
+  }, [s.notice]);
 
   function send() {
     if (s.streaming) return;
@@ -150,21 +174,12 @@ export function ChatView() {
         }}
         className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
       >
-        {s.messages.length === 0 && (
-          <div className="mt-10 space-y-2 text-center">
-            <p className="text-display text-graphite" style={SERIF}>
-              En blank side — klar når du er.
-            </p>
-            <p className="text-ui text-graphite">
-              Spørg om hvad som helst. Træk filer til knappen i kanten, eller markér tekst på siden.
-            </p>
-          </div>
-        )}
+        {s.messages.length === 0 && <EmptyState />}
         {s.messages.map((m) => (
           <MessageBubble key={m.id} m={m} />
         ))}
-        {s.error && <Banner kind="error" text={s.error} />}
-        {s.notice && <Banner kind="info" text={s.notice} />}
+        {s.error && <Banner kind="error" text={s.error} onDismiss={() => s.set({ error: null })} />}
+        {s.notice && <Banner kind="info" text={s.notice} onDismiss={() => s.set({ notice: null })} />}
         {s.insertStatus && <InsertBar />}
         {s.autoRun && <AutoRunBar />}
       </div>
@@ -295,6 +310,7 @@ export function ChatView() {
 
         <div className="flex items-end gap-2">
           <textarea
+            ref={composerRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -303,9 +319,9 @@ export function ChatView() {
                 send();
               }
             }}
-            rows={2}
+            rows={1}
             placeholder={OPERATION_HINT[op]}
-            className="min-h-[42px] flex-1 resize-y rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
+            className="max-h-[168px] min-h-[42px] flex-1 resize-none overflow-y-auto rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
           />
           {s.streaming ? (
             <button
@@ -387,6 +403,53 @@ function AutonomousBar() {
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * The first thing a new user ever sees inside the panel.
+ *
+ * It used to be one encouraging line and an instruction to drag files at a
+ * button the open panel is covering. Nothing said that the product answers a
+ * whole questionnaire in place, or works inside Google Docs at all — the two
+ * things it is actually for, and the reason the first users wanted it.
+ *
+ * So this states the three capabilities in the order a person meets them, and
+ * names the one they are standing in right now. No tour, no dismissable
+ * coach-marks, nothing to click through: it is simply what fills the panel
+ * until the first message, and it leaves the moment there is a conversation.
+ */
+function EmptyState() {
+  const onDocs = typeof location !== 'undefined' && location.host === 'docs.google.com';
+  return (
+    <div className="mt-8 space-y-4">
+      <p className="text-center text-display text-graphite" style={SERIF}>
+        En blank side — klar når du er.
+      </p>
+      <ul className="mx-auto max-w-[300px] space-y-2.5">
+        {[
+          ['Spørg om hvad som helst', 'Skriv nedenfor. Svaret kan sættes direkte ind, hvor du står.'],
+          [
+            'Markér tekst, vælg en handling',
+            'Omskriv, forenkl, oversæt eller uddyb det, du har markeret på siden.',
+          ],
+          [
+            'Besvar alle spørgsmål',
+            onDocs
+              ? 'Du står i et Google Docs-dokument. Knappen finder hvert spørgsmål og skriver svaret under det.'
+              : 'Finder hvert spørgsmål i det felt, du sidst klikkede i, og skriver et svar under hvert af dem.',
+          ],
+        ].map(([title, body]) => (
+          <li key={title} className="border-l-2 border-hairline pl-2.5">
+            <p className="text-ui font-medium text-ink">{title}</p>
+            <p className="awa-note">{body}</p>
+          </li>
+        ))}
+      </ul>
+      <p className="text-center awa-note">
+        Vedhæft baggrund med <b>+ Denne side</b> eller <b>+ Fil</b> — eller slip filer direkte i panelet.
+      </p>
     </div>
   );
 }

@@ -130,18 +130,39 @@ export function AuthView() {
   );
 }
 
-export function Banner({ kind, text }: { kind: 'error' | 'info'; text: string }) {
+export function Banner({
+  kind,
+  text,
+  onDismiss,
+}: {
+  kind: 'error' | 'info';
+  text: string;
+  /** Omitted where the banner is already scoped to a form that clears itself. */
+  onDismiss?: () => void;
+}) {
   // Monochrome severity: errors get a solid left rule and full-strength ink;
   // notices stay quiet in graphite. No hue anywhere.
   return (
     <div
-      className={`rounded-xl px-3 py-2 text-ui ${
+      className={`flex items-start gap-2 rounded-xl px-3 py-2 text-ui ${
         kind === 'error'
           ? 'border-l-2 border-ink bg-wash font-medium text-ink'
           : 'border-l-2 border-hairline bg-wash text-graphite'
       }`}
     >
-      {text}
+      <span className="min-w-0 flex-1">{text}</span>
+      {onDismiss && (
+        // A message you cannot put away is a message that outlives its cause.
+        // The panel is 400px wide and the banner sits between the user and
+        // their conversation.
+        <button
+          onClick={onDismiss}
+          title="Skjul beskeden"
+          className="-mr-1 shrink-0 px-1 leading-none text-graphite hover:text-ink"
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }

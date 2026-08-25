@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
+import { MAX_CONTEXT_CHARS_PER_ITEM, MAX_CONTEXT_ITEMS } from '@awa/shared';
 // Inlined as a data URI: the content script renders inside host pages, where
 // chrome-extension:// image URLs would need web_accessible_resources.
 import logo from '../assets/logo.png?inline';
 import { useStore } from '../store';
-import { addFilesToContext } from '../ingest';
+import { addFilesToContext, newContextId } from '../ingest';
+
+/**
+ * Above this, a paste is source material rather than a message.
+ *
+ * ~250 Danish words: comfortably more than anyone types as an instruction, and
+ * comfortably less than a section of a report.
+ */
+const PASTE_AS_CONTEXT_CHARS = 1500;
 import { AuthView } from './AuthView';
 import { ChatView } from './ChatView';
 import { HistoryView } from './HistoryView';
@@ -26,6 +35,7 @@ export function App() {
   // 'idle' → files dragged anywhere on the page → 'attract' → over the button → 'hover'
   const [dragState, setDragState] = useState<'idle' | 'attract' | 'hover'>('idle');
   const [justDropped, setJustDropped] = useState(false);
+  const [panelDrag, setPanelDrag] = useState(false);
   const dragDepth = useRef(0);
 
   function dismiss(v: boolean) {
@@ -85,6 +95,60 @@ export function App() {
     }
   }
 
+  // Files dropped on the OPEN panel, not just on the 48px edge button. Once
+  // the panel is open it covers the button, so the only advertised drop target
+  // is the one thing the user can no longer see.
+  async function handlePanelDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setPanelDrag(false);
+    if (e.dataTransfer.files.length) await addFilesToContext(e.dataTransfer.files);
+  }
+
+  /**
+   * Pasting into the panel.
+   *
+   * An image on the clipboard has nowhere else to go — a textarea silently
+   * swallows it — so it becomes context, through the same OCR path as a
+   * screenshot.
+   *
+   * Long text is the more interesting case. Someone copying four pages of a
+   * report into a 400px composer is not writing a message; they are handing
+   * over source material, and letting it land in the input box leaves them
+   * scrolling a text field to find their own question. Above the threshold it
+   * is attached instead — and said out loud, because silently moving someone's
+   * paste somewhere else is worse than not moving it.
+   */
+  async function handlePaste(e: React.ClipboardEvent) {
+    const files = Array.from(e.clipboardData.files);
+    if (files.length) {
+      e.preventDefault();
+      await addFilesToContext(files);
+      return;
+    }
+    const text = e.clipboardData.getData('text/plain');
+    if (text.length <= PASTE_AS_CONTEXT_CHARS) return; // ordinary paste, ordinary behaviour
+    e.preventDefault();
+    const st = useStore.getState();
+    if (st.context.length >= MAX_CONTEXT_ITEMS) {
+      st.set({ error: `Du kan vedhæfte op til ${MAX_CONTEXT_ITEMS} elementer. Fjern ét først.` });
+      return;
+    }
+    const truncated = text.length > MAX_CONTEXT_CHARS_PER_ITEM;
+    const kept = truncated ? text.slice(0, MAX_CONTEXT_CHARS_PER_ITEM) : text;
+    st.addContext({
+      id: newContextId(),
+      name: `Indsat tekst (${kept.length.toLocaleString('da-DK')} tegn)`,
+      kind: 'paste',
+      text: kept,
+      chars: kept.length,
+      truncated,
+    });
+    st.set({
+      notice: 'Den indsatte tekst var lang, så den er vedhæftet som kontekst i stedet for at fylde skrivefeltet.',
+    });
+  }
+
   const scale =
     dragState === 'hover' ? 'scale-150' : dragState === 'attract' ? 'scale-125' : justDropped ? 'scale-110' : '';
 
@@ -141,7 +205,23 @@ export function App() {
 
       {/* Right-attached modal: flush right edge, rounded left corners */}
       {open && (
-        <aside className="fixed right-0 top-1/2 z-[2147483646] flex h-[min(86vh,700px)] w-[400px] max-w-[92vw] -translate-y-1/2 flex-col overflow-hidden rounded-l-[26px] border border-r-0 border-hairline bg-paper/95 text-body text-ink shadow-2xl shadow-black/30 backdrop-blur-xl">
+        <aside
+          onPaste={(e) => void handlePaste(e)}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes('Files')) return;
+            e.preventDefault();
+            setPanelDrag(true);
+          }}
+          onDragLeave={(e) => {
+            // Only when the pointer truly leaves the panel — moving between
+            // children fires dragleave on the one being left behind.
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPanelDrag(false);
+          }}
+          onDrop={(e) => void handlePanelDrop(e)}
+          className={`fixed right-0 top-1/2 z-[2147483646] flex h-[min(86vh,700px)] w-[400px] max-w-[92vw] -translate-y-1/2 flex-col overflow-hidden rounded-l-[26px] border border-r-0 border-hairline bg-paper/95 text-body text-ink shadow-2xl shadow-black/30 backdrop-blur-xl ${
+            panelDrag ? 'ring-2 ring-ink/40' : ''
+          }`}
+        >
           {/* The ✕ and tabs are shrink-0; the chips in the middle give way
               instead — the close button must never be pushed off the edge. */}
           <header className="flex items-center gap-1.5 border-b border-hairline py-3 pl-3 pr-2">

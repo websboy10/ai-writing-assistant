@@ -31,7 +31,7 @@ function oneShot(req: OneShotRequest): Promise<OneShotResponse> {
   return chrome.runtime.sendMessage(req);
 }
 
-function parseDocumentId(): string | null {
+export function parseDocumentId(): string | null {
   const m = location.href.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
   return m ? m[1] : null;
 }

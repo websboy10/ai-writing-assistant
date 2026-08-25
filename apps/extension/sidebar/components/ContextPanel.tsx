@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { MAX_CONTEXT_ITEMS, type ParsedFile } from '@awa/shared';
 import { call } from '../api';
 import { addFilesToContext, newContextId as newId } from '../ingest';
+import { readPageAsContext } from '../page-context';
 import { useStore } from '../store';
 
 /**
@@ -35,6 +36,27 @@ export function ContextChips() {
       }
       const parsed = res.data as ParsedFile;
       s.addContext({ id: newId(), ...parsed, kind: 'screenshot', name: `Skærmbillede af ${location.host}` });
+    } finally {
+      s.set({ contextBusy: null });
+    }
+  }
+
+  async function thisPage() {
+    if (s.context.length >= MAX_CONTEXT_ITEMS) {
+      s.set({ error: `Du kan vedhæfte op til ${MAX_CONTEXT_ITEMS} elementer. Fjern ét først.` });
+      return;
+    }
+    s.set({ contextBusy: 'Læser siden…', error: null });
+    try {
+      const { item, error } = await readPageAsContext();
+      if (error || !item) {
+        s.set({ error: error ?? 'Siden kunne ikke læses.' });
+        return;
+      }
+      s.addContext(item);
+      if (item.truncated) {
+        s.set({ notice: `Siden var lang — de første ${item.chars.toLocaleString('da-DK')} tegn er vedhæftet.` });
+      }
     } finally {
       s.set({ contextBusy: null });
     }
@@ -80,13 +102,20 @@ export function ContextChips() {
           + Fil
         </button>
         <button
+          onClick={() => void thisPage()}
+          className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink"
+          title="Vedhæft teksten fra siden eller dokumentet, du står i"
+        >
+          + Denne side
+        </button>
+        <button
           onClick={() => void screenshot()}
           className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink"
           title="Tag et skærmbillede af siden og læs teksten i det"
         >
           + Skærmbillede
         </button>
-        <span className="self-center text-aside text-graphite">eller træk filer til knappen i kanten</span>
+        <span className="self-center text-aside text-graphite">eller træk filer hertil</span>
       </div>
 
       <input
