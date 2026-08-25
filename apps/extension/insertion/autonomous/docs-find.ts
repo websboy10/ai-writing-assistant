@@ -219,6 +219,29 @@ async function attemptFind(
       reason: `Docs fandt "${query.slice(0, 60)}", men markøren stod ikke på træffet bagefter — svaret ville være havnet et forkert sted.`,
     };
   }
+
+  // Collapse the match to its end, HERE, where we have just proven a selection
+  // exists — the line above returns only when the mirrored selection equals the
+  // query exactly.
+  //
+  // Find leaves its match selected; that is this function's confirmation
+  // channel. Whoever writes next must therefore collapse it first, or the paste
+  // REPLACES the question it was meant to answer — the question disappears from
+  // the user's document and the answer stands in its place. That is the worst
+  // failure this product has: it destroys text the user wrote.
+  //
+  // It used to be the adapter's job, conditional on its own re-read of the
+  // selection (adapters/gdocs.ts prepare()). Re-asking a question we already
+  // know the answer to is a race, and it lost again on 2026-08-25 against
+  // production: "every question survives the run verbatim — [true,true,false]".
+  // Doing it at the one moment the state is certain removes the guess. The
+  // adapter's conditional collapse stays as a second line of defence for the
+  // paths that do not come through Find, and is simply a no-op after this.
+  const target = gdocsEventTarget();
+  if (target) {
+    dispatchKey(target, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39, bubbles: true, cancelable: true });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  }
   return { ok: true };
 }
 
