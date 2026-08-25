@@ -57,6 +57,27 @@ export class PolicyError extends Error {
 }
 
 /**
+ * Models that refused for want of credit, and when.
+ *
+ * A 402 is not a busy signal — it is the wallet, and it will say the same thing
+ * to the next request a second later. Left unremembered, every single call paid
+ * for the same two doomed round-trips before reaching a model that could
+ * answer: measured 2026-08-25 on a balance of $0, both paid models 402'd on
+ * every request and the user waited through both.
+ *
+ * Deliberately short, and deliberately in memory. Topping the account up must
+ * take effect on its own within a minute or two, without a redeploy and without
+ * anyone remembering that a cache exists — and on Vercel each cold function
+ * starts with an empty map anyway, which is the right default.
+ */
+const outOfCreditUntil = new Map<string, number>();
+const CREDIT_COOLDOWN_MS = 60_000;
+
+function isCreditRefusal(reason: string): boolean {
+  return reason.includes('402') || /requires more credits/i.test(reason);
+}
+
+/**
  * Stream a completion, falling back through an ordered model chain.
  *
  * Policy gate (QUOT-05): contentClass 'real' → paid chain with provider data
@@ -80,7 +101,14 @@ export async function streamChat(
 
   const attempts: { model: string; reason: string }[] = [];
 
-  for (const model of chain) {
+  // Skip models we already know cannot afford this request — but never skip
+  // the last one, so an exhausted account still gets a real attempt and a real
+  // error instead of an empty chain and a misleading "all models failed".
+  const now = Date.now();
+  const affordable = chain.filter((m) => (outOfCreditUntil.get(m) ?? 0) <= now);
+  const order = affordable.length ? affordable : [chain[chain.length - 1]];
+
+  for (const model of order) {
     let emitted = false;
     try {
       await streamOne(model, messages, isSynthetic, signal, {
@@ -95,6 +123,7 @@ export async function streamChat(
       if (signal.aborted) return;
       const reason = err instanceof Error ? err.message : String(err);
       attempts.push({ model, reason });
+      if (isCreditRefusal(reason)) outOfCreditUntil.set(model, Date.now() + CREDIT_COOLDOWN_MS);
       handlers.onModelFailed?.(model, reason);
       if (emitted) {
         // Mid-stream failure after tokens went out: surface it, don't stitch.
