@@ -115,7 +115,6 @@ export function ContextChips() {
         >
           + Skærmbillede
         </button>
-        <span className="self-center text-aside text-graphite">eller træk filer hertil</span>
       </div>
 
       <input

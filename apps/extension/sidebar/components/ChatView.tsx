@@ -243,10 +243,11 @@ export function ChatView() {
                 </>
               )}
             </div>
-            <p className="awa-note">
-              <b>Besvar:</b> svarene skrives direkte ind i markeringen, lige under hvert spørgsmål. <b>Kontekst:</b> teksten
-              vedhæftes som baggrundsviden.
-            </p>
+            {/* One line, not three. Both buttons carry the full explanation in
+                their tooltip, and the empty state introduces them — three
+                permanent lines of help under two buttons is the panel
+                explaining itself instead of getting out of the way. */}
+            <p className="awa-note">Svar skrives ind i markeringen · kontekst vedhæftes som baggrundsviden.</p>
           </div>
         )}
 
@@ -254,42 +255,36 @@ export function ChatView() {
 
         <AutonomousBar />
 
-        {/* Output settings: what to do, in which voice, at what length. */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        {/*
+          One row, three controls, no labels.
+          Labelled and spelled out, these took two rows of a six-row stack of
+          chrome sitting above a one-line input — in a 400px panel where the
+          composer is the point. The values say what they are, so the labels
+          were repeating the answer next to the question.
+        */}
+        <div className="flex flex-wrap items-center gap-1.5">
           <Picker
-            label="Handling"
             value={op}
             onChange={(v) => s.set({ operation: v as PromptOperation })}
-            title="Chat svarer på det, du skriver. De øvrige arbejder på den tekst, du har markeret på siden."
+            title="Hvad assistenten skal gøre. Chat svarer på det, du skriver; de øvrige arbejder på den tekst, du har markeret på siden."
             options={Object.entries(OPERATION_LABELS) as [string, string][]}
           />
           <Picker
-            label="Tone"
             value={s.prefs.tone ?? 'neutral'}
             onChange={(v) => s.set({ prefs: { ...s.prefs, tone: v as (typeof TONES)[number][0] } })}
             title="Tonefaldet i det, assistenten skriver"
             options={TONES}
           />
-          <div className="flex items-center gap-1.5">
-            <span className="awa-eyebrow">Længde</span>
-            {(
-              [
-                ['shorter', 'Kortere'],
-                ['same', 'Samme'],
-                ['longer', 'Længere'],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                onClick={() => s.set({ prefs: { ...s.prefs, length: k } })}
-                className={`rounded-full px-2.5 py-0.5 text-aside transition-colors ${
-                  (s.prefs.length ?? 'same') === k ? 'bg-ink text-paper' : 'border border-hairline hover:border-ink'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Picker
+            value={s.prefs.length ?? 'same'}
+            onChange={(v) => s.set({ prefs: { ...s.prefs, length: v as 'shorter' | 'same' | 'longer' } })}
+            title="Hvor langt svaret skal være"
+            options={[
+              ['shorter', 'Kortere'],
+              ['same', 'Samme længde'],
+              ['longer', 'Længere'],
+            ]}
+          />
         </div>
 
         {/* A verb needs something to act on, so say plainly whether it has it. */}
@@ -465,47 +460,46 @@ function EmptyState() {
  * the user's OS already taught them to use.
  */
 function Picker({
-  label,
   value,
   onChange,
   options,
   title,
 }: {
-  label: string;
   value: string;
   onChange: (v: string) => void;
   options: [string, string][];
   title?: string;
 }) {
   return (
-    <label className="flex items-center gap-1.5" title={title}>
-      <span className="awa-eyebrow">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="max-w-[116px] rounded-full border border-hairline bg-paper px-2 py-0.5 text-aside text-ink outline-none hover:border-ink focus:border-ink"
-      >
-        {options.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
-    </label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      title={title}
+      className="rounded-full border border-hairline bg-paper px-2 py-0.5 text-aside text-ink outline-none hover:border-ink focus:border-ink"
+    >
+      {options.map(([v, l]) => (
+        <option key={v} value={v}>
+          {l}
+        </option>
+      ))}
+    </select>
   );
 }
 
 function TargetHint() {
-  const [status, setStatus] = useState<{ label: string; ok: boolean } | null>(null);
+  const [status, setStatus] = useState<{ label: string; ok: boolean; reason?: string } | null>(null);
   useEffect(() => {
     const t = setInterval(() => setStatus(inserter.targetStatus()), 1500);
     return () => clearInterval(t);
   }, []);
-  if (!status) return <span className="truncate">Intet indsættelsesmål endnu — klik i et tekstfelt på siden</span>;
+  // Both strings are set to fit the footer beside "+ Ny samtale" at 400px. The
+  // longer versions were cut off mid-word, which turned the one line telling
+  // the user WHERE their text would land into noise.
+  if (!status) return <span className="truncate" title="Klik i det felt eller dokument, teksten skal ind i">Intet mål valgt endnu</span>;
   return (
-    <span className={`truncate ${status.ok ? '' : 'font-medium text-ink'}`}>
+    <span className={`truncate ${status.ok ? '' : 'font-medium text-ink'}`} title={status.reason ?? status.label}>
       Indsættes i: {status.label}
-      {!status.ok && ' (utilgængelig — Kopiér tilbydes)'}
+      {!status.ok && ' (utilgængelig)'}
     </span>
   );
 }
