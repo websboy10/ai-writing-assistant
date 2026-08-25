@@ -67,8 +67,8 @@ export function answerMessages(
     sections.push(
       'YOUR PREVIOUS REPLY WAS REJECTED because every "answer" in it was an empty string. ' +
         'An empty answer is not an acceptable response to any question, for any reason. ' +
-        'If a question cannot be answered from the material, the answer is a sentence saying so — ' +
-        'for example "Dokumentet indeholder ikke oplysninger om dette." — with grounded set to false.',
+        'Read the ATTACHED CONTEXT below in full — that is where the answers usually are — and answer from it. ' +
+        'Only if it genuinely holds nothing on a question, say so in one sentence with grounded set to false.',
     );
   }
 
@@ -90,8 +90,22 @@ export function answerMessages(
       // the conflict — and it is the better answer anyway: a person reading
       // their document would rather see "dokumentet oplyser ikke dette" than a
       // silent gap.
-      'An "answer" is NEVER an empty string. When neither the document nor the attached context says anything ' +
-      'about a question, write one short sentence stating exactly that, and set "grounded" to false. ' +
+      // …and then the escape hatch became the easy road. Measured a few hours
+      // later, on the acceptance run that attaches a briefing file: with a
+      // permitted way to say "the document does not cover this", the model
+      // stopped opening the attached file at all and answered "Dokumentet
+      // indeholder ikke nogen oplysninger om status på projektet" — about a
+      // question the attachment answers in full.
+      //
+      // So the hatch has to be narrow AND the search has to be named. The
+      // document is usually the questionnaire — blank by definition — and the
+      // answers usually live in what the user attached. That is why they
+      // attached it.
+      'The document is often a form with nothing filled in; the answers usually live in the ATTACHED CONTEXT ' +
+      'below. Search it properly before concluding anything is missing. ' +
+      'An "answer" is NEVER an empty string. Only as a LAST RESORT, when you have read the attached context in ' +
+      'full and it genuinely says nothing about a question, write one short sentence stating that, and set ' +
+      '"grounded" to false. ' +
       // Measured 2026-08-25: asked for an index "in any order", the model
       // answered every question with paragraphIndex -1 as a stand-in for "no
       // grounding", and every answer was then dropped as unaskable — the user
@@ -111,7 +125,8 @@ export function answerMessages(
   if (req.context?.length) {
     const ctx = req.context.map((c) => `[Source: ${c.name} (${c.kind})]\n${c.text}`).join('\n\n');
     sections.push(
-      `ATTACHED CONTEXT\nUse this material as grounding alongside the document. Do not invent content that contradicts it.\n\n${ctx}`,
+      `ATTACHED CONTEXT — the user attached this BECAUSE it holds the answers.\n` +
+        `Read it before deciding a question cannot be answered. Do not invent content that contradicts it.\n\n${ctx}`,
     );
   }
 

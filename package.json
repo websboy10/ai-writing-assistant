@@ -16,7 +16,9 @@
     "verify:docs": "node scripts/verify-docs.mjs",
     "verify:drop": "node scripts/verify-drop.mjs",
     "verify:paywall": "node scripts/verify-paywall.mjs",
-    "verify:all": "pnpm typecheck && pnpm test && pnpm verify:rls && pnpm verify:ui && pnpm verify:drop && pnpm verify:docs"
+    "verify:all": "pnpm typecheck && pnpm test && pnpm verify:rls && pnpm verify:ui && pnpm verify:drop && pnpm verify:docs",
+    "verify:prod": "bash scripts/verify-prod.sh",
+    "probe:grounding": "node scripts/probe-grounding.mjs"
   },
   "devDependencies": {
     "playwright": "^1.49.0",
