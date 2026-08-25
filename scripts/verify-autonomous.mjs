@@ -636,12 +636,23 @@ try {
 
   // 2. Attach the worker's own material through the normal panel flow.
   await host.locator('input[type="file"]').setInputFiles(sourcePath);
-  await page.waitForFunction(
-    () => /acceptance-kilde\.txt/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
-    undefined,
-    { timeout: 20_000 },
+  // A CHIP, specifically — and asserted, not assumed.
+  //
+  // This waited for the filename anywhere in the panel and then passed `true`
+  // unconditionally, so it could not fail. A failed upload puts the same
+  // filename in an error banner ("Behandlingen af \"acceptance-kilde.txt\"
+  // fejlede"), which satisfied the wait; and passing `true` meant even a
+  // timeout-free but chip-less panel reported success. The grounding assertion
+  // 40 lines below then failed instead, pointing at the model for something
+  // that had gone wrong up here.
+  const chip = host.locator('button[title*="acceptance-kilde.txt"]');
+  await chip.waitFor({ timeout: 20_000 }).catch(() => {});
+  const chipPresent = (await chip.count()) > 0;
+  ok(
+    'the attached file appears as a context chip, ready to answer from',
+    chipPresent,
+    chipPresent ? '' : `panel says: ${(await shadowText()).replace(/\s+/g, ' ').trim().slice(-260)}`,
   );
-  ok('the attached file appears as a context chip, ready to answer from', true);
 
   // 3. Click into the document, one button, Langsomt.
   const acceptanceBefore = await page.locator('#doc').inputValue();
