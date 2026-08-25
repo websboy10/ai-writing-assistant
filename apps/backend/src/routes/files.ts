@@ -16,7 +16,16 @@ const require = createRequire(import.meta.url);
 // a serverless bundle (its engine hard-requires files by path), and a vision
 // model reads Danish better anyway. Routed with training denied — an uploaded
 // file's contents are treated like real user data.
-const OCR_MODEL = process.env.OCR_MODEL ?? 'google/gemini-3.5-flash';
+// A chain, not one model — for the same reason chat has one. A single vision
+// model is a single point of failure, and the failure that actually happens is
+// not "the model is down" but "this request costs more than the account can
+// afford right now" (HTTP 402). One unaffordable model used to take screenshots
+// and scanned PDFs down with it. Both entries are verified to exist and to
+// accept images.
+const OCR_CHAIN = (process.env.OCR_MODEL_CHAIN ?? process.env.OCR_MODEL ?? 'google/gemini-3.5-flash,anthropic/claude-sonnet-5')
+  .split(',')
+  .map((m) => m.trim())
+  .filter(Boolean);
 
 // A "scanned" PDF is one whose pages are images: pdf-parse succeeds but finds
 // (nearly) no embedded text. Below this many characters we OCR instead.
@@ -80,8 +89,23 @@ export function fileRoutes(app: FastifyInstance): void {
           code: 'unsupported_type',
         });
       }
+      // OCR could not be bought or reached on any model in the chain. That is
+      // our problem, not a fault in the user's file, and telling them to try a
+      // different file would send them chasing a fix that cannot work.
+      if (message.startsWith('ocr_unavailable')) {
+        req.log.error({ err, name, mime }, 'OCR unavailable on every model in the chain');
+        return reply.code(503).send({
+          error: `Teksten i "${name}" kunne ikke læses lige nu. Det er en fejl hos os, ikke i din fil — prøv igen om lidt.`,
+          code: 'upstream_error',
+        });
+      }
+      // The raw message is a library's internal complaint — file paths, stack
+      // fragments, whatever pdfjs felt like saying. It belongs in the log, not
+      // in a sentence the user reads. (Same leak as the Stripe one fixed in
+      // routes/billing.ts on 2026-08-25.)
+      req.log.error({ err, name, mime }, 'file parse failed');
       return reply.code(422).send({
-        error: `"${name}" kunne ikke behandles: ${message}`,
+        error: `"${name}" kunne ikke behandles. Filen kan være beskadiget eller beskyttet med adgangskode.`,
         code: 'parse_failed',
       });
     }
@@ -208,16 +232,35 @@ async function ocrPdfPages(buffer: Buffer): Promise<string> {
 /** Vision-model OCR, one image per request, pages joined in order. */
 async function ocrBuffers(images: Buffer[]): Promise<string> {
   const out: string[] = [];
+  const key = (await import('../env.js')).env.openrouterKey;
   for (const img of images) {
-    const res = await withTimeout(
+    let res: { choices?: { message?: { content?: string } }[] } | null = null;
+    let lastReason = '';
+    for (const model of OCR_CHAIN) {
+      try {
+        res = await ocrOnce(key, model, img);
+        break;
+      } catch (err) {
+        lastReason = err instanceof Error ? err.message : String(err);
+      }
+    }
+    if (!res) throw new Error(`ocr_unavailable: ${lastReason}`);
+    const text = res.choices?.[0]?.message?.content ?? '';
+    if (text.trim()) out.push(clean(text));
+  }
+  return out.join('\n\n');
+}
+
+async function ocrOnce(key: string, model: string, img: Buffer) {
+  return withTimeout(
       fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${(await import('../env.js')).env.openrouterKey}`,
+          Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: OCR_MODEL,
+          model,
           // Compliance (QUOT-05): uploads may contain real personal data —
           // never allow the provider to train on or retain them.
           provider: { data_collection: 'deny' },
@@ -240,15 +283,11 @@ async function ocrBuffers(images: Buffer[]): Promise<string> {
           ],
         }),
       }).then(async (r) => {
-        if (!r.ok) throw new Error(`OCR-modellen svarede ${r.status}: ${(await r.text()).slice(0, 160)}`);
+        if (!r.ok) throw new Error(`${model} svarede ${r.status}: ${(await r.text()).slice(0, 160)}`);
         return (await r.json()) as { choices?: { message?: { content?: string } }[] };
       }),
       60_000,
-    );
-    const text = res.choices?.[0]?.message?.content ?? '';
-    if (text.trim()) out.push(clean(text));
-  }
-  return out.join('\n\n');
+  );
 }
 
 function clean(text: string): string {
