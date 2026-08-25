@@ -26,6 +26,22 @@ export const env = {
   paidChain: (process.env.PAID_MODEL_CHAIN ??
     'anthropic/claude-sonnet-5,google/gemini-3.5-flash,deepseek/deepseek-v4-flash'
   ).split(',').map((s) => s.trim()).filter(Boolean),
+  /**
+   * Ceiling on a single reply, and the reason the good models were unreachable.
+   *
+   * Omitting max_tokens does not mean "no limit" at OpenRouter — it means the
+   * model's own maximum, and OpenRouter pre-authorises credit for that whole
+   * amount before it will start. Measured 2026-08-25: every request asked for
+   * 65536 tokens, so both `anthropic/claude-sonnet-5` and
+   * `google/gemini-3.5-flash` answered
+   *   HTTP 402 … you requested up to 65536 tokens, but can only afford 2615
+   * and the chain silently fell through to the cheapest model on EVERY request,
+   * paying two wasted round-trips of latency for the privilege.
+   *
+   * 4000 is the product's real ceiling: a long performance review or client
+   * letter is ~1200 Danish words, and Danish tokenizes worse than English.
+   */
+  maxTokens: Number(process.env.MAX_TOKENS ?? 4000),
   stripeSecretKey: required('STRIPE_SECRET_KEY'),
   stripePriceId: required('STRIPE_PRICE_ID'),
   // Set in production once the webhook endpoint exists in the Stripe

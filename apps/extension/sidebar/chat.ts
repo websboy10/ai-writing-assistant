@@ -1,5 +1,6 @@
 import type { ChatRequest } from '@awa/shared';
 import { CHAT_PORT, type ChatPortClientMsg, type ChatPortServerMsg } from '@/utils/protocol';
+import { stripMarkdown } from '@/insertion';
 import { nextId, useStore } from './store';
 
 let activePort: chrome.runtime.Port | null = null;
@@ -68,6 +69,14 @@ export function sendChat(userText: string, subject?: string): void {
   // Token batching (WR-14): at ~40 tokens/s, one store write per token means
   // hundreds of component renders per second inside the host page's shadow
   // root. Buffer tokens and flush at most every 50 ms.
+  //
+  // `rawText` is the model's own words; the message holds the sanitised form.
+  // Keeping both means the strip always runs over the WHOLE reply rather than
+  // over one 50ms slice of it, which is what makes it correct: `**fed**` split
+  // across two flushes is only recognisable once both halves have arrived.
+  // The panel therefore shows exactly the text that insertion will write —
+  // there is no second, different version of the draft anywhere.
+  let rawText = '';
   let pendingText = '';
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
   const flushTokens = () => {
@@ -76,14 +85,15 @@ export function sendChat(userText: string, subject?: string): void {
       flushTimer = null;
     }
     if (!pendingText) return;
+    rawText += pendingText;
+    pendingText = '';
     const st = useStore.getState();
     const msgs = [...st.messages];
     const last = msgs[msgs.length - 1];
     if (last?.streaming) {
-      msgs[msgs.length - 1] = { ...last, content: last.content + pendingText };
+      msgs[msgs.length - 1] = { ...last, content: stripMarkdown(rawText) };
       st.set({ messages: msgs });
     }
-    pendingText = '';
   };
 
   port.onMessage.addListener((msg: ChatPortServerMsg) => {

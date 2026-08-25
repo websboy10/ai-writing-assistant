@@ -117,6 +117,11 @@ export function autonomousRoutes(app: FastifyInstance): void {
 
     try {
       const detection = await collect(detectionMessages(autoReq), contentClass, abort.signal);
+      // Which model answered, and which ones we burned getting there. Silent
+      // fallback hid an entire broken chain once already — see openrouter.ts.
+      if (detection.failures.length) {
+        req.log.warn({ served: detection.model, failures: detection.failures }, 'model chain fallback');
+      }
       const detected = parseDetection(detection.text, paragraphs.length);
       if (detected.length === 0 && detection.text.trim()) {
         req.log.warn(
@@ -148,6 +153,9 @@ export function autonomousRoutes(app: FastifyInstance): void {
       const perBatch = await Promise.all(
         batches.map(async (batch) => {
           const completion = await collect(answerMessages(autoReq, batch), contentClass, abort.signal);
+          if (completion.failures.length) {
+            req.log.warn({ served: completion.model, failures: completion.failures }, 'model chain fallback');
+          }
           const parsed = parseAnswers(completion.text, batch);
           if (parsed.length < batch.length) {
             req.log.warn(

@@ -13,12 +13,39 @@ export interface StreamHandlers {
    * two need opposite responses: retry smaller vs. report "no questions".
    */
   onFinish?: (reason: string) => void;
+  /**
+   * A model in the chain failed and the next one is being tried.
+   *
+   * Without this the fallback is completely silent: `attempts` is collected but
+   * only ever surfaced if EVERY model fails, so a chain whose first two entries
+   * are broken looks identical to one that is working perfectly — the user just
+   * quietly gets the last model, slower. Measured 2026-08-25: every request was
+   * being served by the third model in the paid chain and nothing anywhere said
+   * so.
+   */
+  onModelFailed?: (model: string, reason: string) => void;
 }
 
 export class NoModelsError extends Error {
   code = 'all_models_failed' as const;
   constructor(public attempts: { model: string; reason: string }[]) {
     super('All models in the chain failed');
+  }
+
+  /**
+   * Every model refused for lack of credit rather than for being busy.
+   *
+   * The distinction is the difference between an honest message and a false
+   * one: a rate limit clears in seconds, an empty OpenRouter balance never
+   * clears on its own, so telling the user "try again in a moment" would be a
+   * lie that costs them their afternoon. Measured 2026-08-25 with a balance of
+   * $0, where both paid models answered HTTP 402 on every single request.
+   */
+  get isOutOfCredit(): boolean {
+    return (
+      this.attempts.length > 0 &&
+      this.attempts.every((a) => a.reason.includes('402') || /requires more credits/i.test(a.reason))
+    );
   }
 }
 
@@ -68,6 +95,7 @@ export async function streamChat(
       if (signal.aborted) return;
       const reason = err instanceof Error ? err.message : String(err);
       attempts.push({ model, reason });
+      handlers.onModelFailed?.(model, reason);
       if (emitted) {
         // Mid-stream failure after tokens went out: surface it, don't stitch.
         throw new Error(`Model ${model} failed mid-response: ${reason}`);
@@ -106,6 +134,10 @@ async function streamOne(
         model,
         messages,
         stream: true,
+        // Never omit this — see env.maxTokens. An absent ceiling is not
+        // "unlimited", it is "the model's maximum", and OpenRouter reserves
+        // credit for all of it before answering.
+        max_tokens: env.maxTokens,
         usage: { include: true },
         // For real content, refuse providers that collect/train on prompts.
         ...(isSynthetic ? {} : { provider: { data_collection: 'deny' } }),

@@ -8,6 +8,9 @@ export { TargetTracker, isGoogleDocs } from './target';
 export { InsertionSession } from './engine';
 export { GDocsAdapter } from './adapters/gdocs';
 export { DEFAULT_PACING } from './types';
+// Everything written to an editor goes through text/plain, which renders
+// markdown literally — see plaintext.ts for the measurement.
+export { stripMarkdown } from './plaintext';
 export type { PacingConfig, InsertionState } from './types';
 export type { SavedTarget } from './target';
 

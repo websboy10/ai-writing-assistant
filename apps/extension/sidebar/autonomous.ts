@@ -1,5 +1,5 @@
 import type { AutonomousRequest, AutonomousResponse } from '@awa/shared';
-import { AutonomousRun, sourceFor, type RunCallbacks } from '@/insertion';
+import { AutonomousRun, sourceFor, stripMarkdown, type RunCallbacks } from '@/insertion';
 import { call } from './api';
 import { inserter } from './inserter';
 import { useStore } from './store';
@@ -102,7 +102,13 @@ class Autonomous {
       return;
     }
 
-    const ungrounded = data.answers.filter((a) => !a.grounded).map((a) => a.questionText);
+    // Every answer is pasted straight into the document, so markdown in it
+    // arrives as literal asterisks under the user's question. Sanitised once,
+    // here, before anything reads them — the run writes these, the error path
+    // copies these to the clipboard, and both must be the same clean text.
+    const answers = data.answers.map((a) => ({ ...a, answer: stripMarkdown(a.answer) }));
+
+    const ungrounded = answers.filter((a) => !a.grounded).map((a) => a.questionText);
 
     const cb: RunCallbacks = {
       onRunState: (state, detail) => {
@@ -145,7 +151,7 @@ class Autonomous {
     };
 
     this.active?.destroy();
-    this.active = new AutonomousRun(source, data.answers, mode, cb);
+    this.active = new AutonomousRun(source, answers, mode, cb);
     this.loadingRun = false;
     // A pause that arrived while we were still awaiting the answer batch
     // (see the loadingRun comment above) must hold the run from its very
@@ -157,7 +163,7 @@ class Autonomous {
       autoRun: {
         state: startPaused ? 'paused' : 'writing',
         answersDone: 0,
-        answersTotal: data.answers.length,
+        answersTotal: answers.length,
         progress: 0,
         targetLabel: target.label,
         placement: source.placement,

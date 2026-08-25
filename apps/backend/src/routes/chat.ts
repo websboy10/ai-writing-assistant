@@ -104,6 +104,10 @@ export function chatRoutes(app: FastifyInstance): void {
           tokensIn = i;
           tokensOut = o;
         },
+        // A fallback that nobody can see is a fallback nobody fixes: the chain
+        // silently served every request from its last model for an unknown
+        // length of time before this line existed.
+        onModelFailed: (model, reason) => req.log.warn({ model, reason }, 'model chain fallback'),
       });
 
       // Persist the exchange under the user's own JWT (RLS-scoped). A persist
@@ -148,13 +152,25 @@ export function chatRoutes(app: FastifyInstance): void {
             'Dette indhold er markeret som rigtige persondata og kører kun på betalte modeller uden træning. Ingen er finansieret endnu — tank OpenRouter-kredit op, eller fjern fluebenet i "indeholder rigtige data", hvis det er testindhold.',
         });
       } else if (err instanceof NoModelsError) {
-        send({
-          type: 'error',
-          code: 'all_models_failed',
-          message: `Alle modeller i kæden er utilgængelige lige nu (${err.attempts
-            .map((a) => a.model.split('/').pop())
-            .join(', ')}). Det er som regel midlertidigt — prøv igen om et øjeblik.`,
-        });
+        // "Try again shortly" is true for a busy model and false for an empty
+        // account, and the user cannot tell them apart — so we must.
+        if (err.isOutOfCredit) {
+          req.log.error({ attempts: err.attempts }, 'OPENROUTER OUT OF CREDIT — every paid model refused');
+          send({
+            type: 'error',
+            code: 'all_models_failed',
+            message:
+              'Assistenten kan ikke svare lige nu. Det er en fejl hos os, ikke hos dig, og den går ikke væk af sig selv — vi er på sagen. Din kvote er ikke blevet brugt.',
+          });
+        } else {
+          send({
+            type: 'error',
+            code: 'all_models_failed',
+            message: `Alle modeller i kæden er utilgængelige lige nu (${err.attempts
+              .map((a) => a.model.split('/').pop())
+              .join(', ')}). Det er som regel midlertidigt — prøv igen om et øjeblik.`,
+          });
+        }
       } else if (!abort.signal.aborted) {
         send({
           type: 'error',

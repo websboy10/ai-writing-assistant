@@ -1,5 +1,6 @@
 import type { AutonomousRequest, ChatMessage } from '@awa/shared';
 import type { DetectedQuestion } from './parse.js';
+import { PROSE_RULES } from '../prompt.js';
 
 /**
  * Structured prompt assembly for autonomous mode (mirrors PROM-03's
@@ -41,7 +42,7 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
 
   const user: ChatMessage = {
     role: 'user',
-    content: `# Document${req.documentTitle ? `: ${req.documentTitle}` : ''} (scope: ${req.scope})\n${paragraphLines(req)}`,
+    content: `DOCUMENT${req.documentTitle ? `: ${req.documentTitle}` : ''} (scope: ${req.scope})\n${paragraphLines(req)}`,
   };
 
   return [system, user];
@@ -49,13 +50,19 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
 
 /**
  * D-11: answers are grounded in the document plus whatever files are already
- * attached in the panel, in the same "# Attached context" shape as
+ * attached in the panel, in the same "ATTACHED CONTEXT" shape as
  * ../prompt.ts's assembleMessages so both prompts read the same way.
  * D-12: the model must answer every question regardless of grounding — the
  * panel lists ungrounded answers, it never withholds one.
  */
 export function answerMessages(req: AutonomousRequest, batch: DetectedQuestion[]): ChatMessage[] {
   const sections: string[] = [];
+
+  // The same rules the chat path uses (../prompt.ts). These answers are
+  // written straight under the question in the user's own document, so an
+  // answer containing "**" is a worse failure here than in the panel — nobody
+  // reads it before it lands.
+  sections.push(`Every "answer" you write is inserted directly into the document.\n\n${PROSE_RULES}`);
 
   sections.push(
     'You answer questions found in a document, grounded in that document and any attached context material. ' +
@@ -73,9 +80,9 @@ export function answerMessages(req: AutonomousRequest, batch: DetectedQuestion[]
   );
 
   if (req.context?.length) {
-    const ctx = req.context.map((c) => `## Source: ${c.name} (${c.kind})\n${c.text}`).join('\n\n');
+    const ctx = req.context.map((c) => `[Source: ${c.name} (${c.kind})]\n${c.text}`).join('\n\n');
     sections.push(
-      `# Attached context\nUse this material as grounding alongside the document. Do not invent content that contradicts it.\n\n${ctx}`,
+      `ATTACHED CONTEXT\nUse this material as grounding alongside the document. Do not invent content that contradicts it.\n\n${ctx}`,
     );
   }
 
@@ -85,8 +92,8 @@ export function answerMessages(req: AutonomousRequest, batch: DetectedQuestion[]
   const user: ChatMessage = {
     role: 'user',
     content:
-      `# Document${req.documentTitle ? `: ${req.documentTitle}` : ''}\n${paragraphLines(req)}\n\n` +
-      `# Questions to answer\n${questionLines}\n\n` +
+      `DOCUMENT${req.documentTitle ? `: ${req.documentTitle}` : ''}\n${paragraphLines(req)}\n\n` +
+      `QUESTIONS TO ANSWER\n${questionLines}\n\n` +
       'Output ONLY a bare JSON array — no prose before or after it, no markdown code fence — of objects ' +
       'shaped { "paragraphIndex": number, "answer": string, "grounded": boolean }: exactly one per question ' +
       'above, in the SAME ORDER as the questions are listed.',

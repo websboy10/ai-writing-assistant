@@ -5,6 +5,9 @@ export interface Completion {
   text: string;
   /** 'length' means the reply was cut off at the token ceiling — see below. */
   finishReason: string;
+  /** Which model actually answered, and which ones failed on the way there. */
+  model: string;
+  failures: { model: string; reason: string }[];
 }
 
 /**
@@ -25,15 +28,20 @@ export async function collect(
 ): Promise<Completion> {
   let text = '';
   let finishReason = '';
+  let model = '';
+  const failures: { model: string; reason: string }[] = [];
   await streamChat(messages, contentClass, signal, {
     onToken: (t) => {
       text += t;
     },
-    onMeta: () => {},
+    onMeta: (m) => {
+      model = m;
+    },
     onUsage: () => {},
     onFinish: (reason) => {
       finishReason = reason;
     },
+    onModelFailed: (m, reason) => failures.push({ model: m, reason }),
   });
-  return { text, finishReason };
+  return { text, finishReason, model, failures };
 }
