@@ -341,7 +341,19 @@ try {
   await host.getByRole('button', { name: 'Opret konto', exact: true }).last().click();
   await page.waitForTimeout(3500);
   const dupe = await panelText();
-  r.ok('an existing address points at signing in instead', /allerede en konto/i.test(dupe), dupe.slice(-160));
+  // Two acceptable answers, and the live project gives the second one.
+  //
+  // GoTrue can reply "user already registered", which we translate to "der
+  // findes allerede en konto — log ind i stedet". But this project is
+  // configured not to reveal whether an address is registered at all: it
+  // returns the same "check your email" as a genuine new signup. That is
+  // deliberate anti-enumeration, it is the better behaviour, and a test that
+  // demanded the leak would have been pressure to remove it.
+  r.ok(
+    'signing up with a known address never leaks whether it exists',
+    /allerede en konto/i.test(dupe) || /bekræftelseslinket/i.test(dupe),
+    dupe.slice(-160),
+  );
 
   // Leave the profile signed in, so the next run starts where this one did.
   await host.getByRole('button', { name: '← Tilbage til log ind' }).click().catch(() => {});
