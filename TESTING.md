@@ -172,6 +172,46 @@ document. Exactly as before — this button was not supposed to change.
 | Google OAuth verification for autonomous mode | `auth/documents` is a sensitive scope. The app is in Testing mode: up to 100 users you add yourself, no verification. Public launch needs Google to verify the OAuth app | Before public launch |
 | Rich-editor insertion on Gmail/LinkedIn/Slack/Notion | Built and passing on an equivalent test editor; needs sign-ins to verify on the real sites — same as the Docs test above | Your walkthrough |
 
+## Two things only you can do
+
+Both block a real launch. Neither is a code problem.
+
+1. **Put money on OpenRouter.** The account currently has **0 kr. of purchased
+   credit**. Every request falls through to the cheapest model in the chain,
+   because the two good ones (Claude Sonnet 5 and Gemini 3.5 Flash) refuse a
+   request they cannot afford. The product works — the Danish it writes is
+   decent — but it is writing with its weakest hand, and the one remaining
+   flaky behaviour in autonomous mode is that model giving up on questions the
+   document does not answer. https://openrouter.ai/settings/credits
+
+2. **Add `SUPABASE_SERVICE_ROLE_KEY` to Vercel.** Supabase dashboard →
+   Project Settings → API → `service_role` (the secret one — it must never go
+   anywhere near the extension). Without it the Stripe webhook and the receipt
+   page cannot write, which is harmless — a paying customer is still unlocked
+   within seconds by the on-demand check, and the payment walkthrough passes
+   6/6 with those calls being refused — but it is the last loose end from the
+   security fix on 2026-08-25.
+
+## Checking it yourself, without clicking
+
+Everything below drives a real Chrome with the real extension. They are the
+proof behind any claim that something works.
+
+| Command | What it proves | Costs AI quota |
+|---|---|---|
+| `pnpm typecheck && pnpm test` | 50 unit tests; nothing about the UI | no |
+| `pnpm verify:rls` | The paywall and the daily limit cannot be picked open | no |
+| `pnpm verify:drop` | Dragging a file onto the edge button attaches it | no |
+| `pnpm verify:ui` | 34 points: the panel, all eight actions, marked text, page-as-context, long paste, templates, resize | 1 request |
+| `pnpm verify:paywall` | The whole payment flow, with a Stripe test card, and puts the account back afterwards | no |
+| `pnpm verify:docs` | Google Docs: insert, undo, slow insert, answer a marking, answer a whole document, undo all | ~9 requests |
+| `pnpm verify:all` | Everything above except the paywall | ~10 requests |
+
+`pnpm verify:docs --only=answer-selection` runs one section on its own.
+
+The daily limit is 200 requests per account, resetting at 02.00 Danish time. A
+full round of Docs testing uses about 5% of it.
+
 ## One infrastructure note
 
 Your Supabase free plan allows 2 active projects. To create this one, I
