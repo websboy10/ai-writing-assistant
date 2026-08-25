@@ -229,7 +229,9 @@ proof behind any claim that something works.
 | `pnpm verify:ui` | 34 points: the panel, all eight actions, marked text, page-as-context, long paste, templates, resize | 1 request |
 | `pnpm verify:paywall` | The whole payment flow, with a Stripe test card, and puts the account back afterwards | no |
 | `pnpm verify:docs` | Google Docs: insert, undo, slow insert, answer a marking, answer a whole document, undo all | ~9 requests |
-| `pnpm verify:all` | Everything above except the paywall | ~10 requests |
+| `pnpm verify:autonomous` | 42 points on autonomous mode in ordinary editors: ten questions in one marking, pause/resume, undo-everything-in-one-press, the gap list, and the full acceptance walk with an attached file | ~20 requests |
+| `pnpm verify:all` | Everything above except the paywall and autonomous | ~12 requests |
+| `pnpm verify:prod` | The same, but against the DEPLOYED backend, with the extension built exactly as a user installs it | ~10 requests |
 
 `pnpm verify:docs --only=answer-selection` runs one section on its own.
 
