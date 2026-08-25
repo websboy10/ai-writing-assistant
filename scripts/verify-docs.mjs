@@ -226,18 +226,33 @@ async function waitForRun(timeout) {
   );
   const t = await page.evaluate(() => document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '');
   if (/Færdig ✓/.test(t)) return 'done';
-  if (/ingen kunne besvares/.test(t)) return 'no-answers';
-  if (/ikke fundet nogen spørgsmål/.test(t)) return 'no-questions';
+  // Carry the panel's own words out with the verdict — "no-answers" alone
+  // sends the next person digging through logs for a sentence the UI already
+  // had on screen.
+  const said = t.match(/\d+ spørgsmål blev fundet[^.]*\./)?.[0] ?? t.match(/Der blev ikke fundet[^.]*\./)?.[0] ?? '';
+  if (/ingen kunne besvares/.test(t)) return `no-answers${said ? ` — panel: "${said}"` : ''}`;
+  if (/ikke fundet nogen spørgsmål/.test(t)) return `no-questions${said ? ` — panel: "${said}"` : ''}`;
   if (/Fejl/.test(t)) return 'error';
   return 'stopped';
 }
 
-/** Every question keeps its text, and gains a non-empty line beneath it. */
+/**
+ * Every question keeps its text, and gains a non-empty line beneath it that is
+ * NOT simply the next fixture line.
+ *
+ * The fixture's paragraphs are consecutive, so "the line after Q1" is Q2 until
+ * something is written between them. Counting that as an answer made these
+ * assertions pass on a run that wrote nothing at all — caught 2026-08-25 when
+ * a run reported "ingen kunne besvares" and every check still went green.
+ */
+const FIXTURE_LINES = new Set([Q1, Q2, Q3, STATEMENT]);
+
 function answersUnderQuestions(text) {
   const lines = text.split('\n');
   return QUESTIONS.map((q) => {
     const i = lines.findIndex((l) => l.trim() === q);
-    return { q, found: i !== -1, answer: i === -1 ? '' : (lines[i + 1] ?? '').trim() };
+    const below = i === -1 ? '' : (lines[i + 1] ?? '').trim();
+    return { q, found: i !== -1, answer: FIXTURE_LINES.has(below) ? '' : below };
   });
 }
 
@@ -278,7 +293,7 @@ section('answer-selection', async (docId) => {
   await host.getByRole('button', { name: 'Besvar markeringen', exact: true }).click();
   await host.getByRole('button', { name: 'Straks', exact: true }).click();
   const outcome = await waitForRun(180_000);
-  r.ok('the marked-selection run finishes', outcome === 'done', `outcome: ${outcome}`);
+  r.ok('the marked-selection run finishes', outcome === 'done', outcome);
 
   const after = await waitForDoc(docId, (t) => t.length > before.length + 20, {
     timeout: 90_000,
@@ -305,7 +320,7 @@ section('answer-document', async (docId) => {
   await host.getByRole('button', { name: 'Besvar alle spørgsmål', exact: true }).click();
   await host.getByRole('button', { name: 'Straks', exact: true }).click();
   const outcome = await waitForRun(180_000);
-  r.ok('the whole-document run finishes', outcome === 'done', `outcome: ${outcome}`);
+  r.ok('the whole-document run finishes', outcome === 'done', outcome);
 
   const after = await waitForDoc(docId, (t) => t.length > before.length + 20, {
     timeout: 90_000,
@@ -347,7 +362,7 @@ section('answer-document-slow', async (docId) => {
   await host.getByRole('button', { name: 'Besvar alle spørgsmål', exact: true }).click();
   await host.getByRole('button', { name: 'Langsomt', exact: true }).click();
   const outcome = await waitForRun(300_000);
-  r.ok('the Langsomt whole-document run finishes', outcome === 'done', `outcome: ${outcome}`);
+  r.ok('the Langsomt whole-document run finishes', outcome === 'done', outcome);
 
   const after = await waitForDoc(docId, (t) => t.length > before.length + 20, {
     timeout: 120_000,

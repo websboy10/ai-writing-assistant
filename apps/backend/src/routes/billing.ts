@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import Stripe from 'stripe';
 import { env } from '../env.js';
 import { verifyUser, anonRpc, rpc } from '../supabase.js';
-import { stripe, getEntitlement, applySubscription, mapStatus, periodEnd } from '../billing.js';
+import { stripe, getEntitlement, applySubscription, mapStatus, periodEnd, isMissingInStripe } from '../billing.js';
 
 const installHashOf = (req: { headers: Record<string, unknown> }): string => {
   const raw = req.headers['x-awa-install'];
@@ -14,7 +14,19 @@ export function billingRoutes(app: FastifyInstance): void {
   app.get('/api/billing/status', async (req, reply) => {
     const user = await verifyUser(req.headers.authorization);
     if (!user) return reply.code(401).send({ error: 'Log ind først', code: 'unauthenticated' });
-    const ent = await getEntitlement(user, installHashOf(req));
+    // Uncaught, an upstream failure here was serialised straight to the client
+    // — a raw Stripe error object, customer id included. The panel polls this
+    // every five seconds, so anything thrown must come back as our own words.
+    let ent: Awaited<ReturnType<typeof getEntitlement>>;
+    try {
+      ent = await getEntitlement(user, installHashOf(req));
+    } catch (err) {
+      req.log.error(err, 'billing status failed');
+      return reply.code(503).send({
+        error: 'Dit abonnement kunne ikke kontrolleres lige nu — prøv igen om få sekunder.',
+        code: 'upstream_error',
+      });
+    }
     const msLeft = new Date(ent.trialEndsAt).getTime() - Date.now();
     return {
       status: ent.status,
@@ -38,6 +50,18 @@ export function billingRoutes(app: FastifyInstance): void {
       await rpc(user, 'billing_init', { p_user_id: user.id, p_install_hash: installHashOf(req) });
     }
     let customerId = rows[0]?.stripe_customer_id ?? null;
+    // A stored customer that Stripe no longer has would make Checkout throw,
+    // leaving the user staring at a paywall they cannot pay their way past.
+    // Verify before reusing, and mint a new one if it is gone.
+    if (customerId) {
+      try {
+        const existing = await stripe.customers.retrieve(customerId);
+        if ((existing as Stripe.DeletedCustomer).deleted) customerId = null;
+      } catch (err) {
+        if (!isMissingInStripe(err)) throw err;
+        customerId = null;
+      }
+    }
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email || undefined,

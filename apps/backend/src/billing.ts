@@ -68,16 +68,48 @@ async function fetchRow(user: AuthedUser): Promise<BillingRow | null> {
   return rows[0] ?? null;
 }
 
+/**
+ * True when Stripe says the thing we asked about simply is not there — a
+ * customer deleted in the dashboard, or a row left behind when the account was
+ * moved between Stripe environments. That is a definitive answer, not an
+ * outage, and it must not be retried forever.
+ */
+export function isMissingInStripe(err: unknown): boolean {
+  return (
+    typeof err === 'object' && err !== null && (err as { code?: string }).code === 'resource_missing'
+  );
+}
+
 /** Pull the live subscription state for this customer down into the cache. */
 async function syncFromStripe(userId: string, row: BillingRow): Promise<boolean> {
   if (!row.stripe_customer_id) return false;
   // Throttle: a fresh cache miss was already synced moments ago.
   if (Date.now() - new Date(row.updated_at).getTime() < 15_000) return false;
-  const subs = await stripe.subscriptions.list({
-    customer: row.stripe_customer_id,
-    status: 'all',
-    limit: 3,
-  });
+
+  let subs: Stripe.ApiList<Stripe.Subscription>;
+  try {
+    subs = await stripe.subscriptions.list({
+      customer: row.stripe_customer_id,
+      status: 'all',
+      limit: 3,
+    });
+  } catch (err) {
+    if (!isMissingInStripe(err)) throw err;
+    // The cached customer no longer exists. Left alone, every entitlement
+    // check threw here: /api/chat answered 503 "try again in a few seconds"
+    // forever, and /api/billing/status leaked the raw Stripe error — customer
+    // id and all — straight to the client. Measured on a real account
+    // 2026-08-25. Forgetting the dead link lets the user fall back to their
+    // trial, see the paywall honestly, and pay their way out.
+    //
+    // Its own RPC, not billing_set_subscription: that one coalesces its ids so
+    // a null can never clear one, which is the right guard there and exactly
+    // wrong here — the link would survive and every check would re-attempt the
+    // same doomed call.
+    await anonRpc('billing_forget_customer', { p_user_id: userId });
+    return true;
+  }
+
   const best = pickSubscription(subs.data);
   await anonRpc('billing_set_subscription', {
     p_user_id: userId,
