@@ -1,4 +1,5 @@
 import type { ChatErrorCode, ChatStreamEvent } from '@awa/shared';
+import { danishAuthError } from '@/utils/auth-errors';
 import {
   BACKEND_URL,
   CHAT_PORT,
@@ -242,8 +243,7 @@ export default defineBackground(() => {
         if (!res) return { ok: false, status: 0, error: 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.' };
         const data = (await res.json()) as Record<string, unknown>;
         if (!res.ok) {
-          const m = (data.error_description ?? data.msg ?? data.error ?? `HTTP ${res.status}`) as string;
-          return { ok: false, status: res.status, error: m };
+          return { ok: false, status: res.status, error: danishAuthError(msg.kind, res.status, data) };
         }
         if (data.access_token) {
           await setSession(sessionFromTokenResponse(data));
@@ -271,7 +271,7 @@ export default defineBackground(() => {
         const data = (await res.json()) as Record<string, unknown>;
         return res.ok
           ? { ok: true, status: 200, data }
-          : { ok: false, status: res.status, error: String(data.error ?? data.msg ?? 'Adgangskoden kunne ikke nulstilles. Prøv igen.') };
+          : { ok: false, status: res.status, error: danishAuthError('reset', res.status, data) };
       }
       case 'api': {
         const res = await apiFetch(msg.path, {

@@ -8,7 +8,7 @@
     "build": "wxt build",
     "zip": "wxt zip",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test insertion/*.test.ts"
+    "test": "node --import tsx --test insertion/*.test.ts utils/*.test.ts"
   },
   "dependencies": {
     "@awa/shared": "workspace:*",

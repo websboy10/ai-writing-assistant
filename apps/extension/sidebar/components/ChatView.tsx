@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { OPERATION_LABELS, type PromptOperation } from '@awa/shared';
 import { autonomous } from '../autonomous';
 import { sendChat, stopGeneration } from '../chat';
 import { newContextId } from '../ingest';
@@ -15,6 +16,51 @@ const SERIF = { fontFamily: 'Charter, Georgia, Cambria, serif' };
 /** In flight — as opposed to finished, stopped or failed, which are all states
  *  the user is free to start a new run from. */
 const isRunActive = (state?: string) => state === 'writing' || state === 'paused';
+
+/**
+ * What the user is asking for when they pick a verb and type nothing.
+ *
+ * The operations are the product's stated purpose — "ask it to draft, rewrite,
+ * summarize, translate or explain" (PROJECT.md) — and the backend has
+ * implemented all eight from the beginning. Nothing could reach them: the store
+ * pinned `operation` to 'chat' and `subject` was never sent, so seven of the
+ * eight were dead code and the marked text could only ever be answered or
+ * attached, never worked on.
+ *
+ * These sentences become the user's own message when they press send without
+ * typing, so the conversation and the saved history still read like something
+ * a person said, rather than showing an empty bubble.
+ */
+const DEFAULT_ASK: Record<PromptOperation, string> = {
+  chat: '',
+  rewrite: 'Omskriv den markerede tekst.',
+  summarize: 'Opsummer den markerede tekst.',
+  expand: 'Uddyb den markerede tekst.',
+  simplify: 'Forenkl den markerede tekst.',
+  explain: 'Forklar den markerede tekst.',
+  translate: 'Oversæt den markerede tekst.',
+  continue: 'Skriv videre fra den markerede tekst.',
+};
+
+/** What the composer invites you to type, given the verb you picked. */
+const OPERATION_HINT: Record<PromptOperation, string> = {
+  chat: 'Skriv til assistenten…',
+  rewrite: 'Hvordan skal den omskrives? (valgfrit)',
+  summarize: 'Hvor kort, og til hvem? (valgfrit)',
+  expand: 'Hvad skal uddybes? (valgfrit)',
+  simplify: 'Hvem skal kunne forstå den? (valgfrit)',
+  explain: 'Hvad er du i tvivl om? (valgfrit)',
+  translate: 'Til hvilket sprog?',
+  continue: 'Hvad skal der ske videre? (valgfrit)',
+};
+
+const TONES: [NonNullable<import('@awa/shared').OutputPrefs['tone']>, string][] = [
+  ['neutral', 'Neutral'],
+  ['formal', 'Formel'],
+  ['friendly', 'Venlig'],
+  ['confident', 'Bestemt'],
+  ['casual', 'Afslappet'],
+];
 
 export function ChatView() {
   const s = useStore();
@@ -55,10 +101,28 @@ export function ChatView() {
     return () => clearInterval(t);
   }, [writing]);
 
+  // An operation acts on the text marked on the page; chat acts on what you
+  // type. That is the whole difference, and it is why picking a verb without
+  // marking anything has to say so rather than quietly answering about nothing.
+  const op = s.operation;
+  const subject = op === 'chat' ? '' : liveSelection;
+  const canSend = op === 'chat' ? !!input.trim() : !!subject;
+
   function send() {
+    if (s.streaming) return;
     const text = input.trim();
-    if (!text) return;
-    sendChat(text);
+    if (op === 'chat') {
+      if (!text) return;
+      sendChat(text);
+      setInput('');
+      return;
+    }
+    const marked = liveSelection || inserter.selectionText();
+    if (!marked) {
+      s.set({ error: `Markér den tekst på siden, "${OPERATION_LABELS[op]}" skal bruges på, og prøv igen.` });
+      return;
+    }
+    sendChat(text || DEFAULT_ASK[op], marked);
     setInput('');
   }
 
@@ -175,27 +239,59 @@ export function ChatView() {
 
         <AutonomousBar />
 
-        {/* the one output setting: length */}
-        <div className="flex items-center gap-1.5">
-          <span className="awa-eyebrow">Længde</span>
-          {(
-            [
-              ['shorter', 'Kortere'],
-              ['same', 'Samme'],
-              ['longer', 'Længere'],
-            ] as const
-          ).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => s.set({ prefs: { ...s.prefs, length: k } })}
-              className={`rounded-full px-2.5 py-0.5 text-aside transition-colors ${
-                (s.prefs.length ?? 'same') === k ? 'bg-ink text-paper' : 'border border-hairline hover:border-ink'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        {/* Output settings: what to do, in which voice, at what length. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <Picker
+            label="Handling"
+            value={op}
+            onChange={(v) => s.set({ operation: v as PromptOperation })}
+            title="Chat svarer på det, du skriver. De øvrige arbejder på den tekst, du har markeret på siden."
+            options={Object.entries(OPERATION_LABELS) as [string, string][]}
+          />
+          <Picker
+            label="Tone"
+            value={s.prefs.tone ?? 'neutral'}
+            onChange={(v) => s.set({ prefs: { ...s.prefs, tone: v as (typeof TONES)[number][0] } })}
+            title="Tonefaldet i det, assistenten skriver"
+            options={TONES}
+          />
+          <div className="flex items-center gap-1.5">
+            <span className="awa-eyebrow">Længde</span>
+            {(
+              [
+                ['shorter', 'Kortere'],
+                ['same', 'Samme'],
+                ['longer', 'Længere'],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => s.set({ prefs: { ...s.prefs, length: k } })}
+                className={`rounded-full px-2.5 py-0.5 text-aside transition-colors ${
+                  (s.prefs.length ?? 'same') === k ? 'bg-ink text-paper' : 'border border-hairline hover:border-ink'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* A verb needs something to act on, so say plainly whether it has it. */}
+        {op !== 'chat' && (
+          <p className="awa-note">
+            {subject ? (
+              <>
+                <b>{OPERATION_LABELS[op]}</b> arbejder på de <span className="awa-num">{subject.length.toLocaleString('da-DK')}</span>{' '}
+                tegn, du har markeret.
+              </>
+            ) : (
+              <>
+                <b>{OPERATION_LABELS[op]}</b> arbejder på markeret tekst. Markér et stykke på siden først.
+              </>
+            )}
+          </p>
+        )}
 
         <div className="flex items-end gap-2">
           <textarea
@@ -208,7 +304,7 @@ export function ChatView() {
               }
             }}
             rows={2}
-            placeholder="Skriv til assistenten…"
+            placeholder={OPERATION_HINT[op]}
             className="min-h-[42px] flex-1 resize-y rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
           />
           {s.streaming ? (
@@ -222,7 +318,8 @@ export function ChatView() {
           ) : (
             <button
               onClick={send}
-              disabled={!input.trim()}
+              disabled={!canSend}
+              title={op === 'chat' ? 'Send' : `${OPERATION_LABELS[op]} den markerede tekst`}
               className="rounded-xl bg-ink px-3 py-2 font-medium text-paper hover:opacity-85 disabled:opacity-40"
             >
               ↑
@@ -291,6 +388,47 @@ function AutonomousBar() {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * A native <select>, deliberately.
+ *
+ * A hand-built popover would have to solve keyboard navigation, focus
+ * trapping, type-ahead and stacking order again, inside a shadow root sitting
+ * on someone else's page — and it would still feel like a web widget. The
+ * browser's own control gets all of that right, renders its list above every
+ * possible z-index because it is not part of the page at all, and is the thing
+ * the user's OS already taught them to use.
+ */
+function Picker({
+  label,
+  value,
+  onChange,
+  options,
+  title,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+  title?: string;
+}) {
+  return (
+    <label className="flex items-center gap-1.5" title={title}>
+      <span className="awa-eyebrow">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="max-w-[116px] rounded-full border border-hairline bg-paper px-2 py-0.5 text-aside text-ink outline-none hover:border-ink focus:border-ink"
+      >
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
