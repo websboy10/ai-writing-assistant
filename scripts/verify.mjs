@@ -167,7 +167,11 @@ try {
   // Wording updated by 07-04 (D-04a): "Besvar" now writes directly into the
   // marking instead of generating a draft to review — the explanatory line
   // changed to say so truthfully. "Kontekst" is untouched (D-04b).
-  ok('the two functions are explained in words', /skrives direkte ind i markeringen/i.test(selBarText) && /baggrundsviden/.test(selBarText));
+  // Condensed from three lines to one on 2026-08-25: both buttons carry the
+  // full explanation in their tooltip and the empty state introduces them, so
+  // three permanent lines of help under two buttons was the panel explaining
+  // itself instead of getting out of the way. The meaning must still be there.
+  ok('the two functions are explained in words', /skrives ind i markeringen/i.test(selBarText) && /baggrundsviden/.test(selBarText));
 
   // Function 2: use as context → a small chip with a corner ✕
   await host.locator('button', { hasText: 'Brug som kontekst' }).click();
@@ -248,15 +252,34 @@ try {
   ok('undo preserves user typing', afterUndo.includes('x'), `after undo="${afterUndo.slice(0, 40)}"`);
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
-  console.log('\n— The one output setting: length —');
-  await host.locator('button', { hasText: 'Kortere' }).click();
-  const shorterActive = await page.evaluate(() => {
-    const hostEl = document.querySelector('awa-sidebar');
-    const btn = [...(hostEl?.shadowRoot?.querySelectorAll('button') ?? [])].find((b) => b.textContent === 'Kortere');
-    return btn?.className.includes('bg-ink') ?? false;
-  });
-  ok('length is a single tap (Kortere/Samme/Længere)', shorterActive);
-  ok('no tone/template/operation controls left', !/Skabelon|Formel|Selvsikker|rigtige data/.test(await shadowText()));
+  console.log('\n— Output settings: action, tone, length —');
+  // DELIBERATE REVERSAL, 2026-08-25. An earlier phase stripped the panel back
+  // to "the one output setting: length", and this assertion used to demand
+  // that tone, templates and operations stayed gone.
+  //
+  // They were gone from the UI but never from the product: the backend had
+  // implemented all eight operations, with Danish labels sitting in
+  // packages/shared, since the beginning — and PROJECT.md calls them what the
+  // product IS ("ask it to draft, rewrite, summarize, translate or explain").
+  // `store.operation` was pinned to 'chat' and `subject` was never sent, so
+  // seven of the eight were unreachable dead code and marked text could only
+  // be answered or attached, never worked on. Same for tone, and for the whole
+  // templates table, its RLS policy and its three endpoints.
+  //
+  // The three controls are one row of selects, which is fewer rows than the
+  // single length setting occupied as chips — the simplification is kept, the
+  // capability is not thrown away with it.
+  const lengthSelect = host.locator('select[title*="Hvor langt"]');
+  await lengthSelect.selectOption('shorter');
+  ok('length is settable', (await lengthSelect.inputValue()) === 'shorter');
+  const opSelect = host.locator('select[title*="Hvad assistenten skal"]');
+  const ops = await opSelect.locator('option').evaluateAll((os) => os.map((o) => o.value));
+  ok(
+    'all eight writing operations are reachable',
+    ['chat', 'summarize', 'rewrite', 'expand', 'simplify', 'explain', 'translate', 'continue'].every((o) => ops.includes(o)),
+    ops.join(','),
+  );
+  ok('tone is settable', (await host.locator('select[title*="Tonefaldet"]').count()) === 1);
 
   console.log('\n— Usage counter —');
   ok('real usage numbers visible in header', /\d+ \/ \d+/.test(await shadowText()));
