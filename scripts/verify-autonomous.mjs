@@ -76,6 +76,17 @@ const STATEMENT = 'Denne formular tager cirka fem minutter at udfylde.';
 // Reused verbatim from 07-02's own fixture: a real question the page gives
 // no grounding for — the deliberate grounded:false case (D-12).
 const UNGROUNDED = 'Hvad var din kollegas vurdering af leveringen i marts?';
+
+/**
+ * The sentence that must never reach the user's document again.
+ *
+ * The prompt used to permit "one short sentence" saying the sources held
+ * nothing, and that sentence landed under the user's own question for them to
+ * delete by hand. Both languages, because the model picks the question's — and
+ * these are the forms it actually produced, not a guess at them.
+ */
+const HEDGE =
+  /fremgår ikke|oplyser ikke|ingen oplysninger|ikke nævnt|ikke angivet|kan ikke besvare|ikke muligt at|indeholder ikke|ikke tilstrækkelig|does not (mention|contain|specify)|no information|not (specified|mentioned|provided)/i;
 // The full #doc fixture text, exactly as test-pages/questions.html defines
 // it — 07-04's new sections (2-5, below) reset #doc to this between each
 // other, because the Straks section above leaves #doc populated with
@@ -163,6 +174,18 @@ async function waitForFieldGrowth(selector, baseLen, timeoutMs) {
 const LANGSOMT_CHARS_BUDGET = 3 * 200; // three answers, generous length each
 const MS_PER_CHAR = 60_000 / (30 * 5);
 const LANGSOMT_BUDGET_MS = Math.round(LANGSOMT_CHARS_BUDGET * MS_PER_CHAR) + 90_000; // + thinking time
+
+/**
+ * How long a run may take to put its FIRST character on the page.
+ *
+ * Nothing can be written until /api/autonomous/answer returns, so this is that
+ * call's latency and nothing else. Measured against production 2026-08-25 on a
+ * three-question document: 29.4s, 14.0s, 9.7s — the slow one being the first
+ * request after an idle period. The old flat 40_000 sat close enough to that
+ * worst case that the suite failed on cold starts with nothing wrong, which is
+ * the same way a flat number failed the run budget above.
+ */
+const FIRST_CHAR_BUDGET_MS = 120_000;
 
 async function runAutonomous(host, autoBtn, modeLabel, perAttemptTimeoutMs) {
   const modeBtn = host.getByRole('button', { name: modeLabel, exact: true });
@@ -445,7 +468,7 @@ try {
   // Wait for real, visible progress (the backend call alone can take
   // ~20-25s) — not just the "Skriver" label, which appears the instant
   // run() is called.
-  await waitForFieldGrowth('#doc', DOC_TEXT.length, 40_000);
+  await waitForFieldGrowth('#doc', DOC_TEXT.length, FIRST_CHAR_BUDGET_MS);
 
   const pauseBtn = host.locator('button', { hasText: 'Pause' });
   await pauseBtn.waitFor({ timeout: 5_000 });
@@ -497,7 +520,7 @@ try {
   await raceLangsomt.waitFor({ timeout: 5_000 });
   await raceLangsomt.click();
 
-  await waitForFieldGrowth('#doc', DOC_TEXT.length, 40_000);
+  await waitForFieldGrowth('#doc', DOC_TEXT.length, FIRST_CHAR_BUDGET_MS);
   await page.waitForTimeout(900); // outlive the first few paced ticks, like verify.mjs's own typing-race test
   await page.locator('#doc').press('x'); // a trusted keystroke — never one we synthesized
   await page.waitForTimeout(500);
@@ -517,40 +540,41 @@ try {
     .catch(() => {});
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
-  console.log('\n— The gap list: ungrounded questions are named in the PANEL, never marked in the document (D-12) —');
-  let gapPanelText = '';
-  let gapDocVal = '';
-  let gapFound = false;
-  for (let attempt = 1; attempt <= 2 && !gapFound; attempt++) {
-    await page.locator('#doc').fill(DOC_TEXT);
-    await page.locator('#doc').click();
-    const res = await runAutonomous(host, autoBtn, 'Straks', 90_000);
-    if (!res.finished) continue;
-    gapPanelText = await shadowText();
-    gapDocVal = await page.locator('#doc').inputValue();
-    gapFound = gapPanelText.includes(UNGROUNDED);
-    if (!gapFound) {
-      console.log(`  … attempt ${attempt} did not surface the ungrounded question, retrying (live-model grounding variance)`);
-      await host.locator('button', { hasText: 'Fortryd alle svar' }).click().catch(() => {});
-      await page.waitForTimeout(400);
-    }
-  }
+  // A question the page gives nothing to build on used to produce a sentence
+  // saying so, plus a panel list naming it. Both are gone (operator's call,
+  // 2026-08-26): what lands is a first draft the person edits, and a refusal
+  // is not editable. What has to hold now is the opposite of what it was — a
+  // real answer, no hedge in the document, no hedge in the panel.
+  console.log('\n— A question with nothing to build on still gets a usable, unhedged answer —');
+  await page.locator('#doc').fill(DOC_TEXT);
+  await page.locator('#doc').click();
+  const gapRun = await runAutonomous(host, autoBtn, 'Straks', 90_000);
+  const gapPanelText = await shadowText();
+  const gapDocVal = await page.locator('#doc').inputValue();
+  ok('the run finished', gapRun.finished, gapPanelText.slice(0, 200));
+
+  const gapLines = gapDocVal.split('\n');
+  const gapIdx = gapLines.findIndex((l) => l.trim() === UNGROUNDED);
+  const afterUngrounded = gapIdx === -1 ? '' : (gapLines[gapIdx + 1] ?? '').trim();
+  ok('the question nothing could ground still gets an answer beneath it', !!afterUngrounded, `"${afterUngrounded}"`);
+  // The failure this replaces was user-visible and specific: "det fremgår ikke
+  // af dokumentet" written into the user's own document, under their own
+  // question, for them to delete by hand.
   ok(
-    'the panel names the question nothing could ground, under "Uden grundlag i dine kilder"',
-    gapPanelText.includes('Uden grundlag i dine kilder') && gapFound,
-    gapPanelText.slice(0, 300),
+    'that answer states something rather than declining to',
+    !!afterUngrounded && !HEDGE.test(afterUngrounded),
+    `"${afterUngrounded}"`,
   );
-  if (gapFound) {
-    const gapLines = gapDocVal.split('\n');
-    const idx = gapLines.findIndex((l) => l.trim() === UNGROUNDED);
-    const afterUngrounded = idx === -1 ? null : (gapLines[idx + 1] ?? '').trim();
-    ok('the ungrounded question still gets a full answer beneath it', !!afterUngrounded, `"${afterUngrounded}"`);
-    ok(
-      'the document itself carries no marker, flag or bracket next to that answer — the gap lives only in the panel',
-      !!afterUngrounded && !/[[\]{}]|⚠|TODO|FIXME|usikker|ubekræftet|grundlag/i.test(afterUngrounded),
-      `"${afterUngrounded}"`,
-    );
-  }
+  ok(
+    'the document carries no marker, flag or bracket next to it',
+    !!afterUngrounded && !/[[\]{}]|⚠|TODO|FIXME|usikker|ubekræftet/i.test(afterUngrounded),
+    `"${afterUngrounded}"`,
+  );
+  ok(
+    'the panel no longer tells the user which answers it made up',
+    !/Uden grundlag/i.test(gapPanelText),
+    gapPanelText.slice(0, 200),
+  );
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
   console.log('\n— Panel independence: closing the sidebar does not stop a running Langsomt run (D-14) —');
@@ -562,7 +586,7 @@ try {
   await bgLangsomt.waitFor({ timeout: 5_000 });
   await bgLangsomt.click();
 
-  await waitForFieldGrowth('#doc', DOC_TEXT.length, 40_000);
+  await waitForFieldGrowth('#doc', DOC_TEXT.length, FIRST_CHAR_BUDGET_MS);
   await page.waitForTimeout(1500);
   const lenBeforeClose = (await page.locator('#doc').inputValue()).length;
 
@@ -751,8 +775,8 @@ try {
     );
 
     ok(
-      'the question nothing could ground is named in the panel, not marked in the document',
-      donePanel.includes('Uden grundlag i dine kilder') || donePanel.includes(UNGROUNDED),
+      'the panel reports the run without naming which answers it made up',
+      !/Uden grundlag/i.test(donePanel),
       donePanel.slice(0, 200),
     );
 

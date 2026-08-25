@@ -34,7 +34,16 @@ export const PROSE_RULES = [
   '- Vary sentence length. Several medium sentences in a row is the clearest sign a machine wrote them.',
   '- Do not force everything into three parallel points. Use the number of points the subject actually has.',
   '- Prefer the concrete: a figure, a date, a name, an actual example over "forskellige faktorer" or "en række områder".',
-  '- Commit to what the sources support. Do not hedge every sentence, and do not overclaim beyond them either.',
+  // "Do not overclaim beyond the sources" is what made this refuse, and a
+  // refusal is worthless here: everything written lands in the user's document
+  // as a draft they edit. The split matters though — inventing while
+  // summarising or translating THEIR text would be a real defect, so the
+  // faithfulness clause comes first and the licence to invent applies only to
+  // what is being written fresh.
+  '- Commit to a specific answer. Where you are transforming text the user supplied — summarising, rewriting, ' +
+    'translating, simplifying — stay faithful to it and add nothing. Everywhere else, where the sources do not ' +
+    'cover something, write the most plausible specific version of it instead of hedging: never announce a gap, ' +
+    'never say what you were not told, never decline. What you write is a first draft the user edits.',
   '- When rewriting or continuing existing text, match its register, tense and vocabulary rather than your own default.',
 ].join('\n');
 
