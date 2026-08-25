@@ -33,7 +33,7 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
         'imperative prompts ("Beskriv dine tre vigtigste resultater i år"), and headings with blank space ' +
         'left beneath them all count as things a person is expected to answer. A plain statement of fact ' +
         'is NOT a question and must not be included.',
-      'Output ONLY a bare JSON array — no prose before or after it, no markdown code fence — of objects ' +
+      'Output ONLY a bare JSON array, no prose before or after it and no markdown code fence, of objects ' +
         'shaped { "paragraphIndex": number, "questionText": string }. "paragraphIndex" is the bracketed ' +
         'number shown before each paragraph. "questionText" must be quoted VERBATIM from that paragraph, ' +
         'never paraphrased. If the document contains no questions, output [].',
@@ -67,22 +67,22 @@ export function answerMessages(
     sections.push(
       'YOUR PREVIOUS REPLY WAS REJECTED because every "answer" in it was an empty string. ' +
         'An empty answer is not an acceptable response to any question, for any reason. ' +
-        'Read the ATTACHED CONTEXT below in full — that is where the answers usually are — and answer from it. ' +
+        'Read the ATTACHED CONTEXT below in full. That is where the answers usually are. Answer from it. ' +
         'Where it holds nothing on a question, invent a plausible answer and write it as if it were simply true.',
     );
   }
 
   sections.push(
     'You fill in a document on the user\'s behalf. Every question below gets a real, usable, specific answer. ' +
-      'Answer EVERY question you are given — never skip one. ' +
+      'Answer EVERY question you are given. Never skip one. ' +
       'Where the document or the ATTACHED CONTEXT holds the answer, use it: the user attached that material ' +
       'BECAUSE it holds the answers, so read it properly before writing anything of your own. ' +
       // The operator's call, 2026-08-26, and the right one for this product:
       // what lands in the document is a FIRST DRAFT the person edits, and an
       // invented-but-sensible answer is something to edit. A refusal is not —
       // it leaves them exactly where they started, having waited 30s for it.
-      'Where they do not hold it, write a plausible answer anyway. Invent the specifics — figures, dates, ' +
-      'names, examples — so they fit the subject, tone and any details already in the document. It does not ' +
+      'Where they do not hold it, write a plausible answer anyway. Invent the specifics, meaning figures, dates, ' +
+      'names and examples, so they fit the subject, tone and any details already in the document. It does not ' +
       'have to be true; it has to make sense and be worth editing. ' +
       // Every hedge is noise here. The user knows they asked a machine to fill
       // in their form; being told so, inside the form, in their own document,
@@ -139,7 +139,7 @@ export function answerMessages(
   if (req.context?.length) {
     const ctx = req.context.map((c) => `[Source: ${c.name} (${c.kind})]\n${c.text}`).join('\n\n');
     sections.push(
-      `ATTACHED CONTEXT — the user attached this BECAUSE it holds the answers.\n` +
+      `ATTACHED CONTEXT. The user attached this BECAUSE it holds the answers.\n` +
         `Read it before deciding a question cannot be answered. Do not invent content that contradicts it.\n\n${ctx}`,
     );
   }
@@ -152,7 +152,7 @@ export function answerMessages(
     content:
       `DOCUMENT${req.documentTitle ? `: ${req.documentTitle}` : ''}\n${paragraphLines(req)}\n\n` +
       `QUESTIONS TO ANSWER\n${questionLines}\n\n` +
-      'Output ONLY a bare JSON array — no prose before or after it, no markdown code fence — of objects ' +
+      'Output ONLY a bare JSON array, no prose before or after it and no markdown code fence, of objects ' +
       'shaped { "paragraphIndex": number, "answer": string }: exactly one per question ' +
       'above, in the SAME ORDER as the questions are listed.',
   };

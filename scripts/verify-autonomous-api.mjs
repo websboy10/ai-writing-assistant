@@ -64,9 +64,20 @@ try {
     answers.length > 0 && answers.every((a) => typeof a.answer === 'string' && a.answer.trim().length > 0),
   );
 
+  // This used to assert grounded:false on paragraph 4. The flag is no longer
+  // asked for (2026-08-26) — a question with nothing behind it now gets the
+  // same confident, specific answer as any other, because what lands in the
+  // document is a draft the user edits and a refusal is not editable. So the
+  // assertion is the opposite one: it is answered, and answered without a hedge.
+  const ungroundable = byIndex.get(4);
+  ok('the question with nothing to ground it is still answered (paragraph 4)', !!ungroundable?.answer?.trim());
   ok(
-    'the ungroundable question is detected and flagged grounded:false (paragraph 4)',
-    byIndex.get(4)?.grounded === false,
+    'and that answer states something rather than declining to',
+    !!ungroundable?.answer &&
+      !/fremgår ikke|oplyser ikke|ingen oplysninger|ikke nævnt|ikke angivet|kan ikke besvare|indeholder ikke|does not (mention|contain)|no information/i.test(
+        ungroundable.answer,
+      ),
+    ungroundable?.answer?.slice(0, 160),
   );
 
   ok('detected count covers at least the three question shapes', (body.detected ?? 0) >= 3);
