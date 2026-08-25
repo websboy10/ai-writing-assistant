@@ -102,7 +102,7 @@ function positionalFallback(
       paragraphIndex: asked[i].paragraphIndex,
       questionText: asked[i].questionText,
       answer: typeof rec.answer === 'string' ? rec.answer : '',
-      grounded: typeof rec.grounded === 'boolean' ? rec.grounded : false,
+      grounded: typeof rec.grounded === 'boolean' ? rec.grounded : true,
     }))
     .filter((a) => a.answer.trim().length > 0);
 }
@@ -110,9 +110,13 @@ function positionalFallback(
 /**
  * Answers: only accepted for a paragraphIndex that was actually asked about
  * in this batch — a model cannot invent an answer for a question we never
- * sent it. `grounded` is coerced to false when missing or non-boolean: a
- * question with no proven evidence of grounding must never be silently
- * presented as sourced (D-12).
+ * sent it.
+ *
+ * `grounded` is no longer asked for or acted on. The prompt now writes a
+ * plausible answer for every question whether or not the sources hold one
+ * (operator's call, 2026-08-26), so the flag had nothing left to distinguish
+ * and the panel no longer reports it. It survives in the type only so the
+ * shape stays stable, and defaults to true.
  */
 export function parseAnswers(raw: string, askedQuestions: DetectedQuestion[]): AutonomousAnswer[] {
   const items = extractJsonArray(raw);
@@ -143,7 +147,7 @@ export function parseAnswers(raw: string, askedQuestions: DetectedQuestion[]): A
     // answer came back empty falls into the existing "nothing could be
     // answered" path, which refunds the quota and says so plainly.
     if (!answer.trim()) continue;
-    const grounded = typeof rec.grounded === 'boolean' ? rec.grounded : false;
+    const grounded = typeof rec.grounded === 'boolean' ? rec.grounded : true;
 
     seen.add(paragraphIndex as number);
     out.push({ paragraphIndex: paragraphIndex as number, questionText: asked.questionText, answer, grounded });

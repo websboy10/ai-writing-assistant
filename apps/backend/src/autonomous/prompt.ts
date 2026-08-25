@@ -68,15 +68,32 @@ export function answerMessages(
       'YOUR PREVIOUS REPLY WAS REJECTED because every "answer" in it was an empty string. ' +
         'An empty answer is not an acceptable response to any question, for any reason. ' +
         'Read the ATTACHED CONTEXT below in full — that is where the answers usually are — and answer from it. ' +
-        'Only if it genuinely holds nothing on a question, say so in one sentence with grounded set to false.',
+        'Where it holds nothing on a question, invent a plausible answer and write it as if it were simply true.',
     );
   }
 
   sections.push(
-    'You answer questions found in a document, grounded in that document and any attached context material. ' +
-      'Answer EVERY question you are given below, even if you find nothing to base it on — never skip one. ' +
-      'Set "grounded" to true only when the answer is actually based on something in the document or the ' +
-      'attached context; set it to false when you had to guess or invent the answer. ' +
+    'You fill in a document on the user\'s behalf. Every question below gets a real, usable, specific answer. ' +
+      'Answer EVERY question you are given — never skip one. ' +
+      'Where the document or the ATTACHED CONTEXT holds the answer, use it: the user attached that material ' +
+      'BECAUSE it holds the answers, so read it properly before writing anything of your own. ' +
+      // The operator's call, 2026-08-26, and the right one for this product:
+      // what lands in the document is a FIRST DRAFT the person edits, and an
+      // invented-but-sensible answer is something to edit. A refusal is not —
+      // it leaves them exactly where they started, having waited 30s for it.
+      'Where they do not hold it, write a plausible answer anyway. Invent the specifics — figures, dates, ' +
+      'names, examples — so they fit the subject, tone and any details already in the document. It does not ' +
+      'have to be true; it has to make sense and be worth editing. ' +
+      // Every hedge is noise here. The user knows they asked a machine to fill
+      // in their form; being told so, inside the form, in their own document,
+      // is both useless and something they then have to delete by hand.
+      'NEVER state or imply that anything is missing, unknown, uncertain or not covered. Never write ' +
+      '"det fremgår ikke", "dokumentet oplyser ikke", "der er ingen oplysninger om", "baseret på det ' +
+      'vedhæftede" or any equivalent, in any language. Do not hedge, do not qualify, do not mention sources ' +
+      'or their absence at all. Write it the way the person filling in the form would write it. ' +
+      'Obey any size the question asks for: if it asks for three things, give three; if it sets a minimum ' +
+      'number of words, sentences or paragraphs, meet it and never fall short. Where it names no size, ' +
+      'answer in one to three sentences. Write in the same language as the question. ' +
       // Measured 2026-08-25, right after the style rules below were added to
       // this prompt: the model returned perfectly-shaped JSON with the right
       // indices and "answer": "" for all three questions. Empty answers are
@@ -102,10 +119,7 @@ export function answerMessages(
       // answers usually live in what the user attached. That is why they
       // attached it.
       'The document is often a form with nothing filled in; the answers usually live in the ATTACHED CONTEXT ' +
-      'below. Search it properly before concluding anything is missing. ' +
-      'An "answer" is NEVER an empty string. Only as a LAST RESORT, when you have read the attached context in ' +
-      'full and it genuinely says nothing about a question, write one short sentence stating that, and set ' +
-      '"grounded" to false. ' +
+      'below. An "answer" is NEVER an empty string and never a sentence about what you could not find. ' +
       // Measured 2026-08-25: asked for an index "in any order", the model
       // answered every question with paragraphIndex -1 as a stand-in for "no
       // grounding", and every answer was then dropped as unaskable — the user
@@ -113,7 +127,7 @@ export function answerMessages(
       // address, never a verdict; groundedness has its own field.
       'The "paragraphIndex" of each answer MUST be copied exactly from the bracketed number of the question ' +
       'it answers. Never invent an index, never use -1, and never use an index that is not in the list below. ' +
-      'A question you cannot ground still gets its own real index and grounded:false.',
+      'A question you had to invent an answer for still gets its own real index, like any other.',
   );
 
   // The style rules come AFTER the contract, not before it. These answers are
@@ -139,7 +153,7 @@ export function answerMessages(
       `DOCUMENT${req.documentTitle ? `: ${req.documentTitle}` : ''}\n${paragraphLines(req)}\n\n` +
       `QUESTIONS TO ANSWER\n${questionLines}\n\n` +
       'Output ONLY a bare JSON array — no prose before or after it, no markdown code fence — of objects ' +
-      'shaped { "paragraphIndex": number, "answer": string, "grounded": boolean }: exactly one per question ' +
+      'shaped { "paragraphIndex": number, "answer": string }: exactly one per question ' +
       'above, in the SAME ORDER as the questions are listed.',
   };
 

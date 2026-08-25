@@ -82,15 +82,19 @@ test('Test 7: an answer for a paragraphIndex never asked about is dropped', () =
   assert.equal(out[0].paragraphIndex, 0);
 });
 
-test('Test 8: grounded missing or not a boolean is coerced to false', () => {
+// The prompt no longer asks for `grounded`, so it is absent from every real
+// reply now. It used to default to false, which fed the panel's "answered
+// without anything to build on" list; that list is gone and every answer is a
+// draft to edit, so a missing flag must not mark an answer as unsourced.
+test('Test 8: grounded missing or not a boolean defaults to true', () => {
   const raw = JSON.stringify([
     { paragraphIndex: 0, answer: 'Svar uden grounded felt' },
     { paragraphIndex: 2, answer: 'Svar med streng grounded', grounded: 'yes' },
   ]);
   const out = parseAnswers(raw, asked);
   assert.equal(out.length, 2);
-  assert.equal(out.find((a) => a.paragraphIndex === 0)?.grounded, false);
-  assert.equal(out.find((a) => a.paragraphIndex === 2)?.grounded, false);
+  assert.equal(out.find((a) => a.paragraphIndex === 0)?.grounded, true);
+  assert.equal(out.find((a) => a.paragraphIndex === 2)?.grounded, true);
 });
 
 test('Test 9: duplicate answers for the same paragraphIndex — first kept, rest dropped', () => {
@@ -148,14 +152,14 @@ test('Test 12: a wrong-length reply with unusable indices is dropped, not guesse
   assert.deepEqual(parseAnswers(raw, asked), []);
 });
 
-test('Test 13: the positional rescue still coerces a non-boolean grounded to false', () => {
+test('Test 13: the positional rescue applies the same grounded default as the main path', () => {
   const raw = JSON.stringify([
     { paragraphIndex: -1, answer: 'Et', grounded: 'yes' },
     { paragraphIndex: -1, answer: 'To' },
   ]);
   const out = parseAnswers(raw, asked);
   assert.equal(out.length, 2);
-  assert.ok(out.every((a) => a.grounded === false));
+  assert.ok(out.every((a) => a.grounded === true));
 });
 
 test('Test 14: an empty answer is dropped — never written as a blank line under the question', () => {

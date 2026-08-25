@@ -789,11 +789,18 @@ function AutoRunBar() {
   const st = s.autoRun;
   if (!st) return null;
   const pct = Math.round(st.progress * 100);
+  // Between pressing the button and the first character there is one network
+  // call that finds the questions — measured against production 2026-08-25 at
+  // 9.7s, 14.0s and 29.4s. For all of it the run said "Skriver · 0 / 0 · 0%":
+  // claiming to write before it has anything to write, beside a counter that
+  // reads as "nothing to do". Both are knowable from what is already here —
+  // a run that is writing always has at least one answer to write.
+  const finding = st.state === 'writing' && st.answersTotal === 0;
   return (
     <div className="sticky bottom-0 space-y-2 rounded-2xl border border-hairline bg-paper p-3 shadow-lg">
       <div className="flex items-baseline justify-between">
         <span className="awa-eyebrow !text-ink">
-          {st.state === 'writing' && 'Skriver'}
+          {st.state === 'writing' && (finding ? 'Finder spørgsmål' : 'Skriver')}
           {st.state === 'paused' && 'På pause'}
           {/* Færdig keeps its checkmark: 07-03's regression suite already asserts on "Færdig ✓" verbatim. */}
           {st.state === 'done' && 'Færdig ✓'}
@@ -801,9 +808,7 @@ function AutoRunBar() {
           {st.state === 'idle' && 'Fortrudt'}
           {st.state === 'error' && 'Fejl'}
         </span>
-        <span className="awa-eyebrow">
-          {st.answersDone} / {st.answersTotal} · {pct}%
-        </span>
+        <span className="awa-eyebrow">{finding ? 'Et øjeblik' : `${st.answersDone} / ${st.answersTotal} · ${pct}%`}</span>
       </div>
       {st.detail === 'user-typing' && (
         <div className="text-ui text-graphite">På pause — du begyndte at skrive. Fortsæt når du er klar.</div>
@@ -811,9 +816,14 @@ function AutoRunBar() {
       {st.placement === 'block' && st.degradedReason && <div className="text-ui text-graphite">{st.degradedReason}</div>}
       {/* The galley line: ink advancing across paper. No countdown, no ETA — a
           backgrounded tab throttles Langsomt's timers, so any estimate here
-          would just be a lie (D-14). */}
+          would just be a lie (D-14). Before the questions are known there is no
+          fraction to draw either, so it travels instead of filling. */}
       <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-wash">
-        <div className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
+        {finding ? (
+          <div className="awa-galley absolute left-0 top-0 h-full rounded-full bg-ink" />
+        ) : (
+          <div className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
+        )}
       </div>
       <div className="flex items-center gap-1.5 text-ui">
         {st.state === 'writing' && (
@@ -841,20 +851,13 @@ function AutoRunBar() {
         </button>
       </div>
       <div className="truncate text-aside text-graphite">{st.targetLabel}</div>
-      {st.ungrounded.length > 0 && (
-        <div className="space-y-1 border-t border-hairline pt-2 text-aside">
-          <p className="awa-eyebrow !text-ink">Uden grundlag i dine kilder</p>
-          <p className="text-graphite">
-            {st.ungrounded.length} {st.ungrounded.length === 1 ? 'spørgsmål blev besvaret' : 'spørgsmål blev besvaret'} alligevel,
-            uden noget i dine kilder at bygge på — intet er markeret i dokumentet.
-          </p>
-          <ul className="list-disc space-y-0.5 pl-4 text-graphite">
-            {st.ungrounded.map((q, i) => (
-              <li key={i}>{q}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* There was a "Uden grundlag i dine kilder" list here. It named the
+          questions the answer had been invented for — which the person already
+          knows, having asked a machine to fill in a form it had no sources for,
+          and which only made them doubt a draft they were going to edit anyway.
+          Removed 2026-08-26 with the prompt change that made every answer a
+          usable draft. `unplaced` below stays: an answer that never reached the
+          document is something they cannot see for themselves. */}
       {st.unplaced.length > 0 && (
         <div className="space-y-1 border-t border-hairline pt-2 text-aside">
           <p className="awa-eyebrow !text-ink">Kunne ikke placeres · {st.unplaced.length}</p>
