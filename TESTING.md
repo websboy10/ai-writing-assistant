@@ -172,6 +172,30 @@ document. Exactly as before — this button was not supposed to change.
 | Google OAuth verification for autonomous mode | `auth/documents` is a sensitive scope. The app is in Testing mode: up to 100 users you add yourself, no verification. Public launch needs Google to verify the OAuth app | Before public launch |
 | Rich-editor insertion on Gmail/LinkedIn/Slack/Notion | Built and passing on an equivalent test editor; needs sign-ins to verify on the real sites — same as the Docs test above | Your walkthrough |
 
+## What the Google approval actually gates
+
+`auth/documents` is a sensitive scope, so a public launch needs Google to
+verify the OAuth app — a process measured in weeks, and it is listed below as a
+launch blocker. It is worth knowing that it does **not** block everything, because
+that changes the order you can ship in.
+
+Works with no Google approval at all — it drives Docs' own find bar, exactly as
+a person would:
+
+- Chat, and both insert modes, in a real document
+- Undo
+- **Besvar markeringen** — mark a section, get every question in it answered
+
+Needs the approval, because both have to *read* the document through the API:
+
+- **Besvar alle spørgsmål** across a whole document
+- **+ Denne side** on Google Docs (on every other site it reads the page directly)
+
+So a first release could ship Docs support on the marking path and add
+whole-document answering when Google comes back, rather than waiting for them
+before anything ships at all. Your call — it is a sequencing question, not a
+technical one.
+
 ## Two things only you can do
 
 Both block a real launch. Neither is a code problem.

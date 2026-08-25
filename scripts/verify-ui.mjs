@@ -292,6 +292,46 @@ try {
   const remembered = await host.locator('aside').boundingBox();
   r.ok('the width is remembered after a reload', Math.abs(remembered.width - wider.width) < 12, `${wider.width} -> ${remembered.width}`);
 
+  // ---- the sign-in screen speaks Danish -----------------------------------
+  //
+  // The unit tests cover the mapping; this covers the wiring. Until 2026-08-25
+  // the auth proxy passed Supabase's own body straight through and the
+  // background worker showed whichever field it found, so the FIRST screen a
+  // new user ever meets answered a mistyped password with "Invalid login
+  // credentials". Both cases below were measured against production that day.
+  await host.getByRole('button', { name: 'Log ud' }).click();
+  await page.waitForTimeout(1500);
+  const emailBox = host.locator('input[type="email"]');
+  await emailBox.waitFor({ timeout: 15_000 });
+
+  await emailBox.fill(EMAIL);
+  await host.locator('input[type="password"]').fill('helt-forkert-kodeord');
+  await host.getByRole('button', { name: 'Log ind', exact: true }).click();
+  await page.waitForTimeout(3000);
+  const wrongPw = await panelText();
+  r.ok('a wrong password is explained in Danish', /Forkert e-mail eller adgangskode/.test(wrongPw), wrongPw.slice(-160));
+  r.ok('and no English leaked through', !/Invalid login credentials/i.test(wrongPw));
+
+  // An address that already has an account: the useful answer is where to go
+  // next, not a restatement of the failure.
+  await host.getByRole('button', { name: 'Opret konto' }).click();
+  await page.waitForTimeout(400);
+  await host.locator('input[type="email"]').fill(EMAIL);
+  await host.locator('input[type="password"]').fill('awa-test-2026');
+  await host.getByRole('button', { name: 'Opret konto', exact: true }).last().click();
+  await page.waitForTimeout(3500);
+  const dupe = await panelText();
+  r.ok('an existing address points at signing in instead', /allerede en konto/i.test(dupe), dupe.slice(-160));
+
+  // Leave the profile signed in, so the next run starts where this one did.
+  await host.getByRole('button', { name: '← Tilbage til log ind' }).click().catch(() => {});
+  await page.waitForTimeout(400);
+  await host.locator('input[type="email"]').fill(EMAIL);
+  await host.locator('input[type="password"]').fill(PASSWORD);
+  await host.getByRole('button', { name: 'Log ind', exact: true }).click();
+  await page.waitForTimeout(3500);
+  r.ok('signing back in works', (await host.locator('textarea').count()) > 0);
+
   // ---- the stale-worker guard --------------------------------------------
   const wrong = [...backendHosts].filter((h) => h !== EXPECTED_BACKEND);
   r.ok(
