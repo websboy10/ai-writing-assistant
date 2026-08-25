@@ -55,20 +55,43 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
  * D-12: the model must answer every question regardless of grounding — the
  * panel lists ungrounded answers, it never withholds one.
  */
-export function answerMessages(req: AutonomousRequest, batch: DetectedQuestion[]): ChatMessage[] {
+export function answerMessages(
+  req: AutonomousRequest,
+  batch: DetectedQuestion[],
+  /** Second attempt after a reply whose answers were all empty — say so plainly. */
+  insist = false,
+): ChatMessage[] {
   const sections: string[] = [];
 
-  // The same rules the chat path uses (../prompt.ts). These answers are
-  // written straight under the question in the user's own document, so an
-  // answer containing "**" is a worse failure here than in the panel — nobody
-  // reads it before it lands.
-  sections.push(`Every "answer" you write is inserted directly into the document.\n\n${PROSE_RULES}`);
+  if (insist) {
+    sections.push(
+      'YOUR PREVIOUS REPLY WAS REJECTED because every "answer" in it was an empty string. ' +
+        'An empty answer is not an acceptable response to any question, for any reason. ' +
+        'If a question cannot be answered from the material, the answer is a sentence saying so — ' +
+        'for example "Dokumentet indeholder ikke oplysninger om dette." — with grounded set to false.',
+    );
+  }
 
   sections.push(
     'You answer questions found in a document, grounded in that document and any attached context material. ' +
       'Answer EVERY question you are given below, even if you find nothing to base it on — never skip one. ' +
       'Set "grounded" to true only when the answer is actually based on something in the document or the ' +
       'attached context; set it to false when you had to guess or invent the answer. ' +
+      // Measured 2026-08-25, right after the style rules below were added to
+      // this prompt: the model returned perfectly-shaped JSON with the right
+      // indices and "answer": "" for all three questions. Empty answers are
+      // dropped by the parser (they would otherwise be written into the
+      // document as blank lines), so the user waited, then read "3 spørgsmål
+      // blev fundet, men ingen kunne besvares lige nu."
+      //
+      // "Do not overclaim beyond the sources" and "answer every question" pull
+      // against each other on a question nothing supports, and saying nothing
+      // is the model's way of obeying both. Naming the third option removes
+      // the conflict — and it is the better answer anyway: a person reading
+      // their document would rather see "dokumentet oplyser ikke dette" than a
+      // silent gap.
+      'An "answer" is NEVER an empty string. When neither the document nor the attached context says anything ' +
+      'about a question, write one short sentence stating exactly that, and set "grounded" to false. ' +
       // Measured 2026-08-25: asked for an index "in any order", the model
       // answered every question with paragraphIndex -1 as a stand-in for "no
       // grounding", and every answer was then dropped as unaskable — the user
@@ -78,6 +101,12 @@ export function answerMessages(req: AutonomousRequest, batch: DetectedQuestion[]
       'it answers. Never invent an index, never use -1, and never use an index that is not in the list below. ' +
       'A question you cannot ground still gets its own real index and grounded:false.',
   );
+
+  // The style rules come AFTER the contract, not before it. These answers are
+  // pasted straight under the question in the user's own document, so "**" is
+  // a worse failure here than in the panel — nobody reads it before it lands —
+  // but the shape of the reply has to be the first thing the model reads.
+  sections.push(`How to write the text inside each "answer":\n\n${PROSE_RULES}`);
 
   if (req.context?.length) {
     const ctx = req.context.map((c) => `[Source: ${c.name} (${c.kind})]\n${c.text}`).join('\n\n');

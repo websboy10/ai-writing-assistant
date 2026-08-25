@@ -262,14 +262,30 @@ async function writeQuestions(docId) {
 
 /** Waits for the run transport to reach a terminal state, and says which. */
 async function waitForRun(timeout) {
-  await page.waitForFunction(
-    () => {
-      const t = document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '';
-      return /Færdig ✓/.test(t) || /Stoppet/.test(t) || /Fejl/.test(t) || /ingen kunne besvares/.test(t) || /ikke fundet nogen spørgsmål/.test(t);
-    },
-    undefined,
-    { timeout },
-  );
+  try {
+    await page.waitForFunction(
+      () => {
+        const t = document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '';
+        return /Færdig ✓/.test(t) || /Stoppet/.test(t) || /Fejl/.test(t) || /ingen kunne besvares/.test(t) || /ikke fundet nogen spørgsmål/.test(t);
+      },
+      undefined,
+      { timeout },
+    );
+  } catch {
+    // A timeout used to throw straight past the report below, so the one thing
+    // that would explain it — what the panel actually says — was the one thing
+    // never printed. The panel is still on screen; read it.
+    // NOT shadowRoot.textContent: the injected Tailwind sheet is ~24KB of CSS
+    // living in a <style> inside the same root, so it fills the whole excerpt
+    // and the interface text never appears. Read the rendered panel instead.
+    const stuck = await page.evaluate(() => {
+      const root = document.querySelector('awa-sidebar')?.shadowRoot;
+      const panel = root?.querySelector('aside') ?? root?.querySelector('.awa-root');
+      return panel?.textContent ?? '(panel not rendered)';
+    });
+    console.log(`  … run never reached a terminal state. Panel says: ${JSON.stringify(stuck.replace(/\s+/g, ' ').trim().slice(0, 700))}`);
+    return 'timeout';
+  }
   const t = await page.evaluate(() => document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '');
   if (!/Færdig ✓/.test(t)) {
     // Whatever went wrong, the panel already said it in words. Printing them

@@ -48,13 +48,28 @@ export function App() {
     void chrome.storage.local.set({ fabHidden: v });
   }
 
-  // Escape closes the panel, the way every overlay on the web does.
-  // Safe only because the composer's text now lives in the store: while it was
-  // component state, closing the panel threw away whatever had been typed.
+  // Escape closes the panel — but ONLY when the key was pressed inside it.
+  //
+  // A document-level listener is wrong here, and the Docs suite proved it
+  // within minutes: autonomous mode positions the cursor by driving Google
+  // Docs' own find bar, and closes that bar with a bubbling synthetic Escape
+  // once per question (insertion/autonomous/docs-find.ts). Every question
+  // therefore slammed the user's panel shut mid-run — the run kept going, since
+  // it lives outside React, but the person watching it lost the progress bar,
+  // the Pause button and the Stop button.
+  //
+  // The same reasoning applies to a real keypress: Escape is an ordinary
+  // editing key in a document, and a writing assistant that vanishes whenever
+  // you dismiss an autocomplete is worse than one you close by hand. Checking
+  // the composed path is what makes it "inside the panel" rather than
+  // "anywhere on the page", and composedPath is what sees through our own
+  // shadow root.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      const inPanel = e.composedPath().some((n) => n instanceof Element && n.tagName === 'AWA-SIDEBAR');
+      if (inPanel) setOpen(false);
     };
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);

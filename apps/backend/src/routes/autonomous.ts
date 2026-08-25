@@ -152,11 +152,37 @@ export function autonomousRoutes(app: FastifyInstance): void {
       // watching a progress bar with nothing else to do.
       const perBatch = await Promise.all(
         batches.map(async (batch) => {
-          const completion = await collect(answerMessages(autoReq, batch), contentClass, abort.signal);
-          if (completion.failures.length) {
-            req.log.warn({ served: completion.model, failures: completion.failures }, 'model chain fallback');
+          const run = async (insist: boolean) => {
+            const completion = await collect(answerMessages(autoReq, batch, insist), contentClass, abort.signal);
+            if (completion.failures.length) {
+              req.log.warn({ served: completion.model, failures: completion.failures }, 'model chain fallback');
+            }
+            return { completion, parsed: parseAnswers(completion.text, batch) };
+          };
+
+          let { completion, parsed } = await run(false);
+
+          // Nothing usable out of a whole batch is a different animal from
+          // "some answers were dropped": measured on a real document roughly
+          // one run in four, the model returned perfectly-shaped JSON with the
+          // right indices and "" for every answer. The parser is right to drop
+          // those — written out they are blank lines in the user's document —
+          // but the user then waited half a minute to be told nothing could be
+          // answered, about questions that were found.
+          //
+          // One retry, and only in this case. The quota point was charged up
+          // front for the whole run, so this costs the user nothing; the alt-
+          // ernative is a wasted run and a person clicking the button again
+          // anyway. It matters most on the cheapest model in the chain, which
+          // is exactly the one an unfunded key falls through to.
+          if (parsed.length === 0 && batch.length > 0) {
+            req.log.warn(
+              { asked: batch.length, finishReason: completion.finishReason, tail: completion.text.slice(-300) },
+              'answer batch yielded nothing usable — retrying once',
+            );
+            ({ completion, parsed } = await run(true));
           }
-          const parsed = parseAnswers(completion.text, batch);
+
           if (parsed.length < batch.length) {
             req.log.warn(
               {
