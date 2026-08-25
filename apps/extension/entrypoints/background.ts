@@ -385,16 +385,45 @@ export default defineBackground(() => {
           fetch(`https://docs.googleapis.com/v1/documents/${encodeURIComponent(msg.documentId)}`, {
             headers: { Authorization: `Bearer ${bearer}` },
           }).catch(() => null);
-        let res = await fetchDoc(auth.token);
-        if (res?.status === 401) {
-          // Cached token expired between docsAuth() and this fetch — clear it
-          // and retry once with a fresh one before giving up.
-          await chrome.identity.removeCachedAuthToken({ token: auth.token }).catch(() => {});
-          const retry = await docsAuth(false);
-          if (!retry.ok) return { ok: false, status: retry.status, error: retry.error };
-          res = await fetchDoc(retry.token);
+
+        /**
+         * One read, several attempts.
+         *
+         * This single call decides which write path the whole run takes: if it
+         * fails, resolveDocsSource degrades to block-paste, and for a WHOLE
+         * document that path can read nothing at all — so the user is told
+         * their document has no questions in it. Measured on a real document
+         * 2026-08-25: one transient "Google Docs API kunne ikke nås" turned a
+         * working Langsomt run into zero answers.
+         *
+         * The old code gave up on the first network blip. A dropped connection
+         * or Google's own 429 says nothing about whether the document is
+         * readable a second later, and this is the cheapest possible place to
+         * find that out — one GET, before any writing has started.
+         */
+        let token = auth.token;
+        let res: Response | null = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (attempt > 0) await new Promise((r) => setTimeout(r, 400 * 2 ** (attempt - 1)));
+          res = await fetchDoc(token);
+          if (res?.status === 401 && attempt === 0) {
+            // Cached token expired between docsAuth() and this fetch — clear it
+            // and try again with a fresh one.
+            await chrome.identity.removeCachedAuthToken({ token }).catch(() => {});
+            const refreshed = await docsAuth(false);
+            if (!refreshed.ok) return { ok: false, status: refreshed.status, error: refreshed.error };
+            token = refreshed.token;
+            res = null;
+            continue;
+          }
+          // 429 and 5xx are Google being busy, not an answer about the document.
+          if (res && (res.status === 429 || res.status >= 500)) {
+            res = null;
+            continue;
+          }
+          if (res) break;
         }
-        if (!res) return { ok: false, status: 0, error: 'Google Docs API kunne ikke nås.' };
+        if (!res) return { ok: false, status: 0, error: 'Google Docs kunne ikke nås lige nu. Prøv igen om et øjeblik.' };
         if (res.status === 403 || res.status === 404) {
           return {
             ok: false,
