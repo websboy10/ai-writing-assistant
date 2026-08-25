@@ -93,6 +93,7 @@ async function readDocsParagraphs(
  * (`selection` scope).
  */
 class GDocsFindSource implements QuestionSource {
+  readonly sourceName = 'GDocsFindSource';
   readonly kind: EditorKind = 'gdocs';
   readonly label = 'Google Docs-dokument';
   readonly placement = 'in-place' as const;
@@ -134,6 +135,7 @@ class GDocsFindSource implements QuestionSource {
 // ---- GDocsPasteSource — no Google access at all (D-02, D-06) ----
 
 class GDocsPasteSource implements QuestionSource {
+  readonly sourceName = 'GDocsPasteSource';
   readonly kind: EditorKind = 'gdocs';
   readonly label = 'Google Docs-dokument';
   readonly placement = 'block' as const;
@@ -188,6 +190,7 @@ class GDocsPasteSource implements QuestionSource {
  * own response.
  */
 class GDocsApiWriteSource implements QuestionSource {
+  readonly sourceName = 'GDocsApiWriteSource';
   readonly kind: EditorKind = 'gdocs';
   readonly label = 'Google Docs-dokument';
   readonly placement: 'in-place' | 'block';
@@ -388,6 +391,25 @@ function pasteReasonForFindFailure(findReason: string | undefined): string {
  *    decides `GDocsFindSource` vs `GDocsApiWriteSource`.
  */
 export async function resolveDocsSource(
+  scope: 'document' | 'selection',
+  mode: 'instant' | 'progressive',
+): Promise<QuestionSource> {
+  // Which of the three write paths a run took is the single most useful fact
+  // about it — the API, Find and paste sources fail in completely different
+  // ways — and until now nothing recorded it. A green run proved only that
+  // "some path worked", which is not the same claim.
+  const source = await pickDocsSource(scope, mode);
+  awaLog('docs.source', {
+    source: source.sourceName,
+    scope,
+    mode,
+    placement: source.placement,
+    degradedReason: source.degradedReason ?? null,
+  });
+  return source;
+}
+
+async function pickDocsSource(
   scope: 'document' | 'selection',
   mode: 'instant' | 'progressive',
 ): Promise<QuestionSource> {

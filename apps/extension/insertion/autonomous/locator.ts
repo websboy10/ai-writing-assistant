@@ -21,6 +21,12 @@ export interface QuestionSource {
   readonly label: string;
   readonly placement: 'in-place' | 'block';
   readonly degradedReason?: string;
+  /**
+   * Which write path this is, for diagnostics. Spelled out rather than taken
+   * from `constructor.name`, which a production build minifies to two letters
+   * — the log then names the one thing it exists to identify as "Rt".
+   */
+  readonly sourceName: string;
   read(): Promise<AutonomousParagraph[]>;
   locate(q: { paragraphIndex: number; questionText: string }): Promise<SavedTarget | null>;
   /**
@@ -69,6 +75,7 @@ function linesToParagraphs(text: string): AutonomousParagraph[] {
  * silently mishandling it.
  */
 class DomSource implements QuestionSource {
+  readonly sourceName = 'DomSource';
   readonly placement = 'in-place' as const;
   /** plain: char offset to search from. contenteditable: block index to search from. */
   private searchFromChar = 0;

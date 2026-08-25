@@ -1,6 +1,6 @@
 import type { InsertionAdapter, InsertResult } from '../types';
 import { awaLog, describeNode } from '../debug';
-import { gdocsSelectionText } from '../target';
+import { gdocsSelectionTextNow } from '../target';
 
 /**
  * Google Docs adapter — the fragile one, by design kept fully isolated.
@@ -86,7 +86,7 @@ export class GDocsAdapter implements InsertionAdapter {
       return {
         ok: false,
         reason:
-          "Google Docs insertion isn't working right now — Google appears to have changed how Docs receives input. Use Copy instead.",
+          'Indsættelse i Google Docs virker ikke lige nu — Google har sandsynligvis ændret måden Docs modtager tekst på. Brug Kopiér i stedet.',
       };
     }
     try {
@@ -104,9 +104,21 @@ export class GDocsAdapter implements InsertionAdapter {
    * Docs mirrors the current document selection into the hidden input iframe
    * (that's how native copy works) — non-empty mirrored text means text is
    * marked. Delegates to target.ts so the mirror is read in exactly one place.
+   *
+   * Deliberately the UNGATED read. The cheap gate answers "nothing marked" for
+   * a moment right after Find moves the cursor — target.ts says so in as many
+   * words — and prepare() is called in exactly that window. The gate then
+   * skipped the ArrowRight that collapses the selection, and the first paste
+   * REPLACED the question it was supposed to answer: the question vanished
+   * from the user's document and the answer stood in its place. Measured on a
+   * real document 2026-08-25, roughly one Langsomt run in three.
+   *
+   * Safe here because both callers are one-shot — the hazard target.ts warns
+   * about is a selection poll running WHILE text is being written, and
+   * ChatView stops that poll for the duration of a run.
    */
   static hasSelection(): boolean {
-    return !!gdocsSelectionText();
+    return !!gdocsSelectionTextNow();
   }
 
   eventTarget(): EventTarget | null {

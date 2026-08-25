@@ -25,13 +25,49 @@ const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice(7);
 const TEST_EMAIL = 'tester@example.com';
 const TEST_PASSWORD = 'awa-test-2026';
 
+const EXPECTED_BACKEND = process.env.VITE_BACKEND_URL ?? 'http://127.0.0.1:8787';
+
 const r = reporter();
 const ctx = await launch({ headless: false });
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 
+/**
+ * Which backend the extension ACTUALLY reached.
+ *
+ * This exists because of a full afternoon lost 2026-08-25. Chrome served a
+ * CACHED service worker out of the persistent profile — the content script was
+ * the current build, but its background worker was an old one still pointing at
+ * production. Every autonomous run in this suite was therefore measured against
+ * the deployed backend rather than the local one under test, and the suite went
+ * green while proving nothing about the fixes it was supposed to prove. The
+ * local server's log was empty the whole time; that was the only clue.
+ *
+ * A route interceptor sees service-worker traffic, which page-level listeners
+ * never do. Anything reaching an unexpected host now fails the run loudly.
+ * (`rm -rf .chrome-profile-cft/Default/'Service Worker'` clears the cache.)
+ */
+const backendHosts = new Set();
+await ctx.route('**/api/**', async (route) => {
+  const url = route.request().url();
+  if (url.includes('/api/')) backendHosts.add(new URL(url).origin);
+  await route.continue();
+});
+
+// The extension's diagnostics are opt-in per page. Without this, a run cannot
+// say WHICH of the three Docs write paths it used — API, Find or paste — and
+// "it passed" is then a much weaker claim than it looks, because the three
+// fail in completely different ways.
+await ctx.addInitScript(() => {
+  try {
+    localStorage.setItem('awa-debug', '1');
+  } catch {}
+});
+
 const awaLog = [];
+const sourcesUsed = [];
 page.on('console', (m) => {
   const t = m.text();
+  if (t.includes('docs.source')) sourcesUsed.push(t.replace(/^\[AWA\]\s*/, ''));
   if (t.includes('AWA') || m.type() === 'error') awaLog.push(`[${m.type()}] ${t.slice(0, 200)}`);
 });
 // "Failed to load resource" in the console names no URL, so a page full of them
@@ -202,16 +238,26 @@ const Q3 = '2. Hvilke områder vil du gerne udvikle?';
 const STATEMENT = 'Denne formular tager cirka fem minutter at udfylde.';
 const QUESTIONS = [Q1, Q2, Q3];
 
-/** Types the fixture into the real document, one paragraph per line. */
+/**
+ * Types the fixture into the real document, one paragraph per line.
+ *
+ * Retries once: a click that fails to focus the canvas makes every keystroke
+ * go nowhere, and the run then fails on an empty document as though the
+ * extension were at fault. That is the harness lying about the product.
+ */
 async function writeQuestions(docId) {
-  await clickIntoDoc();
-  await page.keyboard.type([Q1, Q2, Q3, STATEMENT].join('\n'), { delay: 10 });
-  await sleep(2000);
-  const text = await waitForDoc(docId, (t) => QUESTIONS.every((q) => t.includes(q)), {
-    timeout: 60_000,
-    label: 'the questions to reach the document',
-  });
-  return text;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await clickIntoDoc();
+    await page.keyboard.type([Q1, Q2, Q3, STATEMENT].join('\n'), { delay: 10 });
+    await sleep(2500);
+    const text = await readDoc(ctx, docId);
+    if (QUESTIONS.every((q) => text.includes(q))) return text;
+    if (attempt === 2) {
+      throw new Error(`the questions never reached the document; last read: ${JSON.stringify(text.slice(0, 160))}`);
+    }
+    console.log('  … the document stayed empty — the click missed the canvas, retrying');
+    await clearDoc(docId).catch(() => {});
+  }
 }
 
 /** Waits for the run transport to reach a terminal state, and says which. */
@@ -225,6 +271,11 @@ async function waitForRun(timeout) {
     { timeout },
   );
   const t = await page.evaluate(() => document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '');
+  if (!/Færdig ✓/.test(t)) {
+    // Whatever went wrong, the panel already said it in words. Printing them
+    // beats another round of inferring from a one-word verdict.
+    console.log(`  … panel after the run: ${JSON.stringify(t.replace(/\s+/g, ' ').trim().slice(0, 700))}`);
+  }
   if (/Færdig ✓/.test(t)) return 'done';
   // Carry the panel's own words out with the verdict — "no-answers" alone
   // sends the next person digging through logs for a sentence the UI already
@@ -370,11 +421,21 @@ section('answer-document-slow', async (docId) => {
   }).catch(() => readDoc(ctx, docId));
 
   const rows = answersUnderQuestions(after);
-  r.ok('Langsomt: every question survives verbatim', rows.every((x) => x.found));
+  // On failure the whole document is the evidence. Docs cannot be read back
+  // from the page, so without printing it here the only thing left is a
+  // guess about what went wrong — which is how four wrong fixes got written.
+  const dump = `\n--- document as written ---\n${after}\n---------------------------`;
+  r.ok(
+    'Langsomt: every question survives verbatim',
+    rows.every((x) => x.found),
+    `missing: ${JSON.stringify(rows.filter((x) => !x.found).map((x) => x.q))}${dump}`,
+  );
   r.ok(
     'Langsomt: every question has a non-empty answer beneath it',
     rows.every((x) => x.answer.length > 0),
-    JSON.stringify(rows.map((x) => `${x.q.slice(0, 18)}→${x.answer.slice(0, 24) || '(none)'}`)),
+    `${JSON.stringify(rows.map((x) => `${x.q.slice(0, 18)}→${x.answer.slice(0, 24) || '(none)'}`))}${
+      rows.every((x) => x.answer.length > 0) ? '' : dump
+    }`,
   );
   r.ok('Langsomt: no glued words in the answers', !rows.some((x) => /[a-zæøå][A-ZÆØÅ]/.test(x.answer) || /\w{28,}/.test(x.answer)));
   await shot('answer-document-slow');
@@ -398,6 +459,22 @@ try {
   await signInIfNeeded();
   r.ok('sidebar opens and is signed in on docs.google.com', true);
 
+  // Opening the panel already fetched usage and billing status, so by now the
+  // extension has named its backend. Check before spending a single model call
+  // on sections whose results would otherwise mean nothing.
+  const wrongHosts = [...backendHosts].filter((h) => h !== EXPECTED_BACKEND);
+  if (
+    !r.ok(
+      `the extension is talking to ${EXPECTED_BACKEND}`,
+      backendHosts.size > 0 && wrongHosts.length === 0,
+      backendHosts.size === 0
+        ? 'no backend call seen at all — the panel may not have loaded'
+        : `reached ${JSON.stringify([...backendHosts])}; a cached service worker in .chrome-profile-cft is the usual cause — rm -rf ".chrome-profile-cft/Default/Service Worker"`,
+    )
+  ) {
+    throw new Error('refusing to run: results would describe the wrong backend');
+  }
+
   const names = ONLY ? [ONLY] : Object.keys(sections);
   for (const name of names) {
     if (!sections[name]) throw new Error(`unknown section: ${name}`);
@@ -418,6 +495,9 @@ try {
     console.log('\n— failed requests, by host —');
     for (const [key, n] of [...failedRequests].sort((a, b) => b[1] - a[1])) console.log(`  ${String(n).padStart(3)}×  ${key}`);
   }
+  console.log('\n— which Docs write path each run took —');
+  if (!sourcesUsed.length) console.log('  (none recorded — no autonomous run in this selection)');
+  for (const s of sourcesUsed) console.log(`  ${s}`);
   for (const id of ctxDocIds) console.log(`\ndocument left at: https://docs.google.com/document/d/${id}/edit`);
   if (!KEEP) await ctx.close();
 }
