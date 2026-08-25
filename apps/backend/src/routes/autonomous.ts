@@ -115,6 +115,21 @@ export function autonomousRoutes(app: FastifyInstance): void {
     const abort = new AbortController();
     req.raw.on('close', () => abort.abort());
 
+    // What the run was actually given. Answers that say "the attached context
+    // holds nothing" are indistinguishable, from the outside, between a model
+    // ignoring the attachment and an attachment that never arrived — and the
+    // difference decides whether the bug is in the prompt or in the panel.
+    req.log.info(
+      {
+        scope: autoReq.scope,
+        paragraphs: paragraphs.length,
+        docChars: totalChars,
+        contextItems: autoReq.context?.length ?? 0,
+        contextChars: autoReq.context?.reduce((n, c) => n + (c.text?.length ?? 0), 0) ?? 0,
+      },
+      'autonomous run input',
+    );
+
     try {
       const detection = await collect(detectionMessages(autoReq), contentClass, abort.signal);
       // Which model answered, and which ones we burned getting there. Silent

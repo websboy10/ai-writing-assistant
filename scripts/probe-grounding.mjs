@@ -31,13 +31,22 @@ const PARAGRAPHS = [
   '',
   '2. Hvilke områder vil du gerne udvikle?',
   '',
+  // The deliberate grounded:false case, copied from verify-autonomous.mjs.
+  // Its presence is the whole point: one question the material cannot answer
+  // must not teach the model that the material answers nothing.
+  'Hvad var din kollegas vurdering af leveringen i marts?',
+  '',
   'Denne formular tager cirka fem minutter at udfylde.',
 ].map((text, index) => ({ index, text }));
 
 const ATTACHMENT = [
   `Projektet ${FACT_A} er 87 % færdigt og leverer til tiden.`,
   `Årets tre vigtigste resultater: lanceringen af ${FACT_A}-portalen, en fejlrate ned på ${FACT_B}, og 12 nye kunder.`,
-  'Jeg vil gerne udvikle mig inden for ledelse af eksterne leverandører.',
+  // Deliberately NOT covering the "udvikle" question, so HALF the questions
+  // here have nothing behind them — exactly the ratio verify-autonomous.mjs's
+  // acceptance file creates. That ratio is the thing under test: a model that
+  // gives up on the attachment because half of it came up empty is a model
+  // that will give up on a real user's half-relevant notes.
 ].join('\n');
 
 const token = await (async () => {

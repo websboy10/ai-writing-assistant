@@ -230,6 +230,26 @@ try {
   const after = await composer.evaluate((el) => el.getBoundingClientRect().height);
   r.ok('the composer grows with what is typed', after > before + 10, `${before} -> ${after}`);
 
+  // ---- an attachment can be read back -------------------------------------
+  //
+  // Attaching used to be an act of faith: the chip gave a name and a character
+  // count and nothing could show WHICH characters. It matters most where it is
+  // least visible — OCR output looks the same whether it read the column right
+  // or not.
+  await host.locator('button[title*="klik for at læse"]').first().click();
+  await page.waitForTimeout(500);
+  const preview = await panelText();
+  await shot('07-context-preview');
+  r.ok('an attached item opens for reading', preview.includes('tegn blev hentet ud'));
+  r.ok(
+    'and it shows the real extracted text, not a placeholder',
+    preview.includes('Medarbejderen har i indevaerende regnskabsaar'),
+    preview.slice(0, 160),
+  );
+  await host.getByRole('button', { name: 'Luk', exact: true }).click();
+  await page.waitForTimeout(300);
+  r.ok('closing returns to the chips', (await host.locator('button[title*="klik for at læse"]').count()) > 0);
+
   // ---- saved instructions round-trip --------------------------------------
   const TPL = `Hold det under 150 ord, tredjeperson. ${Date.now()}`;
   const TPL_NAME = `Husregler ${Date.now()}`;
