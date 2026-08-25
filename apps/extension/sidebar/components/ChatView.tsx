@@ -64,7 +64,9 @@ const TONES: [NonNullable<import('@awa/shared').OutputPrefs['tone']>, string][] 
 
 export function ChatView() {
   const s = useStore();
-  const [input, setInput] = useState('');
+  // Lives in the store, not here: this component unmounts when the panel
+  // collapses, and an unsent instruction should survive that.
+  const input = s.draft;
   const [liveSelection, setLiveSelection] = useState('');
   // Reveals the Straks/Langsomt choice for "Besvar markeringen" (D-04a) — the
   // same two-chip pattern AutonomousBar uses for the whole document, just
@@ -138,7 +140,7 @@ export function ChatView() {
     if (op === 'chat') {
       if (!text) return;
       sendChat(text);
-      setInput('');
+      s.set({ draft: '' });
       return;
     }
     const marked = liveSelection || inserter.selectionText();
@@ -147,7 +149,7 @@ export function ChatView() {
       return;
     }
     sendChat(text || DEFAULT_ASK[op], marked);
-    setInput('');
+    s.set({ draft: '' });
   }
 
   function useSelectionAsContext() {
@@ -307,7 +309,7 @@ export function ChatView() {
           <textarea
             ref={composerRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => s.set({ draft: e.target.value })}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();

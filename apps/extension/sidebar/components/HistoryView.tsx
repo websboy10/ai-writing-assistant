@@ -94,7 +94,7 @@ export function HistoryView() {
         />
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3">
-        {s.error && <Banner kind="error" text={s.error} />}
+        {s.error && <Banner kind="error" text={s.error} onDismiss={() => s.set({ error: null })} />}
         {s.history.length === 0 && (
           <p className="mt-8 text-center text-body text-graphite">
             {query ? `Intet matcher "${query}".` : 'Ingen samtaler endnu. De vises her, når du chatter.'}
@@ -108,7 +108,10 @@ export function HistoryView() {
                 {new Date(h.updatedAt).toLocaleString('da-DK')} · {h.messageCount} beskeder
               </div>
             </button>
-            <div className="mt-1 flex gap-2 text-ui opacity-0 transition group-hover:opacity-100">
+            {/* `opacity-0` alone hid Eksportér and Slet from anyone not using a
+                mouse: a keyboard user could tab straight into an invisible
+                Delete button. focus-within brings the row back for them. */}
+            <div className="mt-1 flex gap-2 text-ui opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
               <button
                 onClick={() => void exportMd(h.id, h.title)}
                 disabled={busy === h.id}

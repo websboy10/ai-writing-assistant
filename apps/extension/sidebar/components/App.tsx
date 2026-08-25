@@ -36,16 +36,62 @@ export function App() {
   const [dragState, setDragState] = useState<'idle' | 'attract' | 'hover'>('idle');
   const [justDropped, setJustDropped] = useState(false);
   const [panelDrag, setPanelDrag] = useState(false);
+  const [width, setWidth] = useState(400);
   const dragDepth = useRef(0);
+  // The pointerup handler needs the width as of the last move, and closures
+  // capture the value from the render that created them.
+  const widthRef = useRef(400);
+  widthRef.current = width;
 
   function dismiss(v: boolean) {
     setHidden(v);
     void chrome.storage.local.set({ fabHidden: v });
   }
 
+  // Escape closes the panel, the way every overlay on the web does.
+  // Safe only because the composer's text now lives in the store: while it was
+  // component state, closing the panel threw away whatever had been typed.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [open]);
+
+  /**
+   * Drag the left edge to resize, and it stays that way.
+   *
+   * 400px is a good default and a bad ceiling: the assistant's drafts are
+   * paragraphs of serif prose, and a person comparing a draft against the
+   * document underneath wants a different width than someone firing off a
+   * one-line instruction. The page keeps its own layout either way — the panel
+   * floats above it.
+   */
+  function startResize(e: React.PointerEvent) {
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const onMove = (ev: PointerEvent) => {
+      const next = Math.round(window.innerWidth - ev.clientX);
+      setWidth(Math.max(340, Math.min(next, Math.min(760, window.innerWidth - 40))));
+    };
+    const onUp = () => {
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      void chrome.storage.local.set({ panelWidth: widthRef.current });
+    };
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+  }
+
   useEffect(() => {
     void loadSession();
-    void chrome.storage.local.get('fabHidden').then(({ fabHidden }) => setHidden(!!fabHidden));
+    void chrome.storage.local.get(['fabHidden', 'panelWidth']).then(({ fabHidden, panelWidth }) => {
+      setHidden(!!fabHidden);
+      if (typeof panelWidth === 'number' && panelWidth >= 340) setWidth(panelWidth);
+    });
     const onMsg = (msg: { type?: string }) => {
       if (msg?.type === 'toggle-sidebar') setOpen((o) => !o);
     };
@@ -218,10 +264,22 @@ export function App() {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPanelDrag(false);
           }}
           onDrop={(e) => void handlePanelDrop(e)}
-          className={`fixed right-0 top-1/2 z-[2147483646] flex h-[min(86vh,700px)] w-[400px] max-w-[92vw] -translate-y-1/2 flex-col overflow-hidden rounded-l-[26px] border border-r-0 border-hairline bg-paper/95 text-body text-ink shadow-2xl shadow-black/30 backdrop-blur-xl ${
+          style={{ width }}
+          className={`fixed right-0 top-1/2 z-[2147483646] flex h-[min(86vh,700px)] max-w-[92vw] -translate-y-1/2 flex-col overflow-hidden rounded-l-[26px] border border-r-0 border-hairline bg-paper/95 text-body text-ink shadow-2xl shadow-black/30 backdrop-blur-xl ${
             panelDrag ? 'ring-2 ring-ink/40' : ''
           }`}
         >
+          {/* The resize grip: a full-height strip on the left edge, invisible
+              until the pointer finds it. */}
+          <div
+            onPointerDown={startResize}
+            onDoubleClick={() => {
+              setWidth(400);
+              void chrome.storage.local.set({ panelWidth: 400 });
+            }}
+            title="Træk for at ændre bredden — dobbeltklik nulstiller"
+            className="absolute left-0 top-0 z-10 h-full w-1.5 cursor-col-resize hover:bg-ink/10"
+          />
           {/* The ✕ and tabs are shrink-0; the chips in the middle give way
               instead — the close button must never be pushed off the edge. */}
           <header className="flex items-center gap-1.5 border-b border-hairline py-3 pl-3 pr-2">

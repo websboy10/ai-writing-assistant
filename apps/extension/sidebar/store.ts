@@ -59,6 +59,15 @@ interface AwaState {
   error: string | null;
   notice: string | null;
   operation: PromptOperation;
+  /**
+   * What is typed in the composer but not yet sent.
+   *
+   * It lived in ChatView's own useState, which unmounts the moment the panel
+   * collapses — so closing the panel threw away a half-written instruction with
+   * no warning, and SIDE-03's promise that collapsing keeps state was true of
+   * everything except the one thing the user had just written themselves.
+   */
+  draft: string;
   prefs: OutputPrefs;
   // context
   context: ContextItem[];
@@ -97,6 +106,7 @@ export const useStore = create<AwaState>((set, get) => ({
   error: null,
   notice: null,
   operation: 'chat',
+  draft: '',
   prefs: { tone: 'neutral', length: 'same' },
   context: [],
   contextBusy: null,

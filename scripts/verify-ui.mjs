@@ -185,6 +185,38 @@ try {
   const after = await composer.evaluate((el) => el.getBoundingClientRect().height);
   r.ok('the composer grows with what is typed', after > before + 10, `${before} -> ${after}`);
 
+  // ---- an unsent instruction survives collapsing the panel ----------------
+  await composer.fill('en halvskrevet instruktion');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  const closed = (await host.locator('textarea').count()) === 0;
+  r.ok('Escape closes the panel', closed);
+  await host.locator('button[title*="Skriveassistent"]').click();
+  await page.waitForTimeout(700);
+  r.ok(
+    'what was typed is still there after reopening',
+    (await host.locator('textarea').first().inputValue()) === 'en halvskrevet instruktion',
+  );
+
+  // ---- the panel can be resized, and remembers ----------------------------
+  const panel = host.locator('aside');
+  const startBox = await panel.boundingBox();
+  const grip = host.locator('div[title*="ændre bredden"]');
+  await grip.hover();
+  await page.mouse.down();
+  await page.mouse.move(startBox.x - 160, startBox.y + 200, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const wider = await panel.boundingBox();
+  r.ok('dragging the left edge widens the panel', wider.width > startBox.width + 80, `${startBox.width} -> ${wider.width}`);
+  await shot('06-resized');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1500);
+  await host.locator('button[title*="Skriveassistent"]').click();
+  await page.waitForTimeout(900);
+  const remembered = await host.locator('aside').boundingBox();
+  r.ok('the width is remembered after a reload', Math.abs(remembered.width - wider.width) < 12, `${wider.width} -> ${remembered.width}`);
+
   // ---- the stale-worker guard --------------------------------------------
   const wrong = [...backendHosts].filter((h) => h !== EXPECTED_BACKEND);
   r.ok(

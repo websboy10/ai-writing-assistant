@@ -134,6 +134,26 @@ export default defineBackground(() => {
    * docs-get/docs-batch-update get back from Google when that happens is the
    * authority in that case (see their handlers below).
    */
+  /**
+   * The `email` claim out of a Supabase access token.
+   *
+   * Only ever used to LABEL the signed-in account in the panel header. Nothing
+   * is authorised on the strength of it — the backend verifies the token itself
+   * on every request — so decoding without verifying here is a display
+   * convenience, not a trust decision.
+   */
+  function emailFromJwt(token: string): string | null {
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+      const claims = JSON.parse(decodeURIComponent(escape(json))) as { email?: unknown };
+      return typeof claims.email === 'string' ? claims.email : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function docsAuth(interactive: boolean): Promise<DocsAuthOk | DocsAuthFail> {
     // `enableGranularPermissions` is real (Chrome ships it) but missing from
     // @types/chrome@0.0.287's TokenDetails, and the Promise overload it DOES
@@ -318,12 +338,13 @@ export default defineBackground(() => {
         let responseUrl: string | undefined;
         try {
           responseUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
-        } catch (e) {
+        } catch {
+          // This used to be a developer's note to themselves, in English, with
+          // the Supabase menu path in it — shown to whoever pressed the button.
           return {
             ok: false,
             status: 400,
-            error:
-              "Google sign-in isn't configured yet for this project — use email/password instead. (Supabase → Authentication → Providers → Google.)",
+            error: 'Google-login er ikke tilgængeligt lige nu. Log ind med e-mail og adgangskode i stedet.',
           };
         }
         const hash = new URL(responseUrl ?? '').hash.slice(1);
@@ -336,7 +357,11 @@ export default defineBackground(() => {
         const userRes = await fetch(`${BACKEND_URL}/api/usage`, {
           headers: { Authorization: `Bearer ${access_token}` },
         }).catch(() => null);
-        const email = params.get('email') ?? '';
+        // GoTrue's implicit-flow hash carries no `email` parameter, so this was
+        // always the empty string and the panel labelled every Google user
+        // "Google account" — in English, and not their address. The identity is
+        // in the token's own claims.
+        const email = emailFromJwt(access_token) ?? '';
         await setSession({
           access_token,
           refresh_token,

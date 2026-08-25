@@ -53,7 +53,7 @@ export function AuthView() {
       return;
     }
     const data = res.data as { email?: string };
-    set({ email: data.email || 'Google account', view: 'chat' });
+    set({ email: data.email || 'Google-konto', view: 'chat' });
     void loadUsage();
     void loadBilling();
   }
