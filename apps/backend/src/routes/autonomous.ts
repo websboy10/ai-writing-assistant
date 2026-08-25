@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { AutonomousAnswer, AutonomousParagraph, AutonomousRequest, AutonomousResponse, ContentClass } from '@awa/shared';
-import { verifyUser, rpc } from '../supabase.js';
+import { verifyUser, rpc, danishTime, anonRpc } from '../supabase.js';
 import { getEntitlement } from '../billing.js';
 import { collect } from '../autonomous/complete.js';
 import { detectionMessages, answerMessages } from '../autonomous/prompt.js';
@@ -94,7 +94,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
     }
     if (!quota.ok) {
       return reply.code(429).send({
-        error: `Du har brugt alle ${quota.limit} forespørgsler for i dag. Din grænse nulstilles ${quota.resets_at}.`,
+        error: `Du har brugt alle ${quota.limit} forespørgsler for i dag. Grænsen nulstilles ${danishTime(quota.resets_at)}.`,
         code: 'quota_exceeded',
         used: quota.used,
         limit: quota.limit,
@@ -133,7 +133,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       // Zero questions found is a RESULT, not an error — the panel says so
       // plainly, and the quota charge for a run that did nothing is refunded.
       if (detected.length === 0) {
-        await rpc(user, 'refund_quota', { p_cost: 2 }).catch((refundErr) =>
+        await anonRpc('refund_quota_for', { p_user_id: user.id, p_cost: 2 }).catch((refundErr) =>
           req.log.error(refundErr, 'refund_quota failed after zero-question detection'),
         );
         const response: AutonomousResponse = { answers: [], detected: 0 };
@@ -175,7 +175,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       const answers: AutonomousAnswer[] = perBatch.flat();
 
       if (answers.length === 0) {
-        await rpc(user, 'refund_quota', { p_cost: 2 }).catch((refundErr) =>
+        await anonRpc('refund_quota_for', { p_user_id: user.id, p_cost: 2 }).catch((refundErr) =>
           req.log.error(refundErr, 'refund_quota failed after zero-answer run'),
         );
       }
@@ -185,7 +185,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
     } catch (err) {
       if (abort.signal.aborted) return; // client disconnected — nothing to send
 
-      await rpc(user, 'refund_quota', { p_cost: 2 }).catch((refundErr) =>
+      await anonRpc('refund_quota_for', { p_user_id: user.id, p_cost: 2 }).catch((refundErr) =>
         req.log.error(refundErr, 'refund_quota failed after autonomous run error'),
       );
 

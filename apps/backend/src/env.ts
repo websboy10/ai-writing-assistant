@@ -15,6 +15,18 @@ export const env = {
   publicUrl: (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/+$/, ''),
   supabaseUrl: required('SUPABASE_URL'),
   supabaseAnonKey: required('SUPABASE_ANON_KEY'),
+  /**
+   * Server-only key for the two Stripe push channels, which act on a user who
+   * is not present (webhook, checkout-success landing).
+   *
+   * Optional on purpose. Absent, those two calls fail and are logged, and the
+   * on-demand re-sync — which runs as the user — still unlocks a paying
+   * customer. What must NEVER return is the previous arrangement, where the
+   * privileged functions were granted to PUBLIC so the anon key would do: that
+   * key is published in the extension, and it made the paywall openable by
+   * anyone (see supabase/migrations/0006).
+   */
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
   openrouterKey: required('OPENROUTER_API_KEY'),
   // Compliance boundary (see PROJECT.md): free/training-enabled models are only
   // ever allowed for content the client explicitly declares synthetic. Real

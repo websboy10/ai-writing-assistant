@@ -64,7 +64,7 @@ async function restore(token) {
   // customer is gone (see billing.ts → syncFromStripe).
   const userId = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).sub;
   const subs = await fetch(
-    `https://api.stripe.com/v1/subscriptions?customer=${await customerId(userId)}&status=all&limit=5`,
+    `https://api.stripe.com/v1/subscriptions?customer=${await customerId(userId, token)}&status=all&limit=5`,
     { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } },
   ).then((r) => r.json());
   for (const s of subs.data ?? []) {
@@ -75,21 +75,26 @@ async function restore(token) {
       });
     }
   }
-  await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/billing_forget_customer`, {
+  // The USER's token, not the anon key. billing_forget_customer is
+  // self-scoped since migration 0006 — an anon caller is refused, which is the
+  // whole point of that migration. Restoring the fixture the way the product
+  // itself would is also the more honest test.
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/billing_forget_customer`, {
     method: 'POST',
     headers: {
       apikey: env.SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ p_user_id: userId }),
   });
+  if (!res.ok) console.log(`  (restore: billing_forget_customer -> HTTP ${res.status})`);
   return status(token);
 }
 
-async function customerId(userId) {
+async function customerId(userId, token) {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/billing?user_id=eq.${userId}&select=stripe_customer_id`, {
-    headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${env.SUPABASE_ANON_KEY}` },
+    headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
   });
   const rows = await res.json();
   return rows?.[0]?.stripe_customer_id ?? '';

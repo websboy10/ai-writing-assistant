@@ -68,8 +68,10 @@ export function billingRoutes(app: FastifyInstance): void {
         metadata: { user_id: user.id },
       });
       customerId = customer.id;
-      await anonRpc('billing_set_subscription', {
-        p_user_id: user.id,
+      // The user is right here, storing their own customer id — this never
+      // needed the privileged function, and reaching for it was how the
+      // paywall bypass got its foothold. Self-scoped, so nothing to forge.
+      await rpc(user, 'billing_sync_self', {
         p_customer_id: customerId,
         p_subscription_id: null,
         p_status: rows[0]?.status ?? 'expired',

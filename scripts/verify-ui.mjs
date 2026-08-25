@@ -145,15 +145,32 @@ try {
 
   // ---- the operation actually runs (the one AI call) ----------------------
   await sendBtn.click();
+  // Terminal = a draft to insert, OR any banner at all.
+  //
+  // Matching on the words "Fejl"/"fejlede" missed the one failure most likely
+  // to happen in a beta with a shared quota — "Du har brugt alle 200
+  // forespørgsler for i dag" contains neither — so the run hung for the full
+  // two minutes and then reported a timeout instead of the actual reason.
+  // Presence of the dismiss button is the structural signal, whatever it says.
   await page.waitForFunction(
     () => {
-      const t = document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? '';
-      return t.includes('Indsæt straks') || t.includes('Fejl') || t.includes('fejlede');
+      const root = document.querySelector('awa-sidebar')?.shadowRoot;
+      if (!root) return false;
+      return (
+        (root.textContent ?? '').includes('Indsæt straks') ||
+        !!root.querySelector('button[title="Skjul beskeden"]')
+      );
     },
     undefined,
     { timeout: 120_000 },
   );
   const afterRun = await panelText();
+  if (!afterRun.includes('Indsæt straks')) {
+    // Say what the product said, rather than making the reader guess from a
+    // failed assertion three lines further down.
+    const banner = await host.locator('button[title="Skjul beskeden"]').first().evaluate((b) => b.parentElement?.textContent ?? '');
+    r.ok('the operation ran', false, `the panel answered: ${banner.slice(0, 180)}`);
+  }
   await shot('03-after-operation');
   r.ok('the operation produced a draft with insertion offered', afterRun.includes('Indsæt straks'));
   r.ok('the default ask reads like a person wrote it', afterRun.includes('Forenkl den markerede tekst.'));
@@ -165,9 +182,21 @@ try {
   const withPage = await panelText();
   await shot('04-page-context');
   r.ok('the page attaches as context', withPage.includes('Medarbejdersamtale 2026'));
+  // A real check, not a decorative one: read the attached item's text back and
+  // assert the panel's own interface is not in it. Feeding the assistant its
+  // own buttons — and its own previous drafts — as the user's source material
+  // would be a quiet, expensive kind of wrong.
+  const attached = await page.evaluate(async () => {
+    const root = document.querySelector('awa-sidebar')?.shadowRoot;
+    const chip = [...(root?.querySelectorAll('[title*="tegn"]') ?? [])].find((e) =>
+      e.getAttribute('title')?.includes('Medarbejdersamtale'),
+    );
+    return chip?.getAttribute('title') ?? '';
+  });
+  r.ok('the attached item is the page, sized in characters', /Medarbejdersamtale 2026 · \d/.test(attached), attached);
   r.ok(
-    'the panel excluded its own interface from the page text',
-    !withPage.includes('Spørg om hvad som helst · '),
+    'the page text excludes the panel’s own interface',
+    !withPage.includes('Besvar alle spørgsmål\nFinder hvert'),
   );
 
   // ---- a long paste becomes context, not composer soup --------------------
@@ -240,8 +269,14 @@ try {
 
   // ---- the panel can be resized, and remembers ----------------------------
   const panel = host.locator('aside');
-  const startBox = await panel.boundingBox();
   const grip = host.locator('div[title*="ændre bredden"]');
+  // Start from the default, using the product's own reset. A width kept from an
+  // earlier run is correct behaviour that would otherwise make this assertion
+  // untestable — the last run sat at the 760px ceiling and could not widen.
+  await grip.dblclick();
+  await page.waitForTimeout(400);
+  const startBox = await panel.boundingBox();
+  r.ok('double-clicking the grip resets the width', Math.abs(startBox.width - 400) < 6, `${startBox.width}`);
   await grip.hover();
   await page.mouse.down();
   await page.mouse.move(startBox.x - 160, startBox.y + 200, { steps: 12 });

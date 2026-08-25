@@ -36,7 +36,7 @@ export async function getEntitlement(user: AuthedUser, installHash: string): Pro
   }
 
   if (!isAllowed(row)) {
-    const synced = await syncFromStripe(user.id, row);
+    const synced = await syncFromStripe(user, row);
     if (synced) row = (await fetchRow(user)) ?? row;
   }
 
@@ -80,8 +80,15 @@ export function isMissingInStripe(err: unknown): boolean {
   );
 }
 
-/** Pull the live subscription state for this customer down into the cache. */
-async function syncFromStripe(userId: string, row: BillingRow): Promise<boolean> {
+/**
+ * Pull the live subscription state for this customer down into the cache.
+ *
+ * Runs as the signed-in user, and writes through the self-scoped RPCs, so it
+ * needs no privileged key at all. That is what makes migration 0006 safe to
+ * deploy: this is the path a paying customer actually depends on, and the
+ * Stripe push channels are only a faster copy of it.
+ */
+async function syncFromStripe(user: AuthedUser, row: BillingRow): Promise<boolean> {
   if (!row.stripe_customer_id) return false;
   // Throttle: a fresh cache miss was already synced moments ago.
   if (Date.now() - new Date(row.updated_at).getTime() < 15_000) return false;
@@ -106,13 +113,12 @@ async function syncFromStripe(userId: string, row: BillingRow): Promise<boolean>
     // a null can never clear one, which is the right guard there and exactly
     // wrong here — the link would survive and every check would re-attempt the
     // same doomed call.
-    await anonRpc('billing_forget_customer', { p_user_id: userId });
+    await rpc(user, 'billing_forget_customer', { p_user_id: user.id });
     return true;
   }
 
   const best = pickSubscription(subs.data);
-  await anonRpc('billing_set_subscription', {
-    p_user_id: userId,
+  await rpc(user, 'billing_sync_self', {
     p_customer_id: row.stripe_customer_id,
     p_subscription_id: best?.id ?? null,
     p_status: best ? mapStatus(best.status) : row.status === 'trialing' ? 'trialing' : 'expired',

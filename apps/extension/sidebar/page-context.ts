@@ -61,16 +61,17 @@ async function readDocs(): Promise<PageContextResult> {
 }
 
 function readOrdinaryPage(): PageContextResult {
-  // The sidebar is our own DOM inside the page. Attaching our own interface as
-  // "the page" would be absurd, and worse, it would feed the assistant's own
-  // previous drafts back to it as if they were the user's source material.
-  const host = document.querySelector('awa-sidebar');
-  const previous = host?.getAttribute('style') ?? null;
-  host?.setAttribute('style', `${previous ?? ''};display:none`);
+  // The panel cannot contaminate this, and it took a measurement to be sure of
+  // it rather than a reading of the spec. Probed in a real browser 2026-08-25:
+  // `awa-sidebar` is mounted as a child of <html>, not <body>, and its contents
+  // live in a shadow root that `innerText` does not descend into — so the panel
+  // appears nowhere in the result. An earlier version of this hid the host
+  // around the read, which bought nothing and cost two forced reflows and a
+  // visible flicker on a long page.
+  //
+  // `innerText` and not `textContent`: the latter drags in <script> and <style>
+  // bodies and every collapsed menu on the page, none of which the reader sees.
   const text = (document.body?.innerText ?? '').replace(/\n{3,}/g, '\n\n').trim();
-  if (previous === null) host?.removeAttribute('style');
-  else host?.setAttribute('style', previous);
-
   if (!text) return { error: 'Der er ingen læsbar tekst på denne side.' };
   return { item: toItem(document.title || location.host, text) };
 }
