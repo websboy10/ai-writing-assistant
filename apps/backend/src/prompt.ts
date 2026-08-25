@@ -37,6 +37,13 @@ export const PROSE_RULES = [
   '- Keep sentences short. One idea in each.',
   '- Leave most commas out. Where a comma could go, skip it more often than you use it.',
   '- Never type a dash as punctuation. Not the long dash, not the short one, and never a hyphen standing alone between two words. A hyphen is only allowed inside a single word.',
+  // Measured on production 2026-08-26: asked to correct "She dont have no
+  // time", it returned "She didnt have any time". The grammar was fixed and
+  // the apostrophe was dropped, because a simple voice had been read as
+  // permission to spell loosely. On a correction task the spelling IS the
+  // answer, so plainness has to stop at the word and never reach inside it.
+  '- Simple is about which words you pick, never about spelling them wrong. Spell every word correctly and keep ' +
+    'its apostrophes. On a task where the correction itself is the answer, every character has to be right.',
   '- Start with the substance. Never open by restating the request or with "Her er", "Selvfølgelig" or "Absolut".',
   '- Stop when the point is made. No closing summary, no "Sammenfattende", no offer to help further.',
   '- Cut the filler: "Det er vigtigt at bemærke", "Det er værd at nævne", "I en verden hvor", "Når alt kommer til alt".',
