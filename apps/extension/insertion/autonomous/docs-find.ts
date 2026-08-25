@@ -238,11 +238,32 @@ async function attemptFind(
   // adapter's conditional collapse stays as a second line of defence for the
   // paths that do not come through Find, and is simply a no-op after this.
   const target = gdocsEventTarget();
-  if (target) {
+  if (!target) return { ok: true }; // no channel to collapse through; prepare() still tries
+
+  // Wait for the collapse to be OBSERVABLE, not for a guessed number of
+  // milliseconds. Docs applies a synthetic keystroke on its own schedule, and a
+  // fixed 60ms settle was enough for the marked-selection path but not for
+  // Langsomt over a whole document — where the very next thing to happen is the
+  // first letter being pasted. Measured against production 2026-08-26: the
+  // marked-selection path went 7/7 three times running while a whole-document
+  // Langsomt run still lost "Beskriv dine tre vigtigste resultater i år".
+  //
+  // The mirror going empty is the same channel that proved the selection
+  // existed four lines up, so this asks the question the same way it was
+  // answered.
+  for (let attempt = 0; attempt < 3; attempt++) {
     dispatchKey(target, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39, bubbles: true, cancelable: true });
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    if (await waitFor(() => gdocsSelectionTextNow() === '', SELECTION_TIMEOUT_MS)) return { ok: true };
   }
-  return { ok: true };
+
+  // Three tries and the match is still selected. Writing now would delete the
+  // question, so refuse: the run reports this answer as unplaced, the question
+  // survives, and the user can see what happened. A gap is recoverable; a
+  // deleted question is not.
+  return {
+    ok: false,
+    reason: `Docs ville ikke slippe markeringen af "${query.slice(0, 40)}", og et svar ville have slettet spørgsmålet.`,
+  };
 }
 
 /**
