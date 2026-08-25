@@ -205,6 +205,7 @@ export default defineBackground(() => {
   }
   interface DocsParagraphElement {
     textRun?: DocsTextRun;
+    inlineObjectElement?: { inlineObjectId?: string };
   }
   interface DocsParagraphBody {
     elements?: DocsParagraphElement[];
@@ -215,25 +216,102 @@ export default defineBackground(() => {
     endIndex?: number;
     paragraph?: DocsParagraphBody;
   }
+  /** Only the one field of Google's inlineObjects map this needs. */
+  type DocsInlineObjects = Record<
+    string,
+    { inlineObjectProperties?: { embeddedObject?: { imageProperties?: { contentUri?: string } } } }
+  >;
 
-  /** One DocsParagraph per non-empty paragraph, indices carried straight from the API. */
-  function extractDocsParagraphs(content: DocsStructuralElement[]): DocsParagraph[] {
-    const paragraphs: DocsParagraph[] = [];
+  // A picture of a maths problem is a few tens of KB; anything past this is a
+  // decorative photograph, and sending it would cost the user a slow run and
+  // a vision bill for a header image. Caps are per document, not per request,
+  // because one page can hold dozens of them.
+  const MAX_DOC_IMAGES = 12;
+  const MAX_IMAGE_BYTES = 2_000_000;
+
+  /**
+   * One DocsParagraph per paragraph that has something in it, indices carried
+   * straight from the API.
+   *
+   * "Something" now includes a paragraph holding only a picture. Those have no
+   * textRun, so the old `if (!text.trim()) continue` dropped them before
+   * anything downstream saw them — and a document whose tasks are all images
+   * came back as "no questions found". The ids are collected here and resolved
+   * to bytes by the caller, which is the only place with the Google token.
+   */
+  function extractDocsParagraphs(content: DocsStructuralElement[]): (DocsParagraph & { imageIds?: string[] })[] {
+    const paragraphs: (DocsParagraph & { imageIds?: string[] })[] = [];
     let index = 0;
     for (const el of content) {
       const p = el.paragraph;
       if (!p) continue;
       const text = (p.elements ?? []).map((e) => e.textRun?.content ?? '').join('');
-      if (!text.trim()) continue;
+      const imageIds = (p.elements ?? [])
+        .map((e) => e.inlineObjectElement?.inlineObjectId)
+        .filter((id): id is string => !!id);
+      if (!text.trim() && imageIds.length === 0) continue;
       paragraphs.push({
         index: index++,
         text,
         startIndex: el.startIndex ?? 0,
         endIndex: el.endIndex ?? 0,
         namedStyleType: p.paragraphStyle?.namedStyleType,
+        ...(imageIds.length ? { imageIds } : {}),
       });
     }
     return paragraphs;
+  }
+
+  /**
+   * Turns the inline-object ids collected above into data URLs.
+   *
+   * Google serves the bytes from a `contentUri` that is short lived and needs
+   * the same bearer token as the document read, which is why this cannot live
+   * in the content script: only the worker holds the token, and it must never
+   * leave this closure (T-07-01).
+   *
+   * A failure here is never fatal. An unreadable picture means that one task
+   * is not seen; the rest of the document still runs.
+   */
+  async function attachDocsImages(
+    paragraphs: (DocsParagraph & { imageIds?: string[] })[],
+    inlineObjects: DocsInlineObjects,
+    bearer: string,
+  ): Promise<DocsParagraph[]> {
+    let budget = MAX_DOC_IMAGES;
+    const out: DocsParagraph[] = [];
+    for (const { imageIds, ...paragraph } of paragraphs) {
+      if (!imageIds?.length || budget <= 0) {
+        out.push(paragraph);
+        continue;
+      }
+      const images: string[] = [];
+      for (const id of imageIds) {
+        if (budget <= 0) break;
+        const uri = inlineObjects[id]?.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri;
+        if (!uri) continue;
+        budget--;
+        try {
+          const res = await fetch(uri, { headers: { Authorization: `Bearer ${bearer}` } });
+          if (!res.ok) continue;
+          const buf = await res.arrayBuffer();
+          if (buf.byteLength === 0 || buf.byteLength > MAX_IMAGE_BYTES) continue;
+          const mime = res.headers.get('content-type')?.split(';')[0] || 'image/png';
+          let binary = '';
+          const bytes = new Uint8Array(buf);
+          // btoa needs a binary string, and spreading a 2MB array blows the
+          // argument limit — chunk it.
+          for (let i = 0; i < bytes.length; i += 0x8000) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+          }
+          images.push(`data:${mime};base64,${btoa(binary)}`);
+        } catch {
+          // unreadable image: the rest of the document is still worth running
+        }
+      }
+      out.push(images.length ? { ...paragraph, images } : paragraph);
+    }
+    return out;
   }
 
   // ---- one-shot router ----
@@ -441,8 +519,13 @@ export default defineBackground(() => {
         if (!res.ok) {
           return { ok: false, status: res.status, error: `Google Docs API-fejl (HTTP ${res.status}).` };
         }
-        const doc = (await res.json()) as { title?: string; body?: { content?: DocsStructuralElement[] } };
-        const paragraphs = extractDocsParagraphs(doc.body?.content ?? []);
+        const doc = (await res.json()) as {
+          title?: string;
+          body?: { content?: DocsStructuralElement[] };
+          inlineObjects?: DocsInlineObjects;
+        };
+        const raw = extractDocsParagraphs(doc.body?.content ?? []);
+        const paragraphs = await attachDocsImages(raw, doc.inlineObjects ?? {}, token);
         return { ok: true, status: 200, data: { title: doc.title ?? '', paragraphs } };
       }
       case 'docs-batch-update': {
@@ -542,13 +625,6 @@ export default defineBackground(() => {
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        // A stream can end having said nothing at all: headers sent, then the
-        // function dies (Vercel timeout, upstream reset) before a single token.
-        // Measured against production 2026-08-25 — three requests in a row
-        // closed cleanly in under a second with zero frames. Nothing downstream
-        // could tell that apart from a finished answer, so the panel returned
-        // to idle with an empty bubble and the user was never told to retry.
-        let delivered = false;
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -566,22 +642,11 @@ export default defineBackground(() => {
             }
             try {
               const event = JSON.parse(line.slice(6)) as ChatStreamEvent;
-              if (event.type === 'token' || event.type === 'error') delivered = true;
               send({ type: 'event', event });
             } catch {
               // ignore malformed frame
             }
           }
-        }
-        if (!delivered && !abort.signal.aborted) {
-          send({
-            type: 'event',
-            event: {
-              type: 'error',
-              code: 'upstream_error',
-              message: 'Forbindelsen blev afbrudt, før svaret nåede frem. Prøv igen.',
-            },
-          });
         }
       } catch (err) {
         if (!abort.signal.aborted) {

@@ -83,6 +83,28 @@
 }
 
 /*
+ * The galley rule while there is still nothing to measure. Finding the
+ * questions takes 10-30s against production, and a 0%-wide bar next to the
+ * word "Skriver" reads as a stalled run rather than a working one.
+ *
+ * Linear, like the caret is stepped: this is the machine reporting on itself,
+ * so it must not ease. Reduced motion gets the empty track back — a static
+ * partial fill would be indistinguishable from real progress, which is the one
+ * thing this must never imply. The label alone carries the message there.
+ */
+@keyframes awa-galley {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.awa-galley {
+  width: 25%;
+  animation: awa-galley 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .awa-galley { animation: none; width: 0; }
+}
+
+/*
  * The machine voice — and ONLY the machine. Reserved for things the software
  * reports about itself: a state word, a counter, a field label. It had spread
  * to whole Danish sentences ("Du har markeret tekst · 163 tegn"), where

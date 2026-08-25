@@ -78,7 +78,7 @@ async function readDocsParagraphs(
   const paragraphs: AutonomousParagraph[] = [];
   const ranges = new Map<number, { startIndex: number; endIndex: number }>();
   for (const p of docsParagraphs) {
-    paragraphs.push({ index: p.index, text: p.text.trim() });
+    paragraphs.push({ index: p.index, text: p.text.trim(), ...(p.images?.length ? { images: p.images } : {}) });
     ranges.set(p.index, { startIndex: p.startIndex, endIndex: p.endIndex });
   }
   return { paragraphs, ranges };
@@ -448,8 +448,21 @@ async function pickDocsSource(
     );
   }
 
-  const probeText = read.paragraphs[0]?.text;
-  if (!probeText) return new GDocsFindSource(read.paragraphs); // empty document — normal "nothing found" flow
+  // A task that IS a picture has no text to search for, and Find is nothing
+  // but a text search. The API writer places by document index, so it does not
+  // care whether the paragraph above the answer is a sentence or a photograph.
+  // Langsomt loses letter-by-letter typing on these documents; it keeps the
+  // pacing, the pause and the undo, because GDocsApiWriteSource takes `mode`.
+  if (read.paragraphs.some((p) => p.images?.length)) {
+    return new GDocsApiWriteSource(documentId, read.paragraphs, read.ranges, mode, '');
+  }
+
+  // The FIRST paragraph that actually has words in it, not simply the first.
+  // A document that opens with a picture gave paragraphs[0].text === '' here,
+  // which read as "empty document" and sent the whole run down the
+  // nothing-found path.
+  const probeText = read.paragraphs.find((p) => p.text.trim())?.text;
+  if (!probeText) return new GDocsFindSource(read.paragraphs); // genuinely empty
 
   // Straks writes through the API, by preference rather than as a fallback.
   //

@@ -16,6 +16,8 @@ export interface DocsParagraph {
   startIndex: number;
   endIndex: number;
   namedStyleType?: string;
+  /** Inline images in this paragraph as data URLs — see AutonomousParagraph.images. */
+  images?: string[];
 }
 
 // Exactly `documents`, never `drive` or `drive.file` (T-07-03). Must match

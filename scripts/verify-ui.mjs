@@ -364,6 +364,59 @@ try {
   await page.waitForTimeout(3500);
   r.ok('signing back in works', (await host.locator('textarea').count()) > 0);
 
+  // ---- a stream that dies before the first token ---------------------------
+  //
+  // Not hypothetical: measured against production 2026-08-25, three chat
+  // requests in a row answered 200 with an empty body — headers sent, function
+  // gone before a token. chat.ts already covers it (a port that closes with no
+  // terminal event sets the error below), and this pins that down: it is one
+  // `sawTerminal` away from silently becoming an empty bubble the user cannot
+  // tell from a finished answer. Serving the shape costs no AI call.
+  // Written once as "wait for any banner", which passed with the fix removed:
+  // the sign-in checks just above leave their own banner on screen, so the wait
+  // was satisfied before the request was even sent and the assertion then read
+  // that older error. Clear the panel first, prove it is clear, and match the
+  // message this path actually produces — nothing weaker can go red.
+  for (let i = 0; i < 4; i++) {
+    const dismiss = host.locator('button[title="Skjul beskeden"]').first();
+    if (!(await dismiss.count())) break;
+    await dismiss.click().catch(() => {});
+    await page.waitForTimeout(200);
+  }
+  r.ok(
+    'the panel is clear of banners before the dead-stream check',
+    (await host.locator('button[title="Skjul beskeden"]').count()) === 0,
+  );
+
+  await ctx.route('**/api/chat', (route) =>
+    route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: '' }),
+  );
+  const runBtn = host.locator('button[title="Send"], button[title*="den markerede tekst"]').first();
+  await host.locator('textarea').first().fill('Skriv en enkelt sætning.');
+  await runBtn.click();
+  const spoke = await page
+    .waitForFunction(
+      () => /Svaret blev afbrudt, før det var færdigt/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+      undefined,
+      { timeout: 20_000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  const deadStream = await panelText();
+  await shot('12-dead-stream');
+  r.ok('a stream that dies before the first token surfaces an error', spoke, deadStream.slice(-250));
+  r.ok(
+    'and that error is Danish and says what to do about it',
+    spoke && /Prøv igen/.test(deadStream),
+    deadStream.slice(-250),
+  );
+  r.ok(
+    'the panel never asks the user to run a developer command',
+    !/pnpm|npm run|localhost|HTTP \d{3}/.test(deadStream),
+    deadStream.slice(-250),
+  );
+  await ctx.unroute('**/api/chat');
+
   // ---- the stale-worker guard --------------------------------------------
   const wrong = [...backendHosts].filter((h) => h !== EXPECTED_BACKEND);
   r.ok(

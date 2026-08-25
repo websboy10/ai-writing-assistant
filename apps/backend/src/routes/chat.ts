@@ -20,11 +20,15 @@ export function chatRoutes(app: FastifyInstance): void {
     }
 
     const body = req.body as ChatRequest;
+    // Both of these mean the client sent something malformed, which is our bug
+    // and not something the user did — but the panel renders `error` verbatim,
+    // so it has to read like the rest of the product rather than like a stack
+    // trace. The `code` is what a developer reads.
     if (!Array.isArray(body?.messages) || body.messages.length === 0) {
-      return reply.code(400).send({ error: 'messages required', code: 'bad_request' });
+      return reply.code(400).send({ error: 'Beskeden nåede ikke frem. Prøv igen.', code: 'bad_request' });
     }
     if (body.conversationId && !isUuid(body.conversationId)) {
-      return reply.code(400).send({ error: 'Invalid conversation id', code: 'bad_request' });
+      return reply.code(400).send({ error: 'Samtalen kunne ikke genfindes. Start en ny, og prøv igen.', code: 'bad_request' });
     }
 
     // The freemium hard paywall (BILL-01): no active trial or subscription →

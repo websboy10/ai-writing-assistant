@@ -5,6 +5,7 @@ import { getEntitlement } from '../billing.js';
 import { collect } from '../autonomous/complete.js';
 import { detectionMessages, answerMessages } from '../autonomous/prompt.js';
 import { parseDetection, parseAnswers, type DetectedQuestion } from '../autonomous/parse.js';
+import { foldImagesIntoText } from '../autonomous/vision.js';
 import { NoModelsError, PolicyError } from '../openrouter.js';
 
 // Kept in sync with packages/shared/src/index.ts. Values (not types) must be
@@ -13,6 +14,12 @@ import { NoModelsError, PolicyError } from '../openrouter.js';
 // (see apps/backend/src/routes/files.ts for the established pattern).
 const MAX_AUTONOMOUS_DOC_CHARS = 60_000;
 const ANSWER_BATCH_SIZE = 5;
+// Untrusted-input caps for the images a document can carry (T-07-08). The
+// extension already caps at the same numbers when it reads the document; these
+// exist because the request body is untrusted regardless of who normally sends
+// it. ~2.7M chars is a 2MB image once base64 has grown it by a third.
+const MAX_REQUEST_IMAGES = 12;
+const MAX_IMAGE_DATA_URL_CHARS = 2_800_000;
 
 interface QuotaResult {
   ok: boolean;
@@ -131,6 +138,15 @@ export function autonomousRoutes(app: FastifyInstance): void {
     );
 
     try {
+      // Pictures become words before anything else looks at the document, so
+      // detection, batching and placement all run on a document that reads as
+      // though the tasks had been typed. Costs nothing when there are none.
+      if (autoReq.paragraphs.some((p) => p.images?.length)) {
+        const folded = await foldImagesIntoText(autoReq.paragraphs, (obj, msg) => req.log.warn(obj, msg));
+        autoReq.paragraphs = folded.paragraphs;
+        req.log.info({ described: folded.described }, 'described images in document');
+      }
+
       const detection = await collect(detectionMessages(autoReq), contentClass, abort.signal);
       // Which model answered, and which ones we burned getting there. Silent
       // fallback hid an entire broken chain once already — see openrouter.ts.
@@ -261,14 +277,32 @@ export function autonomousRoutes(app: FastifyInstance): void {
  * specific reason rather than silently dropping data the client expected
  * to be answered.
  */
-function validateParagraphs(paragraphs: unknown): AutonomousParagraph[] | null {
+export function validateParagraphs(paragraphs: unknown): AutonomousParagraph[] | null {
   if (!Array.isArray(paragraphs) || paragraphs.length === 0) return null;
   const out: AutonomousParagraph[] = [];
+  let imageBudget = MAX_REQUEST_IMAGES;
   for (const p of paragraphs) {
     if (!p || typeof p !== 'object') return null;
     const rec = p as Record<string, unknown>;
     if (!Number.isInteger(rec.index) || typeof rec.text !== 'string') return null;
-    out.push({ index: rec.index as number, text: rec.text });
+
+    // Images are the one field a caller could use to hand us something huge or
+    // something that is not an image at all, so they are filtered rather than
+    // trusted: only base64 data URLs, only image types, only so many, only so
+    // big. A rejected image drops silently — the paragraph still runs, and a
+    // whole document should not 400 because one picture was malformed.
+    const images: string[] = [];
+    if (Array.isArray(rec.images)) {
+      for (const raw of rec.images) {
+        if (imageBudget <= 0) break;
+        if (typeof raw !== 'string') continue;
+        if (!/^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(raw)) continue;
+        if (raw.length > MAX_IMAGE_DATA_URL_CHARS) continue;
+        imageBudget--;
+        images.push(raw);
+      }
+    }
+    out.push({ index: rec.index as number, text: rec.text, ...(images.length ? { images } : {}) });
   }
   return out;
 }

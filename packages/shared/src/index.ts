@@ -144,6 +144,19 @@ export const OPERATION_LABELS: Record<PromptOperation, string> = {
 export interface AutonomousParagraph {
   index: number;
   text: string;
+  /**
+   * Images sitting in this paragraph, as `data:image/...;base64,...` URLs.
+   *
+   * A school or onboarding questionnaire in Docs often puts the task in a
+   * picture: a photographed maths problem, a scanned grammar exercise, a
+   * diagram with the question printed under it. Those paragraphs carry no
+   * textRun at all, so before this field they were dropped on read and the
+   * user was told their document had no questions in it.
+   *
+   * The backend turns them into text before detection runs, so everything
+   * downstream (detection, batching, placement, undo) is unchanged.
+   */
+  images?: string[];
 }
 
 export interface AutonomousRequest {
