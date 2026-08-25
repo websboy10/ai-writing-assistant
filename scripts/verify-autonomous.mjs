@@ -470,7 +470,7 @@ try {
   await page.waitForFunction(
     () => /Færdig ✓/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
     undefined,
-    { timeout: 150_000 },
+    { timeout: LANGSOMT_BUDGET_MS },
   );
   ok('the Langsomt run over #doc finishes after resume', true);
 
@@ -512,7 +512,7 @@ try {
     .waitForFunction(
       () => /Færdig ✓|Stoppet|Fejl/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
       undefined,
-      { timeout: 150_000 },
+      { timeout: LANGSOMT_BUDGET_MS },
     )
     .catch(() => {});
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
@@ -578,7 +578,7 @@ try {
   await page.waitForFunction(
     () => /Færdig ✓/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
     undefined,
-    { timeout: 150_000 },
+    { timeout: LANGSOMT_BUDGET_MS },
   );
   ok('reopening the panel shows the run still finishes on its own', true);
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
