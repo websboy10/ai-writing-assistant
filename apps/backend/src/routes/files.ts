@@ -273,9 +273,23 @@ async function ocrOnce(key: string, model: string, img: Buffer) {
               content: [
                 {
                   type: 'text',
+                  // A transcription alone loses whatever is not a word, and on
+                  // a task sheet that is often the answer. Measured 2026-08-26:
+                  // a right-triangle diagram came back as "Find laengden af AC.
+                  // A 9 cm B 12 cm C" — every label and number, and no mention
+                  // of the right angle, which is the one fact needed to get 15.
+                  // The same picture read through the Docs image path, whose
+                  // prompt asks for a description, produced the working.
+                  //
+                  // Transcription stays the job, because this also runs over
+                  // scanned PDF pages where inventing structure would be wrong.
+                  // The figure clause only adds what a transcription cannot say.
                   text:
                     'Transcribe ALL text in this image exactly as written, preserving line breaks and reading order. ' +
-                    'Output only the transcription — no commentary. If the image contains no text, output nothing.',
+                    'If the image also holds a diagram, figure, chart, table or geometric drawing, add a short plain ' +
+                    'description of it afterwards, precise enough to work from: the labels, the values, the lengths ' +
+                    'and angles, what is marked as known, and what is being asked for. ' +
+                    'Output only that. No commentary. If the image holds no text and no figure, output nothing.',
                 },
                 { type: 'image_url', image_url: { url: `data:image/png;base64,${img.toString('base64')}` } },
               ],
