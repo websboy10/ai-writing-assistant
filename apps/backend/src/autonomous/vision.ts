@@ -32,6 +32,12 @@ const VISION_CHAIN = (process.env.OCR_MODEL_CHAIN ?? process.env.OCR_MODEL ?? 'g
 
 const VISION_TIMEOUT_MS = 30_000;
 const MAX_IMAGES_PER_RUN = 12;
+// The route checks MAX_AUTONOMOUS_DOC_CHARS before this runs, so descriptions
+// are text the cap never saw. Twelve of them at the 1500-token ceiling would be
+// ~72k characters — more than the whole document is allowed to be. Bound what
+// gets folded in so that invariant survives the feature that outflanks it.
+const MAX_DESCRIPTION_CHARS = 6_000;
+const MAX_TOTAL_DESCRIPTION_CHARS = 30_000;
 
 const INSTRUCTION =
   'This picture is taken from a document someone has to fill in. Write down what it asks for, in full, as plain text, ' +
@@ -128,10 +134,17 @@ export async function foldImagesIntoText(
   const results = await Promise.all(jobs.map((j) => describeWithFallback(j.dataUrl, log).then((text) => ({ ...j, text }))));
 
   const byIndex = new Map<number, string[]>();
+  let spent = 0;
   for (const r of results) {
     if (!r.text) continue;
+    const text = r.text.slice(0, MAX_DESCRIPTION_CHARS);
+    if (spent + text.length > MAX_TOTAL_DESCRIPTION_CHARS) {
+      log({ index: r.index, spent }, 'description budget spent — remaining images left undescribed');
+      break;
+    }
+    spent += text.length;
     const list = byIndex.get(r.index) ?? [];
-    list.push(r.text);
+    list.push(text);
     byIndex.set(r.index, list);
   }
 

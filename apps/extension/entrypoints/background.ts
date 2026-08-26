@@ -227,7 +227,18 @@ export default defineBackground(() => {
   // a vision bill for a header image. Caps are per document, not per request,
   // because one page can hold dozens of them.
   const MAX_DOC_IMAGES = 12;
-  const MAX_IMAGE_BYTES = 2_000_000;
+  // Google's own copy, before shrinking. Bigger than this is a poster, not a task.
+  const MAX_IMAGE_BYTES = 12_000_000;
+  const MAX_IMAGE_EDGE_PX = 1600;
+  // Vercel refuses a request body over 4.5MB outright, with an English
+  // FUNCTION_PAYLOAD_TOO_LARGE we never get the chance to translate. Measured
+  // 2026-08-26 on a single 2400x1600 scan. Everything sent must fit well inside
+  // that, with the document text and JSON overhead alongside it.
+  // Raw bytes, before base64 grows them by a third: 2MB here is ~2.7MB on the
+  // wire, leaving room for the document text and the JSON around it inside
+  // Vercel's 4.5MB. A noise-heavy 2400x1600 scan shrinks to 939KB, so this is
+  // two worst-case pictures or a dozen ordinary ones.
+  const MAX_TOTAL_IMAGE_BYTES = 2_000_000;
 
   /**
    * One DocsParagraph per paragraph that has something in it, indices carried
@@ -263,6 +274,41 @@ export default defineBackground(() => {
   }
 
   /**
+   * Shrinks a picture to something worth sending.
+   *
+   * Measured 2026-08-26: a 2400x1600 scan is 3.4MB, which base64 grows to
+   * 4.5MB, and Vercel rejects the request outright with
+   * FUNCTION_PAYLOAD_TOO_LARGE — a platform limit, not one we can raise. A
+   * photographed worksheet is exactly that size, so the feature would have
+   * failed on precisely the documents it exists for.
+   *
+   * 1600px on the long edge is far more than a vision model needs to read text
+   * off a page, and JPEG at 0.82 takes the same scan to a couple of hundred KB.
+   * It is also faster and cheaper to describe.
+   *
+   * The white fill matters: JPEG has no alpha, so a transparent PNG drawn
+   * straight onto a fresh canvas comes out black on black and reads as nothing.
+   */
+  async function shrinkImage(blob: Blob): Promise<Blob> {
+    const bitmap = await createImageBitmap(blob);
+    try {
+      const longest = Math.max(bitmap.width, bitmap.height);
+      const scale = longest > MAX_IMAGE_EDGE_PX ? MAX_IMAGE_EDGE_PX / longest : 1;
+      const w = Math.max(1, Math.round(bitmap.width * scale));
+      const h = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = new OffscreenCanvas(w, h);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return blob;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.82 });
+    } finally {
+      bitmap.close();
+    }
+  }
+
+  /**
    * Turns the inline-object ids collected above into data URLs.
    *
    * Google serves the bytes from a `contentUri` that is short lived and needs
@@ -279,6 +325,7 @@ export default defineBackground(() => {
     bearer: string,
   ): Promise<DocsParagraph[]> {
     let budget = MAX_DOC_IMAGES;
+    let sent = 0;
     const out: DocsParagraph[] = [];
     for (const { imageIds, ...paragraph } of paragraphs) {
       if (!imageIds?.length || budget <= 0) {
@@ -306,17 +353,25 @@ export default defineBackground(() => {
             console.warn('[awa] docs image fetch failed', res.status, uri.slice(0, 80));
             continue;
           }
-          const buf = await res.arrayBuffer();
-          if (buf.byteLength === 0 || buf.byteLength > MAX_IMAGE_BYTES) continue;
-          const mime = res.headers.get('content-type')?.split(';')[0] || 'image/png';
+          const original = await res.blob();
+          if (original.size === 0 || original.size > MAX_IMAGE_BYTES) continue;
+          // Shrink before measuring anything else: the raw bytes are Google's
+          // full-resolution copy and the request budget is what has to hold.
+          const shrunk = await shrinkImage(original).catch(() => original);
+          if (sent + shrunk.size > MAX_TOTAL_IMAGE_BYTES) {
+            console.warn('[awa] image budget spent — remaining pictures not sent');
+            budget = 0;
+            break;
+          }
+          sent += shrunk.size;
+          const bytes = new Uint8Array(await shrunk.arrayBuffer());
           let binary = '';
-          const bytes = new Uint8Array(buf);
-          // btoa needs a binary string, and spreading a 2MB array blows the
+          // btoa needs a binary string, and spreading a whole image blows the
           // argument limit — chunk it.
           for (let i = 0; i < bytes.length; i += 0x8000) {
             binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
           }
-          images.push(`data:${mime};base64,${btoa(binary)}`);
+          images.push(`data:${shrunk.type || 'image/jpeg'};base64,${btoa(binary)}`);
         } catch (err) {
           // unreadable image: the rest of the document is still worth running
           console.warn('[awa] docs image fetch threw', err instanceof Error ? err.message : String(err));
