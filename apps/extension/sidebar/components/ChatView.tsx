@@ -665,6 +665,14 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
     return <div className="ml-10 whitespace-pre-wrap rounded-xl bg-wash px-3 py-2 text-body">{m.content}</div>;
   }
 
+  // A stream that dies before its first token leaves an assistant message with
+  // nothing in it. Rendering the shell anyway puts the word "Udkast" above an
+  // empty space, directly over the banner explaining that it failed — labelling
+  // a failure as a draft. Seen on a screenshot of the dead-stream check; no
+  // assertion would have caught it, because every assertion was about the
+  // banner and the banner was right.
+  if (!m.content && !m.streaming) return null;
+
   function saveEdit() {
     const st = useStore.getState();
     st.set({ messages: st.messages.map((x) => (x.id === m.id ? { ...x, content: draft } : x)) });
