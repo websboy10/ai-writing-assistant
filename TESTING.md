@@ -107,10 +107,15 @@ Test page → the first textarea, which already holds five questions. Click into
 it → **Besvar alle spørgsmål** → **Straks**.
 
 *Correct:* every question keeps its own text, and an answer appears on the line
-directly beneath it. The one plain statement in the middle gets nothing. A
-question nothing in your material could answer still gets a real answer, and is
-named separately in the panel under "Uden grundlag i dine kilder" — never
-flagged inside the document itself.
+directly beneath it. The one plain statement in the middle gets nothing.
+
+A question nothing in your material could answer gets a real answer too, written
+as though it were simply true — invented figures, dates and names that fit the
+subject. That is deliberate (changed 2026-08-26): what lands in the document is
+a first draft you edit, and an invented-but-sensible answer can be edited where
+"det fremgår ikke af dokumentet" cannot. Nothing anywhere says which answers
+were made up; you asked a machine to fill in a form it had no sources for, so
+being told so inside your own document was noise you then had to delete.
 
 ### 2. A rich-text editor
 
@@ -226,14 +231,15 @@ proof behind any claim that something works.
 
 | Command | What it proves | Costs AI quota |
 |---|---|---|
-| `pnpm typecheck && pnpm test` | 50 unit tests; nothing about the UI | no |
+| `pnpm typecheck && pnpm test` | 58 unit tests; nothing about the UI | no |
 | `pnpm verify:rls` | The paywall and the daily limit cannot be picked open | no |
 | `pnpm verify:drop` | Dragging a file onto the edge button attaches it | no |
-| `pnpm verify:ui` | 34 points: the panel, all eight actions, marked text, page-as-context, long paste, templates, resize | 1 request |
+| `pnpm verify:ui` | 45 points: the panel, all eight actions, marked text, page-as-context, long paste, templates, resize, and a stream that dies before the first token | 1 request |
 | `pnpm verify:paywall` | The whole payment flow, with a Stripe test card, and puts the account back afterwards | no |
-| `pnpm verify:docs` | Google Docs: insert, undo, slow insert, answer a marking, answer a whole document, undo all | ~9 requests |
-| `pnpm verify:autonomous` | 42 points on autonomous mode in ordinary editors: ten questions in one marking, pause/resume, undo-everything-in-one-press, the gap list, and the full acceptance walk with an attached file | ~20 requests |
+| `pnpm verify:docs` | 27 points on Google Docs: insert, undo, slow insert, answer a marking, answer a whole document, undo all | ~9 requests |
+| `pnpm verify:autonomous` | 42 points on autonomous mode in ordinary editors: ten questions in one marking, pause/resume, undo-everything-in-one-press, an unanswerable question getting a real answer anyway, and the full acceptance walk with an attached file | ~20 requests |
 | `pnpm verify:all` | Everything above except the paywall and autonomous | ~12 requests |
+| `node scripts/spike-docs-image.mjs` | A Google Doc whose only content is a PICTURE of a task: the answer is written underneath it | ~2 requests |
 | `pnpm verify:prod` | The same, but against the DEPLOYED backend, with the extension built exactly as a user installs it | ~10 requests |
 
 `pnpm verify:docs --only=answer-selection` runs one section on its own.
