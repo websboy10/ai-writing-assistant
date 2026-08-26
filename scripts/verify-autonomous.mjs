@@ -730,7 +730,10 @@ try {
           return a !== -1 && b !== -1 && v.slice(a + q1.length, b).trim().length > 0;
         },
         { q1: Q1, q2: Q2 },
-        { timeout: 60_000 },
+        // Nothing can be written until the detect-plus-answer call returns, and
+        // that alone was measured at 29.4s on a cold start. Same budget as
+        // every other "has it started yet" wait.
+        { timeout: FIRST_CHAR_BUDGET_MS },
       );
       const midVal = await page.locator('#doc').inputValue();
       sawTopDown = between(midVal, Q2, Q3).trim().length === 0;
@@ -747,7 +750,13 @@ try {
           return /Færdig ✓/.test(t) || /ingen kunne besvares/.test(t) || /ikke fundet nogen spørgsmål/.test(t);
         },
         undefined,
-        { timeout: 240_000 },
+        // This run is LANGSOMT, so it gets the Langsomt budget like every other
+        // one. It was a flat 240_000 that the derivation missed, and once
+        // answers grew past it the check failed on the clock — then retried
+        // twice more, burning twelve minutes and six quota points to prove
+        // nothing. A wait that is shorter than the thing it waits for does not
+        // report a slow product; it reports a broken one.
+        { timeout: LANGSOMT_BUDGET_MS },
       )
       .catch(() => {});
     if (/Færdig ✓/.test(await shadowText())) {
