@@ -74,6 +74,15 @@ interface AwaState {
   contextBusy: string | null;
   // insertion
   insertStatus: InsertStatus | null;
+  /**
+   * Is there anywhere on the page to insert INTO?
+   *
+   * Published by the one poller that already asks (TargetHint), so a draft's
+   * buttons can lead with the action that will actually work without starting a
+   * second interval of their own — and read through a narrow selector, so a
+   * message bubble does not re-render on every streamed token (WR-14).
+   */
+  hasInsertTarget: boolean;
   // autonomous mode (07-03)
   autoRun: AutoRunStatus | null;
   // usage/history
@@ -111,6 +120,7 @@ export const useStore = create<AwaState>((set, get) => ({
   context: [],
   contextBusy: null,
   insertStatus: null,
+  hasInsertTarget: false,
   autoRun: null,
   usage: null,
   history: [],

@@ -619,7 +619,16 @@ function Picker({
 function TargetHint() {
   const [status, setStatus] = useState<{ label: string; ok: boolean; reason?: string } | null>(null);
   useEffect(() => {
-    const t = setInterval(() => setStatus(inserter.targetStatus()), 1500);
+    const read = () => {
+      const next = inserter.targetStatus();
+      setStatus(next);
+      // One poller for the whole panel: the draft buttons need the same answer
+      // and should not each run an interval to get it.
+      const can = !!next?.ok;
+      if (useStore.getState().hasInsertTarget !== can) useStore.getState().set({ hasInsertTarget: can });
+    };
+    read();
+    const t = setInterval(read, 1500);
     return () => clearInterval(t);
   }, []);
   // Both strings are set to fit the footer beside "+ Ny samtale" at 400px. The
@@ -648,6 +657,9 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
   // empty content, so a mount-time seed would make Save erase the response.
   const [draft, setDraft] = useState('');
   const [copied, setCopied] = useState(false);
+  // A narrow selector, not the whole store: this re-renders when the answer
+  // changes and never on a streamed token.
+  const canInsert = useStore((st) => st.hasInsertTarget);
 
   if (m.role === 'user') {
     return <div className="ml-10 whitespace-pre-wrap rounded-xl bg-wash px-3 py-2 text-body">{m.content}</div>;
@@ -694,21 +706,34 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
       )}
       {!m.streaming && m.content && !editing && (
         <div className="flex flex-wrap gap-1.5 pl-3 text-ui">
+          {/* Which of these is the primary action depends on whether there is
+              anywhere to insert INTO. With no target, pressing "Indsæt straks"
+              is a dead end: a banner saying to click a field first, which the
+              user then dismisses, clicks, and presses again. Three steps to
+              arrive back here. The footer already says "Intet mål valgt endnu",
+              so the panel knows — it was just still leading with the button
+              that could not work. Copy always works, so when insertion cannot,
+              Copy is the one wearing the filled style. Nothing is disabled:
+              clicking a field and pressing Insert is still the better path when
+              it is available, and the button explains that itself. */}
           <button
             onClick={() => inserter.start(m.content, 'instant')}
-            className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
-            title="Indsæt det hele på én gang"
+            className={`rounded-full px-3 py-1 ${canInsert ? 'bg-ink text-paper hover:opacity-85' : 'border border-hairline hover:border-ink'}`}
+            title={canInsert ? 'Indsæt det hele på én gang' : 'Klik først i det felt eller dokument, teksten skal ind i'}
           >
             Indsæt straks
           </button>
           <button
             onClick={() => inserter.start(m.content, 'progressive')}
             className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
-            title="Skriver bogstav for bogstav i menneskeligt tempo (ca. 30 ord i minuttet) — sæt på pause eller stop når som helst"
+            title="Skriver bogstav for bogstav i menneskeligt tempo (ca. 30 ord i minuttet), og kan sættes på pause eller stoppes når som helst"
           >
             Indsæt langsomt
           </button>
-          <button onClick={() => void copy()} className="rounded-full border border-hairline px-3 py-1 hover:border-ink">
+          <button
+            onClick={() => void copy()}
+            className={`rounded-full px-3 py-1 ${canInsert ? 'border border-hairline hover:border-ink' : 'bg-ink text-paper hover:opacity-85'}`}
+          >
             {copied ? 'Kopieret ✓' : 'Kopiér'}
           </button>
           <button
