@@ -289,6 +289,15 @@ async function ocrOnce(key: string, model: string, img: Buffer) {
                     'If the image also holds a diagram, figure, chart, table or geometric drawing, add a short plain ' +
                     'description of it afterwards, precise enough to work from: the labels, the values, the lengths ' +
                     'and angles, what is marked as known, and what is being asked for. ' +
+                    // This text is shown to the user when they open an attached
+                    // item, and it is fed to the model as context. Measured on
+                    // production 2026-08-26, the figure description came back as
+                    // "**Diagram Description**" with hyphen bullets and
+                    // "$9\\text{ cm}$" — unreadable to a person, and a worked
+                    // example of markdown handed to a model this project has
+                    // already caught copying the demonstration over the rule.
+                    'Write it as plain text. No asterisks, no hash headings, no backticks, no LaTeX and no maths ' +
+                    'delimiters: write "9 cm", never "$9\\text{ cm}$". ' +
                     'Output only that. No commentary. If the image holds no text and no figure, output nothing.',
                 },
                 { type: 'image_url', image_url: { url: `data:image/png;base64,${img.toString('base64')}` } },
