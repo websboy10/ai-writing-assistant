@@ -69,6 +69,13 @@ export async function launch({ headless = false } = {}) {
       '--password-store=basic',
       '--no-first-run',
       '--no-default-browser-check',
+      // A real window, not the 800x513 default. The panel is ~400px wide by
+      // design and its width persists in this profile, so on a small viewport
+      // it covered most of the page and every "click into the document" landed
+      // on the panel instead: focus stayed on BODY and the suite reported that
+      // text never reached the document. Nobody edits a Google Doc in an 800px
+      // window either, so the small one was never the honest test.
+      '--window-size=1512,982',
     ],
   });
 }
@@ -103,6 +110,72 @@ export async function readDoc(ctx, docId, { attempts = 6 } = {}) {
     await new Promise((s) => setTimeout(s, wait));
     wait = Math.min(wait * 2, 16_000);
   }
+}
+
+/**
+ * Clicks into the document page, away from anything that overlaps it.
+ *
+ * Three separate failures paid for the details here, all on 2026-08-26:
+ *
+ * - The element is `.kix-page-paginated`, not the `.kix-page` older notes name.
+ *   Match the prefix so the next rename does not cost another session.
+ * - Click the LEFT of the page, not the centre. With Docs' tab rail open the
+ *   page box starts ~300px in, so its centre sits at x≈700 — underneath the
+ *   extension's own sidebar in an 800px window. Every click landed on the
+ *   panel, the caret never entered the document, and `⌘A` then selected
+ *   nothing: `clearDoc` reported "document would not clear" about a document
+ *   nothing was wrong with.
+ * - Click the BOTTOM, not the top. A blank doc offers "building block" chips
+ *   near the first line and hitting one inserts a whole email template, which
+ *   then reads back as the extension having written it.
+ *
+ * Both coordinates are clamped to the viewport: the page box runs below and to
+ * the right of an 800x513 window, and a click outside it silently does nothing.
+ */
+export async function clickIntoDoc(page) {
+  const box = await page.locator('[class*="kix-page"]').first().boundingBox();
+  if (!box) throw new Error('no [class*="kix-page"] — the document did not render');
+  const view = page.viewportSize() ?? (await page.evaluate(() => ({ width: innerWidth, height: innerHeight })));
+
+  // Where the panel actually is, measured, not assumed. Its width is a user
+  // setting that persists in the profile, and verify-ui.mjs's resize check
+  // widens it — after which it covered x=242..800 of an 800px window and every
+  // "click into the document" landed on the panel instead. Focus stayed on
+  // BODY, keystrokes went nowhere, and the suite reported that the questions
+  // never reached the document. The panel is a shadow host with no size of its
+  // own, so the <aside> inside it is what has to be measured.
+  const panelLeft = await page.evaluate(() => {
+    const el = document.querySelector('awa-sidebar')?.shadowRoot?.querySelector('aside');
+    const r = el?.getBoundingClientRect();
+    return r && r.width > 0 ? r.left : Infinity;
+  });
+
+  const left = box.x + 60;
+  const right = Math.min(box.x + box.width - 60, view.width - 40);
+  // Stay clear of the panel, and never leave the page to do it.
+  const x = Math.max(box.x + 10, Math.min(left, right, panelLeft - 30));
+  const y = Math.min(box.y + box.height - 140, view.height - 60);
+  await page.mouse.click(x, y);
+  await new Promise((r) => setTimeout(r, 300));
+}
+
+/**
+ * Puts text in the document, as `insertText` rather than keystrokes.
+ *
+ * `page.keyboard.type` does NOT work against the Docs canvas here, at any
+ * delay. Measured on a real document, typing "ABCDEFGHIJ": delay 12 left "A",
+ * delay 150 left nothing at all, and a wake-up keystroke first left only the
+ * wake-up. `insertText` put all ten characters in, every time — it delivers one
+ * input event instead of ten key events, so there is no window for Docs to
+ * re-render mid-word and drop the rest.
+ *
+ * Keep using real key presses where the TEST is about a keystroke (the
+ * typing-race check needs a trusted event); use this everywhere else.
+ */
+export async function typeIntoDoc(page, text) {
+  await clickIntoDoc(page);
+  await page.keyboard.insertText(text);
+  await new Promise((r) => setTimeout(r, 1200)); // let Docs commit before exporting
 }
 
 /** A fresh empty document per run — /create redirects to the new doc's URL. */

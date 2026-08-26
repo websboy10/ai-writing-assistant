@@ -377,7 +377,6 @@ export default defineBackground(() => {
           console.warn('[awa] docs image fetch threw', err instanceof Error ? err.message : String(err));
         }
       }
-      console.info(`[awa] paragraph ${paragraph.index}: ${imageIds.length} image ref(s), ${images.length} fetched`);
       out.push(images.length ? { ...paragraph, images } : paragraph);
     }
     return out;

@@ -451,9 +451,14 @@ async function pickDocsSource(
   // A task that IS a picture has no text to search for, and Find is nothing
   // but a text search. The API writer places by document index, so it does not
   // care whether the paragraph above the answer is a sentence or a photograph.
-  // Langsomt loses letter-by-letter typing on these documents; it keeps the
-  // pacing, the pause and the undo, because GDocsApiWriteSource takes `mode`.
-  if (read.paragraphs.some((p) => p.images?.length)) {
+  //
+  // The test is "a picture with no words of its own", NOT "the document has a
+  // picture in it somewhere". A letterhead, a logo beside a heading, a diagram
+  // illustrating a typed question — all of those sit in paragraphs that DO have
+  // text, and Find handles them exactly as before. Testing merely for the
+  // presence of an image would have taken letter-by-letter typing away from
+  // every document with a logo on it, which is most of them.
+  if (read.paragraphs.some((p) => p.images?.length && !p.text.trim())) {
     return new GDocsApiWriteSource(documentId, read.paragraphs, read.ranges, mode, '');
   }
 

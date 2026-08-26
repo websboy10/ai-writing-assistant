@@ -196,25 +196,28 @@ whole-document answering when Google comes back, rather than waiting for them
 before anything ships at all. Your call — it is a sequencing question, not a
 technical one.
 
-## Two things only you can do
+## Things only you can do
 
-Both block a real launch. Neither is a code problem.
+Both of the items that stood here were **done on 2026-08-26**, and both were
+checked from this side afterwards rather than taken on trust:
 
-1. **Put money on OpenRouter.** The account currently has **0 kr. of purchased
-   credit**. Every request falls through to the cheapest model in the chain,
-   because the two good ones (Claude Sonnet 5 and Gemini 3.5 Flash) refuse a
-   request they cannot afford. The product works — the Danish it writes is
-   decent — but it is writing with its weakest hand, and the one remaining
-   flaky behaviour in autonomous mode is that model giving up on questions the
-   document does not answer. https://openrouter.ai/settings/credits
+1. ~~**Put money on OpenRouter.**~~ **Done.** The next request to production
+   came back served by `anthropic/claude-sonnet-5` instead of the deepseek
+   fallback. Every model in the chain is now reachable, including the two
+   image-capable ones — which matters more than it sounds, because a document
+   whose tasks are pictures cannot be read at all without them.
 
-2. **Add `SUPABASE_SERVICE_ROLE_KEY` to Vercel.** Supabase dashboard →
-   Project Settings → API → `service_role` (the secret one — it must never go
-   anywhere near the extension). Without it the Stripe webhook and the receipt
-   page cannot write, which is harmless — a paying customer is still unlocked
-   within seconds by the on-demand check, and the payment walkthrough passes
-   6/6 with those calls being refused — but it is the last loose end from the
-   security fix on 2026-08-25.
+2. ~~**Add `SUPABASE_SERVICE_ROLE_KEY` to Vercel.**~~ **Done.** Proved by the
+   behaviour that key exists for: an autonomous run that finds no questions now
+   charges 2 and refunds 2, net zero. That refund had never once worked — first
+   because `rpc()` crashed on the empty 204 body a `void` function returns, then
+   because the privileged call had no key to make it with.
+
+**Still outstanding, and genuinely yours:** Google's OAuth verification. It
+gates only whole-document answering and "+ Denne side" **on Docs**, so it does
+not hold up a first release; see the capability table above for exactly what
+runs without it. Google takes roughly 2–6 weeks, so it is worth starting early
+even though nothing is blocked on it today.
 
 ## Checking it yourself, without clicking
 

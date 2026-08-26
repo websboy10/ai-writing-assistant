@@ -18,7 +18,16 @@
  * Run: node scripts/verify-docs.mjs [--keep] [--only=<section>]
  */
 import { resolve } from 'node:path';
-import { launch, newDoc, readDoc, isSignedIn, reporter, shotsDir } from './docs-harness.mjs';
+import {
+  launch,
+  newDoc,
+  readDoc,
+  isSignedIn,
+  reporter,
+  shotsDir,
+  clickIntoDoc as harnessClickIntoDoc,
+  typeIntoDoc as harnessTypeIntoDoc,
+} from './docs-harness.mjs';
 
 const KEEP = process.argv.includes('--keep');
 const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice(7);
@@ -96,41 +105,39 @@ const host = page.locator('awa-sidebar');
 const shot = (name) => page.screenshot({ path: resolve(shotsDir, `docs-${name}.png`) }).catch(() => {});
 const sleep = (ms) => new Promise((s) => setTimeout(s, ms));
 
-/** Docs' canvas swallows Playwright's .click() — overlays intercept pointer
- *  events — so every click into the document goes through raw coordinates. */
-// Measured 2026-08-25: the page element is `.kix-page-paginated`, NOT the
-// `.kix-page` every older note names. Matching the prefix survives the next
-// rename too — a stale Docs selector has already cost this project a session.
-const PAGE_SEL = '[class*="kix-page"]';
-
-/**
- * Clicks into the BOTTOM of the page, never the top. A blank Google Doc offers
- * "building block" chips (Meeting notes, Email draft…) near the first line, and
- * a raw-coordinate click on one of them silently inserts a whole email template
- * into the document — which then reads back as the extension having written it.
- * The lower half of the page is always empty space, and clicking empty space
- * puts the cursor at the end of the document, which is where insertion belongs.
- */
-async function clickIntoDoc() {
-  const box = await page.locator(PAGE_SEL).first().boundingBox();
-  if (!box) throw new Error(`no ${PAGE_SEL} — document did not render`);
-  const view = page.viewportSize() ?? (await page.evaluate(() => ({ width: innerWidth, height: innerHeight })));
-  // A Docs page is ~1123px tall in a ~800px window, so the bottom of the page
-  // box is BELOW the viewport and a click there silently does nothing — the
-  // mouse never reaches the document and the test reads an empty export.
-  const y = Math.min(box.y + box.height - 140, view.height - 60);
-  await page.mouse.click(box.x + box.width / 2, y);
-  await sleep(300);
-}
+// clickIntoDoc and typeIntoDoc live in docs-harness.mjs now: the spike scripts
+// need exactly the same two behaviours, and keeping a second copy here is how
+// the left-edge fix would have been applied to one of them and not the other.
+const clickIntoDoc = () => harnessClickIntoDoc(page);
+const typeIntoDoc = (text) => harnessTypeIntoDoc(page, text);
 
 /** Leaves the document genuinely empty, whatever a stray click put in it. */
 async function clearDoc(docId) {
-  await clickIntoDoc();
-  await page.keyboard.press('ControlOrMeta+a');
-  await page.keyboard.press('Backspace');
-  await sleep(1500);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await clickIntoDoc();
+    await page.keyboard.press('ControlOrMeta+a');
+    await sleep(300);
+    await page.keyboard.press('Backspace');
+    await sleep(1500);
+    const text = await readDoc(ctx, docId);
+    if (!text.trim()) return;
+    // Say WHERE the click went and WHAT had focus, rather than only that the
+    // text is still there — the first two attempts at this bug were spent
+    // guessing between the two.
+    const where = await page.evaluate(() => {
+      const el = document.activeElement;
+      const host = document.querySelector('awa-sidebar');
+      const r = host?.getBoundingClientRect();
+      return {
+        focus: `${el?.tagName}.${(el?.className ?? '').toString().slice(0, 40)}`,
+        panel: r ? `${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}` : 'none',
+      };
+    });
+    console.log(`    clearDoc attempt ${attempt} left ${JSON.stringify(text.trim().slice(0, 40))} · focus ${where.focus} · panel ${where.panel}`);
+    await shot(`clear-fail-${attempt}`);
+  }
   const text = await readDoc(ctx, docId);
-  if (text.trim()) throw new Error(`document would not clear: ${JSON.stringify(text.slice(0, 120))}`);
+  throw new Error(`document would not clear: ${JSON.stringify(text.slice(0, 120))}`);
 }
 
 async function openSidebar() {
@@ -150,13 +157,6 @@ async function signInIfNeeded() {
     await host.locator('button', { hasText: 'Log ind' }).click();
   }
   await host.locator('textarea[placeholder*="Skriv til"]').waitFor({ timeout: 30_000 });
-}
-
-/** Types straight into the Docs canvas as a real user would. */
-async function typeIntoDoc(text) {
-  await clickIntoDoc();
-  await page.keyboard.type(text, { delay: 12 });
-  await sleep(1200); // let Docs commit to its server before we export
 }
 
 // 4s between reads: Docs' export endpoint answers 429 if polled harder, and a
@@ -248,11 +248,31 @@ const QUESTIONS = [Q1, Q2, Q3];
 async function writeQuestions(docId) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     await clickIntoDoc();
-    await page.keyboard.type([Q1, Q2, Q3, STATEMENT].join('\n'), { delay: 10 });
+    // insertText per line, Enter between them. `keyboard.type` does not survive
+    // this canvas at any delay — measured on a real document, ten characters
+    // arrived as one — and a single Enter keypress does, which is why the two
+    // are mixed rather than one call with newlines in it.
+    const lines = [Q1, Q2, Q3, STATEMENT];
+    for (let i = 0; i < lines.length; i++) {
+      await page.keyboard.insertText(lines[i]);
+      if (i < lines.length - 1) await page.keyboard.press('Enter');
+      await sleep(150);
+    }
     await sleep(2500);
     const text = await readDoc(ctx, docId);
     if (QUESTIONS.every((q) => text.includes(q))) return text;
     if (attempt === 2) {
+      await shot('write-questions-failed');
+      const where = await page.evaluate(() => {
+        const el = document.activeElement;
+        const box = document.querySelector('[class*="kix-page"]')?.getBoundingClientRect();
+        return {
+          focus: `${el?.tagName}.${(el?.className ?? '').toString().slice(0, 50)}`,
+          page: box ? `${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}` : 'none',
+          view: `${innerWidth}x${innerHeight}`,
+        };
+      });
+      console.log(`    focus ${where.focus} · page box ${where.page} · viewport ${where.view}`);
       throw new Error(`the questions never reached the document; last read: ${JSON.stringify(text.slice(0, 160))}`);
     }
     console.log('  … the document stayed empty — the click missed the canvas, retrying');
@@ -492,12 +512,26 @@ try {
   }
 
   const names = ONLY ? [ONLY] : Object.keys(sections);
+  let current = docId;
   for (const name of names) {
     if (!sections[name]) throw new Error(`unknown section: ${name}`);
-    // Undo is itself under test, so sections must not depend on the previous
-    // one having cleaned up — every section starts from a provably empty doc.
-    if (name !== 'chat-undo') await clearDoc(docId);
-    await sections[name](docId);
+    // Undo is itself under test, so it has to keep whatever chat-instant left
+    // in the document. Every other section gets a BRAND NEW document.
+    //
+    // It used to reuse one document and empty it with select-all plus
+    // Backspace. That worked until it did not: after a Langsomt insertion the
+    // select-all stopped selecting — Backspace still deleted, one character per
+    // attempt, so the document was never empty and the suite blamed the
+    // product. Whatever the extension leaves behind that eats a select-all, a
+    // fresh document cannot have it, and "provably empty" stops being a claim
+    // the harness has to prove at all.
+    if (name !== 'chat-undo') {
+      current = await newDoc(page);
+      ctxDocIds.push(current);
+      await openSidebar();
+      await signInIfNeeded();
+    }
+    await sections[name](current);
   }
 } catch (err) {
   r.ok(`unexpected failure: ${String(err).slice(0, 300)}`, false);

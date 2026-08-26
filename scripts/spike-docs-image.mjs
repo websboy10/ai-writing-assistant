@@ -15,7 +15,7 @@
  *
  * Run: node scripts/spike-docs-image.mjs
  */
-import { launch, newDoc, readDoc, isSignedIn, reporter, shotsDir } from './docs-harness.mjs';
+import { launch, newDoc, readDoc, isSignedIn, reporter, shotsDir, clickIntoDoc } from './docs-harness.mjs';
 import { resolve } from 'node:path';
 
 const EMAIL = process.env.AWA_EMAIL ?? 'tester@example.com';
@@ -57,28 +57,6 @@ const host = page.locator('awa-sidebar');
 const shot = (n) => page.screenshot({ path: resolve(shotsDir, `spike-img-${n}.png`) }).catch(() => {});
 
 let docId = '';
-
-/**
- * Clicks into the document, lifted verbatim from verify-docs.mjs because every
- * part of it was paid for by a failed run.
- *
- * The element is `.kix-page-paginated`, not the `.kix-page` older notes name —
- * matching the prefix survives the next rename. Docs' overlays swallow
- * Playwright's `.click()`, so it goes through raw coordinates. The BOTTOM of
- * the page, never the top: a blank doc offers "building block" chips near the
- * first line and clicking one inserts a whole email template. And clamped to
- * the viewport, because the page box runs below the window and a click there
- * never reaches the document at all — which is exactly what this spike did
- * twice, reading back an empty export both times.
- */
-async function clickIntoPage() {
-  const box = await page.locator('[class*="kix-page"]').first().boundingBox();
-  if (!box) throw new Error('no [class*="kix-page"] — the document did not render');
-  const view = page.viewportSize() ?? (await page.evaluate(() => ({ width: innerWidth, height: innerHeight })));
-  const y = Math.min(box.y + box.height - 140, view.height - 60);
-  await page.mouse.click(box.x + box.width / 2, y);
-  await page.waitForTimeout(300);
-}
 
 /** Waits for the export channel to agree with what is on screen. */
 async function waitForExport(re, what, attempts = 10) {
@@ -143,7 +121,7 @@ try {
     await page.waitForTimeout(3500);
   }
 
-  await clickIntoPage();
+  await clickIntoDoc(page);
   await page.waitForTimeout(800);
   await host.getByRole('button', { name: 'Besvar alle spørgsmål', exact: true }).click();
   await host.getByRole('button', { name: 'Straks', exact: true }).click();
