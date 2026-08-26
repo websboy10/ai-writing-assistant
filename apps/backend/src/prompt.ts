@@ -35,6 +35,13 @@ export const PROSE_RULES = [
   'VOICE. Write like a thirteen year old writes. That is the register for everything, whatever the subject is.',
   '- Use the simplest word that does the job. No fancy words. No formal words. If a plain everyday word exists, use that one.',
   '- Keep sentences short. One idea in each.',
+  // Restored 2026-08-26 after measuring what its loss cost. The old rules said
+  // "vary sentence length, several medium sentences in a row is the clearest
+  // sign a machine wrote them", and rewriting VOICE dropped it. Scored across
+  // six production outputs, three came back with a standard deviation under
+  // 2.5 words: every sentence the same size. "Keep them short" pulls straight
+  // towards that, so the two rules have to sit next to each other.
+  '- Not all the same length though. Put a very short sentence next to a longer one, the way people actually write.',
   '- Leave most commas out. Where a comma could go, skip it more often than you use it.',
   '- Never type a dash as punctuation. Not the long dash, not the short one, and never a hyphen standing alone between two words. A hyphen is only allowed inside a single word.',
   // Measured on production 2026-08-26: asked to correct "She dont have no
