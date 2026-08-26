@@ -171,9 +171,23 @@ async function waitForFieldGrowth(selector, baseLen, timeoutMs) {
  * derived from the pacing cannot rot the same way — if the pace changes, this
  * follows.
  */
-const LANGSOMT_CHARS_BUDGET = 3 * 200; // three answers, generous length each
+// Re-derived 2026-08-26 from what the fixture actually produces now, because
+// two things changed under it at once. The document yields FOUR answers, not
+// three: the question nothing can ground used to be skipped and is now always
+// answered. And answers got longer once the prompt started demanding specifics
+// and the funded key put Claude Sonnet 5 in the chain. Measured over three
+// production runs: 140 to 208 characters each, median 172.
+//
+// Four answers at the measured maximum is 832 characters, and at 400ms each
+// that is 5.5 minutes of typing before a second of thinking is counted. The old
+// 3 x 200 allowed 240s and the run needed more, so the suite failed on a
+// document where nothing was wrong. Same mistake as the flat 150_000 before it:
+// a number that stopped describing the thing it was measuring.
+const LANGSOMT_CHARS_BUDGET = 4 * 310; // four answers, measured max plus half again
 const MS_PER_CHAR = 60_000 / (30 * 5);
-const LANGSOMT_BUDGET_MS = Math.round(LANGSOMT_CHARS_BUDGET * MS_PER_CHAR) + 90_000; // + thinking time
+// Thinking time is the detect-plus-answer round trip, measured at 9.7s warm and
+// 29.4s on a cold start.
+const LANGSOMT_BUDGET_MS = Math.round(LANGSOMT_CHARS_BUDGET * MS_PER_CHAR) + 120_000;
 
 /**
  * How long a run may take to put its FIRST character on the page.
