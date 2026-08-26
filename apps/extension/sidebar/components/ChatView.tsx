@@ -177,7 +177,14 @@ export function ChatView() {
         }}
         className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
       >
-        {s.messages.length === 0 && <EmptyState />}
+        {/* Not while a transport bar is up. The bars are `sticky bottom-0` in
+            this same scroller, and an autonomous run adds no chat messages, so
+            after "Besvar alle spørgsmål" the panel had a finished run's bar
+            floating over the words "En blank side — klar når du er" and the
+            onboarding list beneath it (measured in 01-doc-straks-done.png).
+            A run just happened; the page is not blank and there is nothing to
+            onboard. The bar is the content. */}
+        {s.messages.length === 0 && !s.insertStatus && !s.autoRun && <EmptyState />}
         {s.messages.map((m) => (
           <MessageBubble key={m.id} m={m} />
         ))}
@@ -781,7 +788,14 @@ function InsertBar() {
       <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-wash">
         <div className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
       </div>
-      <div className="flex items-center gap-1.5 text-ui">
+      {/* The row wraps; the pills never do. Paused, this row carries Fortsæt,
+          Stop, "Fortryd indsættelse" and Skjul — about 10px more than a 400px
+          panel has room for. Without flex-wrap the overflow was taken out of
+          the widest pill instead, so "Fortryd indsættelse" broke across two
+          lines inside its own border and stood a head taller than the buttons
+          beside it (07-typing-guard.png). white-space inherits, so setting it
+          here keeps every label on one line and makes the ROW give way. */}
+      <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap text-ui">
         {st.state === 'running' && (
           <button onClick={() => inserter.pause()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
             ⏸ Pause
@@ -858,7 +872,9 @@ function AutoRunBar() {
           <div className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
         )}
       </div>
-      <div className="flex items-center gap-1.5 text-ui">
+      {/* Same as the insert bar above: paused, this row is Fortsæt, Stop,
+          "Fortryd alle svar" and Skjul, which is wider still. */}
+      <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap text-ui">
         {st.state === 'writing' && (
           <button onClick={() => autonomous.pause()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
             ⏸ Pause

@@ -199,7 +199,12 @@ export function App() {
     const kept = truncated ? text.slice(0, MAX_CONTEXT_CHARS_PER_ITEM) : text;
     st.addContext({
       id: newContextId(),
-      name: `Indsat tekst (${kept.length.toLocaleString('da-DK')} tegn)`,
+      // The count is deliberately not in the name. A chip is narrow enough that
+      // the parenthetical was always the part that got cut, so it rendered as
+      // "Indsat tekst (…" — an opened bracket that never closes, which reads as
+      // a broken label rather than a shortened one. Every chip already carries
+      // "· N tegn" in its tooltip and states it again in the preview.
+      name: 'Indsat tekst',
       kind: 'paste',
       text: kept,
       chars: kept.length,

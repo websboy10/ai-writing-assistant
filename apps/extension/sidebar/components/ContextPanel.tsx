@@ -96,7 +96,13 @@ export function ContextChips() {
           {s.context.map((c) => (
             <div
               key={c.id}
-              className="relative flex max-w-[124px] items-center gap-1.5 rounded-lg border border-hairline bg-wash py-1.5 pl-2 pr-2.5"
+              // 176px, not 124: the panel is 400px wide and the composer's own
+              // padding leaves 376px, so two chips plus the 8px gap and the ✕
+              // badges that hang 6px off each right edge still sit on one row.
+              // At 124 the cap was throwing away 100px of that row and cutting
+              // "Medarbejdersamtale 2026" down to "Medarbejders…", which is the
+              // half that tells two attachments apart. It now fits whole.
+              className="relative flex max-w-[176px] items-center gap-1.5 rounded-lg border border-hairline bg-wash py-1.5 pl-2 pr-2.5"
             >
               <button
                 onClick={() => setReading(c.id)}

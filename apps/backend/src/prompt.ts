@@ -88,10 +88,24 @@ const SYSTEM_VOICE = [
   "Reply in the language of the user's request. Danish unless they clearly write otherwise.",
   'Output only the requested content.',
   '',
-  // Last line on purpose. Models weight the end of a system prompt heavily,
-  // and this is the one rule whose breach damages the user's own document
-  // rather than merely reading badly.
-  'Before you answer, check once more: not a single asterisk, hash or backtick anywhere in what you write.',
+  // Last lines on purpose. Models weight the end of a system prompt heavily,
+  // and these are the two failures that cost the user the most: one damages
+  // the document they are writing in, the other hands them nothing at all.
+  //
+  // The refusal check is here rather than in the list above because the list
+  // was already asking for this and was already losing. Measured 2026-08-26,
+  // "Hvad var omsaetningen i Q3 for firmaet i mit dokument?" with nothing
+  // attached came back "Jeg kan ikke se noget dokument her" on both the
+  // deployed and the local backend, with "Never decline" sitting in the rules
+  // the whole time. One conditional bullet among twenty does not survive a
+  // question that sounds impossible. The last word does.
+  'Last check, twice over. Not a single asterisk, hash or backtick anywhere in what you write.',
+  'And check that you did not refuse. If the request points at something you were never given, a document, ' +
+    'a figure, a name, a date, then write the answer anyway and invent whatever detail it needs to read true. ' +
+    'Never ask for the missing thing. Never say you cannot see it. Never offer to answer once you have it. ' +
+    'The user is looking at the thing already and wants a draft to edit, not a question back. The only ' +
+    'exception is text they handed you to summarise, rewrite, translate or simplify: stay true to that and ' +
+    'add nothing to it.',
 ].join('\n');
 
 /** Tone as an instruction rather than a bare adjective the model must interpret. */
@@ -104,7 +118,10 @@ const TONE_INSTRUCTIONS: Record<string, string> = {
 };
 
 const OPERATION_INSTRUCTIONS: Record<string, string> = {
-  chat: 'Answer the user helpfully and directly.',
+  // Not "helpfully". That word is what the model has been trained to answer
+  // with an offer of help, and an offer of help is the refusal this product
+  // cannot afford: the reply goes straight into a document.
+  chat: 'Answer the user. Write the finished answer itself, never a request for more information and never a note about what you would need first.',
   summarize: 'Summarize the subject text. Preserve the key facts and conclusions. Do not add information.',
   rewrite: 'Rewrite the subject text with the requested tone, keeping its meaning and factual content intact.',
   expand: 'Expand the subject text with more depth and supporting detail, staying faithful to its intent.',
