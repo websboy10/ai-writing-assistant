@@ -292,8 +292,20 @@ export default defineBackground(() => {
         if (!uri) continue;
         budget--;
         try {
-          const res = await fetch(uri, { headers: { Authorization: `Bearer ${bearer}` } });
-          if (!res.ok) continue;
+          // Google hands back a `contentUri` on googleusercontent.com, not on
+          // its API host: it carries the requester's credentials in the URL
+          // itself and expires in about half an hour. That host does NOT want
+          // the Docs bearer token, and sending one is how the first real-
+          // document run came back with no images at all. Plain fetch first;
+          // the token is only worth trying if the bare one is refused.
+          let res = await fetch(uri);
+          if (res.status === 401 || res.status === 403) {
+            res = await fetch(uri, { headers: { Authorization: `Bearer ${bearer}` } });
+          }
+          if (!res.ok) {
+            console.warn('[awa] docs image fetch failed', res.status, uri.slice(0, 80));
+            continue;
+          }
           const buf = await res.arrayBuffer();
           if (buf.byteLength === 0 || buf.byteLength > MAX_IMAGE_BYTES) continue;
           const mime = res.headers.get('content-type')?.split(';')[0] || 'image/png';
@@ -305,10 +317,12 @@ export default defineBackground(() => {
             binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
           }
           images.push(`data:${mime};base64,${btoa(binary)}`);
-        } catch {
+        } catch (err) {
           // unreadable image: the rest of the document is still worth running
+          console.warn('[awa] docs image fetch threw', err instanceof Error ? err.message : String(err));
         }
       }
+      console.info(`[awa] paragraph ${paragraph.index}: ${imageIds.length} image ref(s), ${images.length} fetched`);
       out.push(images.length ? { ...paragraph, images } : paragraph);
     }
     return out;

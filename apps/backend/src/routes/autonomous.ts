@@ -141,10 +141,13 @@ export function autonomousRoutes(app: FastifyInstance): void {
       // Pictures become words before anything else looks at the document, so
       // detection, batching and placement all run on a document that reads as
       // though the tasks had been typed. Costs nothing when there are none.
-      if (autoReq.paragraphs.some((p) => p.images?.length)) {
+      const imagesSeen = autoReq.paragraphs.reduce((n, p) => n + (p.images?.length ?? 0), 0);
+      let imagesDescribed = 0;
+      if (imagesSeen > 0) {
         const folded = await foldImagesIntoText(autoReq.paragraphs, (obj, msg) => req.log.warn(obj, msg));
         autoReq.paragraphs = folded.paragraphs;
-        req.log.info({ described: folded.described }, 'described images in document');
+        imagesDescribed = folded.described;
+        req.log.info({ imagesSeen, described: imagesDescribed }, 'described images in document');
       }
 
       const detection = await collect(detectionMessages(autoReq), contentClass, abort.signal);
@@ -167,6 +170,25 @@ export function autonomousRoutes(app: FastifyInstance): void {
         await anonRpc('refund_quota_for', { p_user_id: user.id, p_cost: 2 }).catch((refundErr) =>
           req.log.error(refundErr, 'refund_quota failed after zero-question detection'),
         );
+
+        // A document whose tasks are all pictures, none of which could be read,
+        // is NOT a document without questions — but that is what it was told,
+        // and the two need completely different things from the user. Measured
+        // 2026-08-26 against a real Google Doc: the vision models were refused
+        // for want of credit, every description came back empty, and the panel
+        // reported "no questions found" about a page with a maths problem on
+        // it. Wrong, and unactionable.
+        if (imagesSeen > 0 && imagesDescribed === 0) {
+          req.log.error({ imagesSeen }, 'every image in the document was unreadable');
+          return reply.code(503).send({
+            error:
+              imagesSeen === 1
+                ? 'Billedet i dokumentet kunne ikke læses lige nu, så opgaven i det blev ikke fundet. Prøv igen om et øjeblik.'
+                : 'Billederne i dokumentet kunne ikke læses lige nu, så opgaverne i dem blev ikke fundet. Prøv igen om et øjeblik.',
+            code: 'upstream_error',
+          });
+        }
+
         const response: AutonomousResponse = { answers: [], detected: 0 };
         return reply.send(response);
       }

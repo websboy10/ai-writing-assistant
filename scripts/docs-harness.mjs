@@ -10,7 +10,7 @@
 import { chromium } from 'playwright';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdirSync, readdirSync, existsSync } from 'node:fs';
+import { mkdirSync, readdirSync, existsSync, rmSync } from 'node:fs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const extPath = resolve(root, 'apps/extension/.output/chrome-mv3');
@@ -38,7 +38,26 @@ export function chromeForTestingPath() {
   throw new Error('Chrome for Testing not found — run: pnpm exec playwright install chromium');
 }
 
+/**
+ * Throws away the profile's cached MV3 service worker.
+ *
+ * The profile persists so the Google session does, and Chrome persists the
+ * extension's service worker with it. A rebuilt background.js then does NOT
+ * take effect: the content script is fresh, the worker is last week's, and the
+ * two disagree in ways that look exactly like a product bug. It cost this
+ * project a whole session once (see the stale-worker note in verify-ui.mjs) and
+ * four runs of spike-docs-image.mjs on 2026-08-26, where a working feature
+ * reported "no questions found" because the old worker was still reading
+ * documents the old way.
+ *
+ * Cookies live elsewhere, so the Google sign-in survives this.
+ */
+function dropCachedServiceWorkers() {
+  rmSync(resolve(profilePath, 'Default/Service Worker'), { recursive: true, force: true });
+}
+
 export async function launch({ headless = false } = {}) {
+  dropCachedServiceWorkers();
   return chromium.launchPersistentContext(profilePath, {
     executablePath: chromeForTestingPath(),
     headless,
