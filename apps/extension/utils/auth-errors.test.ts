@@ -76,3 +76,13 @@ test('no English ever reaches the user for any known GoTrue code', () => {
     assert.ok(/[a-zæøå]/i.test(msg), `${c} produced nothing readable`);
   }
 });
+
+// The throttle added 2026-08-26 answers 429 with our own Danish text and
+// `code: 'rate_limited'`. It must reach the user unchanged: the whole point is
+// telling them to wait rather than that their password is wrong.
+test('a throttled attempt keeps our own Danish wording', () => {
+  const body = { error: 'For mange forsøg. Vent et par minutter, og prøv igen.', code: 'rate_limited' };
+  for (const action of ['login', 'signup', 'reset'] as const) {
+    assert.equal(danishAuthError(action, 429, body), 'For mange forsøg. Vent et par minutter, og prøv igen.');
+  }
+});

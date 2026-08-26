@@ -105,6 +105,15 @@ r.ok('refund_quota is not callable by the user it benefits', denied(res), `HTTP 
 res = await callRpc('refund_quota_for', { p_user_id: attacker.id, p_cost: 50 }, attacker.token);
 r.ok('refund_quota_for is service-only', denied(res), `HTTP ${res.status} ${res.body}`);
 
+// 6b. The auth throttle (migration 0008). If a caller can drive this, they can
+//     spend someone else's login budget and lock that person out of their own
+//     account — a denial of service with the security control as the weapon.
+res = await callRpc('auth_throttle_hit', { p_key: 'login:acct:whoever', p_limit: 1, p_window_seconds: 3600 }, attacker.token);
+r.ok('auth_throttle_hit cannot be driven by a signed-in caller', denied(res), `HTTP ${res.status} ${res.body}`);
+
+res = await callRpc('auth_throttle_hit', { p_key: 'login:acct:whoever', p_limit: 1, p_window_seconds: 3600 }, null);
+r.ok('auth_throttle_hit cannot be driven anonymously', denied(res), `HTTP ${res.status} ${res.body}`);
+
 // 7. The same result by arithmetic.
 res = await callRpc('consume_quota', { p_cost: -100 }, attacker.token);
 r.ok('consume_quota rejects a negative cost', /invalid cost/i.test(res.body), `HTTP ${res.status} ${res.body}`);
