@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Production-readiness pass 2026-08-25 — Docs 27/27, an unauthenticated paywall bypass closed, seven unreachable writing operations surfaced. Two operator actions remain (OpenRouter credit, SUPABASE_SERVICE_ROLE_KEY).
-last_updated: "2026-08-25T21:00:00.000Z"
-last_activity: 2026-08-25 — markdown no longer lands as asterisks in the document; max_tokens made the good models reachable; auth speaks Danish; operations/tone/templates surfaced; SECURITY DEFINER RPCs locked down; Docs 27/27
+stopped_at: 2026-08-26 — both operator blockers cleared and verified (OpenRouter funded, service-role key live). Answers no longer refuse; the voice is plain Danish with no dashes; orders are carried out; a task that IS a picture is read and answered. Docs 27/27, panel 45/45, RLS 12/12, image spike 5/5 against production.
+last_updated: "2026-08-26T02:30:00.000Z"
+last_activity: 2026-08-26 — every question gets a usable answer instead of a hedge; thirteen-year-old voice with no dash punctuation; orders carried out (maths, grammar, sizes); image tasks in Google Docs read and answered; three harness bugs that were blaming the product fixed
 progress:
   total_phases: 7
   completed_phases: 0
@@ -43,47 +43,96 @@ verification outstanding for both v1 and autonomous mode)
 
 ## Next session — start here
 
-Everything the previous list asked for is done. Written 2026-08-25.
+Written 2026-08-26. The previous list is done; this replaces it.
 
-1. ~~Langsomt in autonomous mode on Docs~~ — **done.** The full suite is 27/27,
-   and the marking path was run seven times for a reliability figure. All three
-   write paths were confirmed by name and none degraded.
-2. ~~Decide the OAuth path~~ — **decided: keep `getAuthToken`.** The failure it
-   can produce is honest and specific ("the Google account signed into this
-   Chrome profile does not have access to this document"), and the Find path
-   needs no OAuth at all. TESTING.md now records exactly which capabilities the
-   Google approval gates — only whole-document answering and "+ Denne side" on
-   Docs — so a first release need not wait for it.
-3. ~~Ungrounded answers~~ — **closed.** Empty answer strings were the cause;
-   they are now forbidden by the prompt, retried once when a whole batch comes
-   back empty, and dropped by the parser as a last line of defence so a blank
-   line can never be written into someone's document.
-4. ~~The four browser suites~~ — **all re-run**, plus three new ones:
-   `verify:ui` (the panel), `verify:rls` (the paywall and quota under attack),
-   and `verify:prod` (the whole thing against the deployed backend). See
-   TESTING.md for what each proves and what it costs in quota.
-5. **`07-UAT.md` still needs the operator's own walkthrough.** Unchanged — this
-   is the one thing automation cannot supply.
+**The two operator blockers are gone, and were checked rather than assumed.**
+OpenRouter is funded — production answered with `anthropic/claude-sonnet-5`
+instead of the deepseek fallback on the next request. `SUPABASE_SERVICE_ROLE_KEY`
+is set in Vercel — proved by the behaviour it exists for: an autonomous run that
+finds no questions now charges 2 and refunds 2, net zero. That refund had never
+once worked, first because `rpc()` crashed on the empty 204 body a `void`
+function returns, then because the privileged call had no key to make it with.
 
-**Two things only the operator can do**, both in TESTING.md:
-OpenRouter has 0 kr. of credit, so every request runs on the cheapest model in
-the chain; and `SUPABASE_SERVICE_ROLE_KEY` is not set in Vercel, which leaves
-the Stripe push channels unable to write (harmless — the on-demand sync still
-unlocks a paying customer, proven 6/6).
+**What changed in the product, all by operator decision on 2026-08-26:**
 
-**Driving Docs from a script:** the one thing that made this session possible is
-reading the document back via `…/export?format=txt` with ordinary cookies — no
-OAuth needed. It must be called from OUTSIDE the Docs page (its CSP blocks the
-fetch). Without a read-back channel, a Docs "fix" cannot be verified at all,
-which is how four wrong ones were written.
+1. **Every question gets a real answer.** The prompt used to permit "one short
+   sentence" saying the sources held nothing, and that sentence landed in the
+   user's own document under their own question. Now it answers, inventing
+   specifics that fit the subject, and never hedges or mentions a source. What
+   lands is a first draft to edit, and a refusal cannot be edited. The panel's
+   "Uden grundlag i dine kilder" list is gone with it. Faithfulness still holds
+   where the user supplied the text: summarise, rewrite, translate and simplify
+   add nothing — proved both ways.
+2. **The voice is "write like a thirteen year old".** Simple words, short
+   sentences, most commas left out, and never a dash as punctuation. PROSE_RULES
+   is itself written in that voice, and every dash was purged from BOTH prompt
+   files: this project has already proved the model copies how a prompt is
+   written over what it says, so a rule against dashes typed with a dash in it
+   teaches the opposite of itself. The list rule had to change too — "start the
+   line with a hyphen" contradicted the ban, so lists are numbered now.
+   Simplicity stops at word CHOICE: spelling stays exact, because on a
+   correction task the spelling is the answer ("She didnt" was a real regression).
+3. **Orders get carried out, not described.** "Skriv en 5 linjers analyse",
+   "Løs opgaven", "Regn ud". Maths, grammar, an essay, a translation: the
+   finished result, never a description of how one would do it. Sizes are
+   obeyed and counted.
+4. **A task that IS a picture now works.** Scanned worksheets and photographed
+   maths problems have no textRun at all, so those paragraphs were dropped on
+   read and the document came back as having no questions. Pictures are now
+   described into text before detection, so every downstream part — batching,
+   ordering, placement, pause, undo — is untouched. See `07-IMAGE-TASKS.md`
+   thinking in `apps/backend/src/autonomous/vision.ts`.
+
+**Verified against the DEPLOYED backend, with the extension built as a user
+installs it:** Google Docs 27/27 · panel 45/45 · RLS 12/12 · image-task spike
+5/5 in a real Google Doc · 58 unit tests · both typechecks clean.
+`verify-autonomous` was 22/1 on the run that exposed a stale Langsomt budget
+(see below) and is being re-run with the corrected one.
+
+**Three defects the image work uncovered, all fixed:**
+
+- Google serves image bytes from a `contentUri` on googleusercontent.com that
+  carries credentials in the URL and REFUSES the Docs bearer token. Sending it
+  made every fetch fail silently.
+- A 2400x1600 scan is 4.5MB as base64 and Vercel rejects the request outright
+  with FUNCTION_PAYLOAD_TOO_LARGE — a platform limit. Images are shrunk to
+  1600px JPEG in the extension first: measured 4.50MB to 1.25MB.
+- A document whose pictures could not be read reported "no questions found",
+  which is false and unactionable. It now says the pictures could not be read.
+
+**The test harness lied about the product three separate ways** (all fixed in
+`scripts/docs-harness.mjs`, all worth knowing before trusting a red run):
+
+- Playwright opens an 800x513 window. The panel is ~400px wide and its width
+  PERSISTS in the profile, so verify-ui's resize check made it permanent: it
+  covered most of the page and every "click into the document" hit the panel.
+  Focus stayed on BODY and the suite reported that text never reached the
+  document. The window is 1512x982 now and `clickIntoDoc` measures the panel.
+- `page.keyboard.type` does not work against the Docs canvas at any delay.
+  Typing "ABCDEFGHIJ": delay 12 left "A", delay 150 left nothing. `insertText`
+  puts all ten in. Single presses (Enter, Backspace, Cmd+A) are fine.
+- Sections shared one document and cleared it with select-all plus Backspace.
+  After a Langsomt insertion select-all stopped selecting while Backspace kept
+  deleting one character per press. Every section gets a fresh document now.
+- And the cached MV3 service worker bit for the second time, wearing a
+  different face: same backend, but OLD FEATURE LOGIC. Every existing guard
+  passed. `launch()` now drops that cache on every start.
+
+**Still open, and genuinely the operator's:** Google's OAuth verification. It
+gates only whole-document answering and "+ Denne side" on Docs, so it does not
+hold up a release; 2-6 weeks, worth starting early. And `07-UAT.md` still wants
+the operator's own walkthrough — the one thing automation cannot supply.
+
+**Driving Docs from a script:** read the document back via
+`…/export?format=txt` with ordinary cookies — no OAuth. It must be called from
+OUTSIDE the Docs page (its CSP blocks the fetch). Without a read-back channel a
+Docs "fix" cannot be verified at all, which is how four wrong ones got written.
 
 **Sign-in** depends on the Supabase project being awake; `dig +short
-gkqpyqmuopqxumugszoa.supabase.co` diagnoses a pause in one command. Nothing
-keeps it awake — the operator accepted that risk on 2026-08-18.
+gkqpyqmuopqxumugszoa.supabase.co` diagnoses a pause in one command.
 
 **Reload ritual after every rebuild:** reload at `chrome://extensions` AND
-Cmd+R the Docs tab. Note that `chrome.runtime.reload()` via CDP does not
-reliably pick up a new build; restarting Chrome does.
+Cmd+R the Docs tab.
 
 ## What exists and how it was verified
 
