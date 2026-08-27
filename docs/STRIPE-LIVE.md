@@ -39,12 +39,27 @@ Checkout viser lige nu **"Chat sandbox"** som sælger.
 1. **Settings → Emails** → slå **"Successful payments"** til
    (kunderne får automatisk kvittering fra Stripe)
 
-## Trin 6 — Giv mig live-nøglerne (2 min)
+## Trin 6 — Sæt live-nøglerne selv (2 min)
+
+> **RETTET 2026-08-27.** Her stod tidligere "giv dem til mig i chatten". Det var
+> forkert råd om den ene nøgle, der aldrig må gå den vej. `sk_live_...` kan
+> hæve penge og læse alle kundedata, og alt i en chat kan ende i en log, en
+> transkription eller et commit. Præcis dét skete på denne maskine 2026-08-12:
+> tre live-nøgler lækkede, fordi transkriptioner blev committet til et repo.
+> Samme grund til at `SUPABASE_SERVICE_ROLE_KEY` blev sat direkte i Vercel og
+> aldrig passerede en samtale.
 
 1. Slå **Test mode** fra (kontakten øverst til højre i dashboardet)
 2. **Developers → API keys**
-3. Kopiér **Secret key** (`sk_live_...`) og **Publishable key** (`pk_live_...`)
-   og giv dem til mig i chatten
+3. Kopiér **Secret key** (`sk_live_...`)
+4. Gå til Vercel → projektet `ai-skriveassistent-api` → **Settings → Environment
+   Variables** → sæt `STRIPE_SECRET_KEY` til værdien, scope **Production**
+5. Sig til, at det er gjort — så udruller jeg og kører testen. Jeg behøver
+   aldrig at se værdien.
+
+**Publishable key** (`pk_live_...`) er offentlig af natur og må gerne deles i
+chatten, hvis den skulle bruges. Den bruges ikke i dag: checkout åbnes af
+serveren, ikke af udvidelsen.
 
 ## Hvad jeg derefter gør automatisk (du skal intet gøre)
 
