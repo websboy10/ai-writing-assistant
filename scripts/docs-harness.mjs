@@ -56,12 +56,19 @@ function dropCachedServiceWorkers() {
   rmSync(resolve(profilePath, 'Default/Service Worker'), { recursive: true, force: true });
 }
 
-export async function launch({ headless = false } = {}) {
+/**
+ * `viewport` is for the store screenshots and nothing else. The Chrome Web
+ * Store accepts exactly 1280x800 or 640x400, and a shot that is one pixel off
+ * is rejected at upload — so that one caller needs a viewport Playwright
+ * enforces, not a window size the OS is free to adjust. Every test caller
+ * leaves it null and keeps the real window it has always had.
+ */
+export async function launch({ headless = false, viewport = null, windowSize = '1512,982' } = {}) {
   dropCachedServiceWorkers();
   return chromium.launchPersistentContext(profilePath, {
     executablePath: chromeForTestingPath(),
     headless,
-    viewport: null,
+    viewport,
     args: [
       `--disable-extensions-except=${extPath}`,
       `--load-extension=${extPath}`,
@@ -75,7 +82,7 @@ export async function launch({ headless = false } = {}) {
       // on the panel instead: focus stayed on BODY and the suite reported that
       // text never reached the document. Nobody edits a Google Doc in an 800px
       // window either, so the small one was never the honest test.
-      '--window-size=1512,982',
+      `--window-size=${windowSize}`,
     ],
   });
 }

@@ -1,17 +1,24 @@
 # Chrome Web Store — færdig tekst til alle felter
 
-> **PÅ PAUSE — operatørbeslutning 2026-08-06.** Udviklerkontoen er betalt, men
-> Sehit vil iterere videre på selve udvidelsen, før den sendes ind. Teksten
-> herunder er færdig og bliver ved med at passe; **skærmbillederne er
-> bevidst ikke taget endnu**, fordi de ville forældes med hver ændring i UI'et.
-> Når indsendelsen genoptages: tag skærmbillederne, afgør blokeringen nederst,
-> og gennemgå beskrivelserne for funktioner, der er kommet til siden.
+> **GENOPTAGET 2026-08-27.** Pausen fra 6. august er ovre. De tre ting, pausen
+> udskød, er gjort: beskrivelserne er gennemgået og udvidet med "Besvar alle
+> spørgsmål" og billedopgaver (begge kom til efter 6. august), skærmbillederne
+> er taget mod det nuværende UI, og blokeringen nederst er afklaret.
+>
+> Skærmbillederne holder kun så længe UI'et gør. Ændrer panelet sig igen før
+> indsendelse, så tag dem om — det er ét kommandokald, ikke et stykke arbejde.
 
 Skrevet 2026-08-06. Alt herunder er skrevet til at blive **kopieret direkte ind**
 i devconsole. Rækkefølgen følger fanerne i konsollen.
 
 Pakken der skal uploades:
-`apps/extension/.output/extension-0.1.0-chrome.zip` (101 KB)
+`apps/extension/.output/extension-0.1.0-chrome.zip` (118 KB, bygget 2026-08-27)
+
+Byg den om med `pnpm --filter extension zip` — **uden** `VITE_BACKEND_URL`. Med
+den variabel sat kommer `http://127.0.0.1:8787/*` med i manifestets
+host_permissions, og en tilladelse til udviklerens egen maskine er ikke noget,
+der kan begrundes i et review. Den nuværende pakke er kontrolleret: kun
+`<all_urls>` og backendens eget domæne, ingen localhost, ingen nøgler.
 
 > **Én ting skal afgøres før indsendelse** — se afsnittet "Blokering" nederst.
 > Det handler om, hvilke AI-modeller brugernes tekst sendes til, og det påvirker
@@ -76,6 +83,17 @@ Markér tekst på en side og vælg mellem to ting: få den besvaret, så svaret
 lander lige under det markerede — eller vedhæft den som baggrund til samtalen.
 Assistenten overskriver aldrig det, du har markeret.
 
+BESVAR ET HELT DOKUMENT PÅ ÉN GANG
+
+Har du et spørgeskema, en opgave eller en formular med mange spørgsmål, finder
+assistenten hvert enkelt spørgsmål og skriver svaret under det rigtige af dem.
+Én knap starter det. Du kan følge med undervejs, sætte på pause, stoppe — og
+fortryde hele kørslen med ét tryk, uanset hvor mange svar der nåede ind.
+
+Opgaver, der står som billeder i dokumentet, læses med. En scannet
+matematikopgave, et fotograferet spørgsmål eller en indsat tabel bliver besvaret
+som alt andet.
+
 DINE SAMTALER GEMMES
 
 Du kan altid vende tilbage til en tidligere samtale, søge i dem og slette dem.
@@ -136,6 +154,17 @@ Select text on a page and pick one of two things: have it answered, with the
 answer landing just below your selection — or attach it as background for the
 conversation. The assistant never overwrites what you selected.
 
+ANSWER A WHOLE DOCUMENT IN ONE GO
+
+Got a questionnaire, an assignment or a form with many questions? The assistant
+finds each question and writes the answer underneath the right one. One button
+starts it. You can follow along, pause, stop — and undo the entire run with a
+single press, however many answers made it in.
+
+Tasks that appear as images in the document are read too. A scanned maths
+problem, a photographed question or a pasted table gets answered like anything
+else.
+
 PRICING
 
 7 days free, no card required. Then DKK 50 per month, no lock-in, cancel any
@@ -164,9 +193,32 @@ Built in Denmark. Questions: sehit@degirmenci.dk
 | Felt | Krav | Status |
 |---|---|---|
 | Ikon | 128×128 PNG | ✅ `apps/extension/public/icon/128.png` |
-| Skærmbilleder | 1280×800 eller 640×400, mindst 1, op til 5 | ⏳ afventer (se nedenfor) |
+| Skærmbilleder | 1280×800 eller 640×400, mindst 1, op til 5 | ✅ 5 stk. i `store-assets/` |
 | Lille promo-billede | 440×280 | Valgfrit — spring over |
 | Marquee promo | 1400×560 | Valgfrit — spring over |
+
+**Skærmbillederne — upload i denne rækkefølge.** Alle er taget i et rigtigt
+Google-dokument mod den udrullede backend, alle er præcis 1280×800 (butikken
+afviser andre mål ved upload), og Google-kontoens profilbillede er skjult, fordi
+en butiksside er offentlig.
+
+| # | Fil | Hvad den viser |
+|---|---|---|
+| 1 | `01-markeret-tekst.png` | Markeret tekst, og de to ting den kan bruges til |
+| 2 | `02-udkast.png` | Et færdigt udkast og de fire måder at bruge det på |
+| 3 | `03-vedhaeft-filer.png` | Vedhæftet fil som baggrund for svaret |
+| 4 | `04-indsaet-langsomt.png` | Indsættelse bogstav for bogstav, midt i en kørsel |
+| 5 | `05-besvar-alle.png` | Hele dokumentet besvaret, ét svar under hvert spørgsmål |
+
+Rækkefølgen er ikke tilfældig: butikken viser den første som forsidebillede, og
+nummer 5 er den, der sælger produktet — men den giver først mening, når man har
+set panelet først.
+
+Skal de tages om (UI'et har ændret sig, teksten skal være en anden):
+
+```
+node scripts/store-shots.mjs
+```
 
 ---
 
