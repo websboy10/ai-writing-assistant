@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: 2026-08-26 — both operator blockers cleared and verified (OpenRouter funded, service-role key live). Answers no longer refuse; the voice is plain Danish with no dashes; orders are carried out; a task that IS a picture is read and answered. Docs 27/27, panel 45/45, RLS 12/12, image spike 5/5 against production.
-last_updated: "2026-08-26T02:30:00.000Z"
-last_activity: 2026-08-26 — every question gets a usable answer instead of a hedge; thirteen-year-old voice with no dash punctuation; orders carried out (maths, grammar, sizes); image tasks in Google Docs read and answered; three harness bugs that were blaming the product fixed
+stopped_at: 2026-08-27 — DEPLOYED AND PUSHED. Everything built this month is live on ai-skriveassistent-api.vercel.app and on origin/master (52 commits). Store package + 5 screenshots + listing text are ready to upload. Submission itself is the operator's, and needs no further work from a session.
+last_updated: "2026-08-27T13:10:00.000Z"
+last_activity: 2026-08-27 — chat still refused (the rule was one bullet among twenty; it now has the last word in the prompt); store zip audited and 5 screenshots taken in a real Google Doc; popup closed itself before its own error could be read
 progress:
   total_phases: 7
   completed_phases: 0
@@ -23,6 +23,30 @@ See: .planning/PROJECT.md (updated 2026-08-05)
 **Core value:** Generated text lands correctly in the editor the user is already
 in, arriving at a pace they can read along with and stop mid-flow.
 **Current focus:** Operator walkthrough (UAT) of the full v1 build
+
+## Where this stands (2026-08-27)
+
+**Live and safe.** Production carries every change (deployed 2026-08-27) and
+`origin/master` carries all 52 commits. Verified against production, not
+assumed: a question with nothing behind it gets invented specifics instead of a
+refusal; "Skriv en 5 linjers analyse" returns five lines; summarising still
+reproduces the user's own figures and invents nothing; the auth throttle
+answers 200,200,200,429,429 on repeated password resets; RLS 14/14.
+
+**Ready to upload.** `apps/extension/.output/extension-0.1.0-chrome.zip`
+(audited by unzipping it: `<all_urls>` plus the backend domain, no localhost, no
+keys) and five 1280x800 screenshots in `store-assets/`, retakeable with
+`node scripts/store-shots.mjs`. All field text is in `docs/STORE-LISTING.md`.
+
+**Nothing here is blocked on a session.** What remains is the operator's:
+Chrome Web Store submission, Stripe live activation (still "Chat sandbox" as
+the seller name), and Google's OAuth verification of `auth/documents` — the
+last one only gates a **Public** listing, not Unlisted, and is measured in
+weeks. `docs/CHROME-WEB-STORE.md` and `docs/STRIPE-LIVE.md` are the guides.
+
+**One decision left open:** manifest version is `0.1.0`. If v1 should ship as
+`1.0.0`, change it in `wxt.config.ts` and rebuild the zip BEFORE uploading —
+the store will not let a version number go backwards afterwards.
 
 ## Current Position
 

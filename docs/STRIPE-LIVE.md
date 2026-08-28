@@ -1,8 +1,19 @@
 # Stripe: fra testtilstand til rigtige penge
 
-Skrevet 2026-08-06. Alt det tekniske er allerede bygget og virker i testtilstand.
-Denne guide er KUN de trin, der kræver dig som ejer af Stripe-kontoen. Sig til,
-når et trin er gjort — så klarer jeg resten automatisk (nøgler, produkt, webhook).
+> **STORT SET GJORT — kontrolleret 2026-08-27.** Produktionsbackenden opretter
+> `cs_live_...`-sessioner, altså er kontoen aktiveret og serveren kører på
+> live-nøgler. **Trin 1 og trin 6 herunder er overstået.** Guiden stod
+> uændret fra 6. august og fik det til at se ud, som om der manglede et kvarters
+> aktivering plus 1-2 dages ventetid. Det gør der ikke.
+>
+> **Ikke kontrolleret** (kan kun ses i dashboardet, og de er kosmetiske, ikke
+> blokerende): det offentlige firmanavn på betalingssiden, MobilePay, og
+> kvitteringsmails — trin 2, 4 og 5. Et gammelt testtilstands-skærmbillede viste
+> sælgeren som "Chat sandbox"; om det navn er rettet i live-tilstand, kan ikke
+> aflæses udefra. Kig efter det, næste gang du alligevel er i dashboardet.
+
+Skrevet 2026-08-06. Denne guide er KUN de trin, der kræver dig som ejer af
+Stripe-kontoen.
 
 ## Trin 1 — Aktivér din konto (≈ 15 min + 1-2 hverdages ventetid)
 
