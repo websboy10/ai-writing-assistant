@@ -3,10 +3,8 @@ import { danishAuthError } from '@/utils/auth-errors';
 import {
   BACKEND_URL,
   CHAT_PORT,
-  DOCS_SCOPE,
   type ChatPortClientMsg,
   type ChatPortServerMsg,
-  type DocsParagraph,
   type OneShotRequest,
   type OneShotResponse,
   type StoredSession,
@@ -94,46 +92,6 @@ export default defineBackground(() => {
     return fetch(`${BACKEND_URL}${path}`, { ...init, headers });
   }
 
-  // ---- Google Docs API (D-16, D-17) ----
-  //
-  // T-07-01: the access token lives ONLY inside this closure. Every caller
-  // gets a result, never the token — never logged, never put in an error
-  // string, never written to chrome.storage. Chrome owns cache and refresh
-  // for tokens obtained through chrome.identity.getAuthToken; there is
-  // nothing for us to persist.
-
-  type DocsAuthOk = { ok: true; token: string };
-  // `detail` carries Chrome's own words for a refusal, which name the cause
-  // ("bad client id", "user is not signed in", "OAuth2 not granted or
-  // revoked"). `error` stays plain Danish for the user; without a separate
-  // field the refusal reached us as a bare 401 explaining nothing, and the
-  // Docs path went dark with no way to tell which of four setups was wrong.
-  type DocsAuthFail = { ok: false; status: 401 | 403; error: string; detail?: string };
-
-  /**
-   * Google's own explanation for a rejected Docs API call. Its error bodies are
-   * specific and actionable where an HTTP status is not, and reading the body
-   * is the only chance to get it — the response can be consumed once.
-   */
-  async function googleErrorMessage(res: Response): Promise<string> {
-    try {
-      const body = (await res.json()) as { error?: { message?: string; status?: string } };
-      return body.error?.message ?? body.error?.status ?? `HTTP ${res.status}`;
-    } catch {
-      return `HTTP ${res.status}`;
-    }
-  }
-
-  /**
-   * T-07-02: `enableGranularPermissions` lets a user grant sign-in while
-   * unticking `documents`. Recent Chrome resolves an object carrying
-   * `grantedScopes`; older Chrome resolves a bare token string with no way to
-   * inspect what was granted. Where `grantedScopes` IS present, a partial
-   * grant is caught here and never treated as success. Where it is absent,
-   * this function cannot detect a partial grant by itself — the 403 that
-   * docs-get/docs-batch-update get back from Google when that happens is the
-   * authority in that case (see their handlers below).
-   */
   /**
    * The `email` claim out of a Supabase access token.
    *
@@ -152,234 +110,6 @@ export default defineBackground(() => {
     } catch {
       return null;
     }
-  }
-
-  async function docsAuth(interactive: boolean): Promise<DocsAuthOk | DocsAuthFail> {
-    // `enableGranularPermissions` is real (Chrome ships it) but missing from
-    // @types/chrome@0.0.287's TokenDetails, and the Promise overload it DOES
-    // declare only models the modern `{ token, grantedScopes }` shape — not
-    // the bare-string shape older Chrome actually resolves. Both gaps are
-    // widened here via a local, non-literal variable (so no excess-property
-    // check fires) and an `unknown` cast, then narrowed by hand at runtime.
-    const tokenDetails: chrome.identity.TokenDetails & { enableGranularPermissions?: boolean } = {
-      interactive,
-      enableGranularPermissions: true,
-    };
-    let result: string | { token?: string; grantedScopes?: string[] } | undefined;
-    let detail = '';
-    try {
-      const raw: unknown = await chrome.identity.getAuthToken(tokenDetails);
-      result = raw as string | { token?: string; grantedScopes?: string[] } | undefined;
-    } catch (e) {
-      detail = e instanceof Error ? e.message : String(e);
-      result = undefined;
-    }
-    // Some Chrome builds resolve undefined and report the reason on
-    // lastError instead of rejecting, which is exactly the shape a
-    // misconfigured client takes: no token, no prompt, no exception.
-    if (!detail && chrome.runtime.lastError?.message) detail = chrome.runtime.lastError.message;
-    const token = typeof result === 'string' ? result : result?.token;
-    const grantedScopes = typeof result === 'string' ? undefined : result?.grantedScopes;
-    if (!token) {
-      return {
-        ok: false,
-        status: 401,
-        error: 'Google-adgang blev ikke givet — AI Skriveassistenten bruger reservevejen (indsæt) i stedet.',
-        detail: detail || 'Chrome gav ingen begrundelse.',
-      };
-    }
-    if (grantedScopes && !grantedScopes.includes(DOCS_SCOPE)) {
-      await chrome.identity.removeCachedAuthToken({ token }).catch(() => {});
-      return {
-        ok: false,
-        status: 403,
-        error:
-          'Adgang til dokumentet blev ikke givet (fluebenet ved dokumentadgang var afkrydset fra) — AI Skriveassistenten bruger reservevejen (indsæt) i stedet.',
-      };
-    }
-    return { ok: true, token };
-  }
-
-  interface DocsTextRun {
-    content?: string;
-  }
-  interface DocsParagraphElement {
-    textRun?: DocsTextRun;
-    inlineObjectElement?: { inlineObjectId?: string };
-  }
-  interface DocsParagraphBody {
-    elements?: DocsParagraphElement[];
-    paragraphStyle?: { namedStyleType?: string };
-  }
-  interface DocsStructuralElement {
-    startIndex?: number;
-    endIndex?: number;
-    paragraph?: DocsParagraphBody;
-  }
-  /** Only the one field of Google's inlineObjects map this needs. */
-  type DocsInlineObjects = Record<
-    string,
-    { inlineObjectProperties?: { embeddedObject?: { imageProperties?: { contentUri?: string } } } }
-  >;
-
-  // A picture of a maths problem is a few tens of KB; anything past this is a
-  // decorative photograph, and sending it would cost the user a slow run and
-  // a vision bill for a header image. Caps are per document, not per request,
-  // because one page can hold dozens of them.
-  const MAX_DOC_IMAGES = 12;
-  // Google's own copy, before shrinking. Bigger than this is a poster, not a task.
-  const MAX_IMAGE_BYTES = 12_000_000;
-  const MAX_IMAGE_EDGE_PX = 1600;
-  // Vercel refuses a request body over 4.5MB outright, with an English
-  // FUNCTION_PAYLOAD_TOO_LARGE we never get the chance to translate. Measured
-  // 2026-08-26 on a single 2400x1600 scan. Everything sent must fit well inside
-  // that, with the document text and JSON overhead alongside it.
-  // Raw bytes, before base64 grows them by a third: 2MB here is ~2.7MB on the
-  // wire, leaving room for the document text and the JSON around it inside
-  // Vercel's 4.5MB. A noise-heavy 2400x1600 scan shrinks to 939KB, so this is
-  // two worst-case pictures or a dozen ordinary ones.
-  const MAX_TOTAL_IMAGE_BYTES = 2_000_000;
-
-  /**
-   * One DocsParagraph per paragraph that has something in it, indices carried
-   * straight from the API.
-   *
-   * "Something" now includes a paragraph holding only a picture. Those have no
-   * textRun, so the old `if (!text.trim()) continue` dropped them before
-   * anything downstream saw them — and a document whose tasks are all images
-   * came back as "no questions found". The ids are collected here and resolved
-   * to bytes by the caller, which is the only place with the Google token.
-   */
-  function extractDocsParagraphs(content: DocsStructuralElement[]): (DocsParagraph & { imageIds?: string[] })[] {
-    const paragraphs: (DocsParagraph & { imageIds?: string[] })[] = [];
-    let index = 0;
-    for (const el of content) {
-      const p = el.paragraph;
-      if (!p) continue;
-      const text = (p.elements ?? []).map((e) => e.textRun?.content ?? '').join('');
-      const imageIds = (p.elements ?? [])
-        .map((e) => e.inlineObjectElement?.inlineObjectId)
-        .filter((id): id is string => !!id);
-      if (!text.trim() && imageIds.length === 0) continue;
-      paragraphs.push({
-        index: index++,
-        text,
-        startIndex: el.startIndex ?? 0,
-        endIndex: el.endIndex ?? 0,
-        namedStyleType: p.paragraphStyle?.namedStyleType,
-        ...(imageIds.length ? { imageIds } : {}),
-      });
-    }
-    return paragraphs;
-  }
-
-  /**
-   * Shrinks a picture to something worth sending.
-   *
-   * Measured 2026-08-26: a 2400x1600 scan is 3.4MB, which base64 grows to
-   * 4.5MB, and Vercel rejects the request outright with
-   * FUNCTION_PAYLOAD_TOO_LARGE — a platform limit, not one we can raise. A
-   * photographed worksheet is exactly that size, so the feature would have
-   * failed on precisely the documents it exists for.
-   *
-   * 1600px on the long edge is far more than a vision model needs to read text
-   * off a page, and JPEG at 0.82 takes the same scan to a couple of hundred KB.
-   * It is also faster and cheaper to describe.
-   *
-   * The white fill matters: JPEG has no alpha, so a transparent PNG drawn
-   * straight onto a fresh canvas comes out black on black and reads as nothing.
-   */
-  async function shrinkImage(blob: Blob): Promise<Blob> {
-    const bitmap = await createImageBitmap(blob);
-    try {
-      const longest = Math.max(bitmap.width, bitmap.height);
-      const scale = longest > MAX_IMAGE_EDGE_PX ? MAX_IMAGE_EDGE_PX / longest : 1;
-      const w = Math.max(1, Math.round(bitmap.width * scale));
-      const h = Math.max(1, Math.round(bitmap.height * scale));
-      const canvas = new OffscreenCanvas(w, h);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return blob;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(bitmap, 0, 0, w, h);
-      return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.82 });
-    } finally {
-      bitmap.close();
-    }
-  }
-
-  /**
-   * Turns the inline-object ids collected above into data URLs.
-   *
-   * Google serves the bytes from a `contentUri` that is short lived and needs
-   * the same bearer token as the document read, which is why this cannot live
-   * in the content script: only the worker holds the token, and it must never
-   * leave this closure (T-07-01).
-   *
-   * A failure here is never fatal. An unreadable picture means that one task
-   * is not seen; the rest of the document still runs.
-   */
-  async function attachDocsImages(
-    paragraphs: (DocsParagraph & { imageIds?: string[] })[],
-    inlineObjects: DocsInlineObjects,
-    bearer: string,
-  ): Promise<DocsParagraph[]> {
-    let budget = MAX_DOC_IMAGES;
-    let sent = 0;
-    const out: DocsParagraph[] = [];
-    for (const { imageIds, ...paragraph } of paragraphs) {
-      if (!imageIds?.length || budget <= 0) {
-        out.push(paragraph);
-        continue;
-      }
-      const images: string[] = [];
-      for (const id of imageIds) {
-        if (budget <= 0) break;
-        const uri = inlineObjects[id]?.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri;
-        if (!uri) continue;
-        budget--;
-        try {
-          // Google hands back a `contentUri` on googleusercontent.com, not on
-          // its API host: it carries the requester's credentials in the URL
-          // itself and expires in about half an hour. That host does NOT want
-          // the Docs bearer token, and sending one is how the first real-
-          // document run came back with no images at all. Plain fetch first;
-          // the token is only worth trying if the bare one is refused.
-          let res = await fetch(uri);
-          if (res.status === 401 || res.status === 403) {
-            res = await fetch(uri, { headers: { Authorization: `Bearer ${bearer}` } });
-          }
-          if (!res.ok) {
-            console.warn('[awa] docs image fetch failed', res.status, uri.slice(0, 80));
-            continue;
-          }
-          const original = await res.blob();
-          if (original.size === 0 || original.size > MAX_IMAGE_BYTES) continue;
-          // Shrink before measuring anything else: the raw bytes are Google's
-          // full-resolution copy and the request budget is what has to hold.
-          const shrunk = await shrinkImage(original).catch(() => original);
-          if (sent + shrunk.size > MAX_TOTAL_IMAGE_BYTES) {
-            console.warn('[awa] image budget spent — remaining pictures not sent');
-            budget = 0;
-            break;
-          }
-          sent += shrunk.size;
-          const bytes = new Uint8Array(await shrunk.arrayBuffer());
-          let binary = '';
-          // btoa needs a binary string, and spreading a whole image blows the
-          // argument limit — chunk it.
-          for (let i = 0; i < bytes.length; i += 0x8000) {
-            binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-          }
-          images.push(`data:${shrunk.type || 'image/jpeg'};base64,${btoa(binary)}`);
-        } catch (err) {
-          // unreadable image: the rest of the document is still worth running
-          console.warn('[awa] docs image fetch threw', err instanceof Error ? err.message : String(err));
-        }
-      }
-      out.push(images.length ? { ...paragraph, images } : paragraph);
-    }
-    return out;
   }
 
   // ---- one-shot router ----
@@ -523,110 +253,27 @@ export default defineBackground(() => {
         });
         return { ok: userRes?.ok ?? true, status: 200, data: { email } };
       }
-      case 'docs-auth': {
-        const auth = await docsAuth(msg.interactive);
-        // Only this route reports the refusal reason: it is the one the spike
-        // and the "why is Docs not working" path call. The read/write routes
-        // below stay quiet so a technical string can never surface mid-run.
-        if (!auth.ok) return { ok: false, status: auth.status, error: auth.error, data: { detail: auth.detail } };
-        return { ok: true, status: 200, data: { granted: true } };
-      }
-      case 'docs-get': {
-        const auth = await docsAuth(false);
-        if (!auth.ok) return { ok: false, status: auth.status, error: auth.error };
-        const fetchDoc = (bearer: string) =>
-          fetch(`https://docs.googleapis.com/v1/documents/${encodeURIComponent(msg.documentId)}`, {
-            headers: { Authorization: `Bearer ${bearer}` },
-          }).catch(() => null);
-
-        /**
-         * One read, several attempts.
-         *
-         * This single call decides which write path the whole run takes: if it
-         * fails, resolveDocsSource degrades to block-paste, and for a WHOLE
-         * document that path can read nothing at all — so the user is told
-         * their document has no questions in it. Measured on a real document
-         * 2026-08-25: one transient "Google Docs API kunne ikke nås" turned a
-         * working Langsomt run into zero answers.
-         *
-         * The old code gave up on the first network blip. A dropped connection
-         * or Google's own 429 says nothing about whether the document is
-         * readable a second later, and this is the cheapest possible place to
-         * find that out — one GET, before any writing has started.
-         */
-        let token = auth.token;
-        let res: Response | null = null;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          if (attempt > 0) await new Promise((r) => setTimeout(r, 400 * 2 ** (attempt - 1)));
-          res = await fetchDoc(token);
-          if (res?.status === 401 && attempt === 0) {
-            // Cached token expired between docsAuth() and this fetch — clear it
-            // and try again with a fresh one.
-            await chrome.identity.removeCachedAuthToken({ token }).catch(() => {});
-            const refreshed = await docsAuth(false);
-            if (!refreshed.ok) return { ok: false, status: refreshed.status, error: refreshed.error };
-            token = refreshed.token;
-            res = null;
-            continue;
-          }
-          // 429 and 5xx are Google being busy, not an answer about the document.
-          if (res && (res.status === 429 || res.status >= 500)) {
-            res = null;
-            continue;
-          }
-          if (res) break;
-        }
+      case 'docs-export': {
+        // Docs' own plain-text export, with the cookies this browser already
+        // holds. The Docs page itself cannot make this call (its CSP blocks
+        // it); the worker can, and needs no Google permission for it. A
+        // browser that is signed out, or an account without access, is
+        // redirected to a sign-in page: an HTML answer where text was asked
+        // for, which is how those two cases are told apart from success.
+        const url = `https://docs.google.com/document/d/${encodeURIComponent(msg.documentId)}/export?format=txt`;
+        const res = await fetch(url, { credentials: 'include' }).catch(() => null);
         if (!res) return { ok: false, status: 0, error: 'Google Docs kunne ikke nås lige nu. Prøv igen om et øjeblik.' };
-        if (res.status === 403 || res.status === 404) {
+        const type = res.headers.get('content-type') ?? '';
+        if (!res.ok || !type.startsWith('text/plain')) {
           return {
             ok: false,
             status: res.status,
-            error: 'Den Google-konto, der er logget ind i denne Chrome-profil, har ikke adgang til dette dokument.',
+            error: 'Dokumentet kunne ikke læses. Den Google-konto, der er logget ind i denne Chrome-profil, skal have adgang til det.',
           };
         }
-        if (!res.ok) {
-          return { ok: false, status: res.status, error: `Google Docs API-fejl (HTTP ${res.status}).` };
-        }
-        const doc = (await res.json()) as {
-          title?: string;
-          body?: { content?: DocsStructuralElement[] };
-          inlineObjects?: DocsInlineObjects;
-        };
-        const raw = extractDocsParagraphs(doc.body?.content ?? []);
-        const paragraphs = await attachDocsImages(raw, doc.inlineObjects ?? {}, token);
-        return { ok: true, status: 200, data: { title: doc.title ?? '', paragraphs } };
-      }
-      case 'docs-batch-update': {
-        const auth = await docsAuth(false);
-        if (!auth.ok) return { ok: false, status: auth.status, error: auth.error };
-        const res = await fetch(
-          `https://docs.googleapis.com/v1/documents/${encodeURIComponent(msg.documentId)}:batchUpdate`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ requests: msg.requests }),
-          },
-        ).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Google Docs API kunne ikke nås.' };
-        if (res.status === 429) {
-          return { ok: false, status: 429, error: 'Google begrænsede antallet af skrivninger — prøv igen om lidt.' };
-        }
-        if (!res.ok) {
-          // Google says exactly what is wrong with a rejected write ("Index
-          // 96 must be less than the end index of the referenced segment").
-          // Swallowing that is what turned a one-line index bug into an
-          // unexplained HTTP 400 — the same mistake the auth path made before
-          // it started reporting Chrome's own reason. User-facing text is
-          // unchanged; the reason rides along as `detail` for diagnostics.
-          return {
-            ok: false,
-            status: res.status,
-            error: `Google Docs API-fejl (HTTP ${res.status}).`,
-            data: { detail: await googleErrorMessage(res) },
-          };
-        }
-        const data = (await res.json()) as { replies?: unknown[] };
-        return { ok: true, status: 200, data: { replies: data.replies ?? [] } };
+        // The export opens with a BOM and uses Windows line endings.
+        const text = (await res.text()).replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+        return { ok: true, status: 200, data: { text } };
       }
     }
   }

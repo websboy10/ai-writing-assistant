@@ -50,20 +50,11 @@ export function App() {
 
   // Escape closes the panel — but ONLY when the key was pressed inside it.
   //
-  // A document-level listener is wrong here, and the Docs suite proved it
-  // within minutes: autonomous mode positions the cursor by driving Google
-  // Docs' own find bar, and closes that bar with a bubbling synthetic Escape
-  // once per question (insertion/autonomous/docs-find.ts). Every question
-  // therefore slammed the user's panel shut mid-run — the run kept going, since
-  // it lives outside React, but the person watching it lost the progress bar,
-  // the Pause button and the Stop button.
-  //
-  // The same reasoning applies to a real keypress: Escape is an ordinary
-  // editing key in a document, and a writing assistant that vanishes whenever
-  // you dismiss an autocomplete is worse than one you close by hand. Checking
-  // the composed path is what makes it "inside the panel" rather than
-  // "anywhere on the page", and composedPath is what sees through our own
-  // shadow root.
+  // Escape is an ordinary editing key in a document, and a writing assistant
+  // that vanishes whenever you dismiss an autocomplete is worse than one you
+  // close by hand. Checking the composed path is what makes it "inside the
+  // panel" rather than "anywhere on the page", and composedPath is what sees
+  // through our own shadow root.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/**/*.test.ts src/*.test.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@awa/shared": "workspace:*",

@@ -29,10 +29,6 @@ class Inserter {
     return this.tracker?.get() ?? null;
   }
 
-  selectionText(): string {
-    return this.tracker?.selectionText() ?? '';
-  }
-
   /** INST-13: on Docs, self-test before promising anything. */
   targetStatus(): { label: string; ok: boolean; reason?: string } | null {
     if (isGoogleDocs()) {

@@ -7,9 +7,7 @@
     "dev:extension": "pnpm --filter extension dev",
     "build": "pnpm --filter shared build && pnpm --filter extension build",
     "verify": "node scripts/verify.mjs",
-    "verify:autonomous": "node scripts/verify-autonomous.mjs",
-    "verify:autonomous-api": "node scripts/verify-autonomous-api.mjs",
-    "test": "pnpm --filter backend test && pnpm --filter extension test",
+    "test": "pnpm --filter extension test",
     "typecheck": "pnpm --filter extension typecheck",
     "verify:rls": "node scripts/verify-rls.mjs",
     "verify:ui": "node scripts/verify-ui.mjs",
@@ -17,8 +15,7 @@
     "verify:drop": "node scripts/verify-drop.mjs",
     "verify:paywall": "node scripts/verify-paywall.mjs",
     "verify:all": "pnpm typecheck && pnpm test && pnpm verify:rls && pnpm verify:drop && pnpm verify && pnpm verify:ui && pnpm verify:docs",
-    "verify:prod": "bash scripts/verify-prod.sh",
-    "probe:grounding": "node scripts/probe-grounding.mjs"
+    "verify:prod": "bash scripts/verify-prod.sh"
   },
   "devDependencies": {
     "playwright": "^1.49.0",

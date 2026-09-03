@@ -6,18 +6,13 @@ import { newContextId } from './ingest';
 /**
  * "Use what is on this page" as one click.
  *
- * Until now the only way to give the assistant the document you were sitting
- * in was to mark the whole thing by hand and press "Brug som kontekst", or to
- * export it and drag the file back in. On Google Docs even that failed: Docs
- * paints to canvas, so selecting all and reading the mirror gives you whatever
- * fragment the hidden input frame happens to hold, not the document.
- *
  * Two different reads, because the two kinds of page are genuinely different:
  *
- *   Google Docs   the Docs REST API, via the background worker's `docs-get`
- *                 channel that autonomous mode already uses. Needs the Google
- *                 grant, and says so plainly when it does not have it rather
- *                 than attaching half a document.
+ *   Google Docs   Docs paints to canvas, so there is nothing on the page to
+ *                 read. Docs' own text export answers with the whole document
+ *                 for anyone whose browser is signed in, and the background
+ *                 worker fetches it with those cookies. No Google permission
+ *                 is asked for, none is needed.
  *   anything else `innerText` of the body, which is what the reader sees —
  *                 not `textContent`, which would drag in script and style
  *                 bodies and every hidden menu on the page.
@@ -42,22 +37,15 @@ async function readDocs(): Promise<PageContextResult> {
   if (!documentId) {
     return { error: 'Dette ser ud til at være Google Docs, men dokumentets id kunne ikke læses fra adressen.' };
   }
-  const res = await oneShot({ kind: 'docs-get', documentId });
-  if (!res.ok) {
-    // The usual cause is simply that Google access has never been granted.
-    // Autonomous mode asks for it on its own path; saying so here is better
-    // than a bare failure the user cannot act on.
-    return {
-      error: `${res.error ?? 'Dokumentet kunne ikke læses.'} Prøv "Besvar alle spørgsmål" én gang for at give adgang til Google Docs.`,
-    };
-  }
-  const { title, paragraphs } = res.data as { title: string; paragraphs: { text: string }[] };
-  const text = paragraphs
-    .map((p) => p.text.trim())
-    .filter(Boolean)
-    .join('\n');
-  if (!text) return { error: 'Dokumentet er tomt — der er ingen tekst at vedhæfte.' };
-  return { item: toItem(title || 'Google Docs-dokument', text) };
+  const res = await oneShot({ kind: 'docs-export', documentId });
+  if (!res.ok) return { error: res.error ?? 'Dokumentet kunne ikke læses.' };
+  const { text } = res.data as { text: string };
+  const trimmed = text.replace(/\n{3,}/g, '\n\n').trim();
+  if (!trimmed) return { error: 'Dokumentet er tomt — der er ingen tekst at vedhæfte.' };
+  // The tab is titled "<document> - Google Docs"; the document's own name is
+  // the half worth keeping.
+  const title = document.title.replace(/\s*[-–]\s*Google Docs\s*$/, '').trim();
+  return { item: toItem(title || 'Google Docs-dokument', trimmed) };
 }
 
 function readOrdinaryPage(): PageContextResult {

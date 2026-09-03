@@ -1,9 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { OPERATION_LABELS, type PromptOperation, type PromptTemplate } from '@awa/shared';
+import type { OutputPrefs, PromptTemplate } from '@awa/shared';
 import { call } from '../api';
-import { autonomous } from '../autonomous';
 import { sendChat, stopGeneration } from '../chat';
-import { newContextId } from '../ingest';
 import { inserter } from '../inserter';
 import { useStore, type UiMessage } from '../store';
 import { Banner } from './AuthView';
@@ -14,48 +12,7 @@ import { ContextChips } from './ContextPanel';
 // style.css — "Galley" design system).
 const SERIF = { fontFamily: 'Charter, Georgia, Cambria, serif' };
 
-/** In flight — as opposed to finished, stopped or failed, which are all states
- *  the user is free to start a new run from. */
-const isRunActive = (state?: string) => state === 'writing' || state === 'paused';
-
-/**
- * What the user is asking for when they pick a verb and type nothing.
- *
- * The operations are the product's stated purpose — "ask it to draft, rewrite,
- * summarize, translate or explain" (PROJECT.md) — and the backend has
- * implemented all eight from the beginning. Nothing could reach them: the store
- * pinned `operation` to 'chat' and `subject` was never sent, so seven of the
- * eight were dead code and the marked text could only ever be answered or
- * attached, never worked on.
- *
- * These sentences become the user's own message when they press send without
- * typing, so the conversation and the saved history still read like something
- * a person said, rather than showing an empty bubble.
- */
-const DEFAULT_ASK: Record<PromptOperation, string> = {
-  chat: '',
-  rewrite: 'Omskriv den markerede tekst.',
-  summarize: 'Opsummer den markerede tekst.',
-  expand: 'Uddyb den markerede tekst.',
-  simplify: 'Forenkl den markerede tekst.',
-  explain: 'Forklar den markerede tekst.',
-  translate: 'Oversæt den markerede tekst.',
-  continue: 'Skriv videre fra den markerede tekst.',
-};
-
-/** What the composer invites you to type, given the verb you picked. */
-const OPERATION_HINT: Record<PromptOperation, string> = {
-  chat: 'Skriv til assistenten…',
-  rewrite: 'Hvordan skal den omskrives? (valgfrit)',
-  summarize: 'Hvor kort, og til hvem? (valgfrit)',
-  expand: 'Hvad skal uddybes? (valgfrit)',
-  simplify: 'Hvem skal kunne forstå den? (valgfrit)',
-  explain: 'Hvad er du i tvivl om? (valgfrit)',
-  translate: 'Til hvilket sprog?',
-  continue: 'Hvad skal der ske videre? (valgfrit)',
-};
-
-const TONES: [NonNullable<import('@awa/shared').OutputPrefs['tone']>, string][] = [
+const TONES: [NonNullable<OutputPrefs['tone']>, string][] = [
   ['neutral', 'Neutral'],
   ['formal', 'Formel'],
   ['friendly', 'Venlig'],
@@ -68,11 +25,6 @@ export function ChatView() {
   // Lives in the store, not here: this component unmounts when the panel
   // collapses, and an unsent instruction should survive that.
   const input = s.draft;
-  const [liveSelection, setLiveSelection] = useState('');
-  // Reveals the Straks/Langsomt choice for "Besvar markeringen" (D-04a) — the
-  // same two-chip pattern AutonomousBar uses for the whole document, just
-  // scoped to the marked text. No draft, no Insert press on this path.
-  const [selExpanded, setSelExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickBottom = useRef(true);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -95,36 +47,6 @@ export function ChatView() {
     if (el && stickBottom.current) el.scrollTo({ top: el.scrollHeight });
   }, [s.messages, s.streaming]);
 
-  // Watch what's marked on the page so the two selection actions can offer
-  // themselves the moment there is something to act on.
-  //
-  // Paused while text is being written. On Google Docs this read is not free:
-  // it asks Docs for the selection through the same hidden input frame that
-  // receives our writes, and doing that once a second DURING a run corrupted
-  // the document — an answer went missing and the frame's own placeholder
-  // characters landed in the text instead (measured 2026-08-18). Nothing is
-  // lost by pausing: the selection bar is hidden during a run anyway.
-  const writing =
-    s.autoRun?.state === 'writing' ||
-    s.autoRun?.state === 'paused' ||
-    s.insertStatus?.state === 'running' ||
-    s.insertStatus?.state === 'paused';
-  useEffect(() => {
-    if (writing) return;
-    const t = setInterval(() => {
-      const text = inserter.selectionText();
-      setLiveSelection((prev) => (prev === text ? prev : text));
-    }, 1000);
-    return () => clearInterval(t);
-  }, [writing]);
-
-  // An operation acts on the text marked on the page; chat acts on what you
-  // type. That is the whole difference, and it is why picking a verb without
-  // marking anything has to say so rather than quietly answering about nothing.
-  const op = s.operation;
-  const subject = op === 'chat' ? '' : liveSelection;
-  const canSend = op === 'chat' ? !!input.trim() : !!subject;
-
   // A notice reports something that already went fine ("filen var lang, de
   // første 40.000 tegn er vedhæftet"). It has no action attached, so leaving it
   // on screen until the user swats it just costs them panel height. An error
@@ -138,32 +60,9 @@ export function ChatView() {
   function send() {
     if (s.streaming) return;
     const text = input.trim();
-    if (op === 'chat') {
-      if (!text) return;
-      sendChat(text);
-      s.set({ draft: '' });
-      return;
-    }
-    const marked = liveSelection || inserter.selectionText();
-    if (!marked) {
-      s.set({ error: `Markér den tekst på siden, "${OPERATION_LABELS[op]}" skal bruges på, og prøv igen.` });
-      return;
-    }
-    sendChat(text || DEFAULT_ASK[op], marked);
-    s.set({ draft: '' });
-  }
-
-  function useSelectionAsContext() {
-    const text = liveSelection || inserter.selectionText();
     if (!text) return;
-    s.addContext({
-      id: newContextId(),
-      name: `Markeret tekst (${text.length.toLocaleString('da-DK')} tegn)`,
-      kind: 'selection',
-      text,
-      chars: text.length,
-      truncated: false,
-    });
+    sendChat(text);
+    s.set({ draft: '' });
   }
 
   return (
@@ -177,110 +76,32 @@ export function ChatView() {
         }}
         className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
       >
-        {/* Not while a transport bar is up. The bars are `sticky bottom-0` in
-            this same scroller, and an autonomous run adds no chat messages, so
-            after "Besvar alle spørgsmål" the panel had a finished run's bar
-            floating over the words "En blank side — klar når du er" and the
-            onboarding list beneath it (measured in 01-doc-straks-done.png).
-            A run just happened; the page is not blank and there is nothing to
-            onboard. The bar is the content. */}
-        {s.messages.length === 0 && !s.insertStatus && !s.autoRun && <EmptyState />}
+        {/* Not while the transport bar is up: it is `sticky bottom-0` in this
+            same scroller, and a finished run's bar floating over "En blank
+            side" reads as two panels arguing. */}
+        {s.messages.length === 0 && !s.insertStatus && <EmptyState />}
         {s.messages.map((m) => (
           <MessageBubble key={m.id} m={m} />
         ))}
         {s.error && <Banner kind="error" text={s.error} onDismiss={() => s.set({ error: null })} />}
         {s.notice && <Banner kind="info" text={s.notice} onDismiss={() => s.set({ notice: null })} />}
         {s.insertStatus && <InsertBar />}
-        {s.autoRun && <AutoRunBar />}
       </div>
 
       {/* composer */}
       <div className="space-y-2 border-t border-hairline p-3">
-        {/* Marked text on the page: its two jobs, clearly stated (PROM-02).
-            "Besvar markeringen" now asks Straks/Langsomt and writes the
-            answers directly into the marked text (D-04a) — the old
-            generate-into-the-panel-then-Insert two-step is gone on this
-            path. "Brug som kontekst" is untouched (D-04b). Hidden while a
-            run is active so a second run can't be started on top of it. */}
-        {liveSelection && !isRunActive(s.autoRun?.state) && (
-          <div className="space-y-1.5 rounded-xl border border-hairline p-2.5">
-            {/* A sentence about the user's own text, not a machine readout, so
-                it stays sentence case throughout — only the figure is tabular,
-                so it doesn't jitter the words as the selection grows. */}
-            <p className="awa-note !text-ink">
-              Du har markeret tekst · <span className="awa-num">{liveSelection.length.toLocaleString('da-DK')}</span> tegn
-            </p>
-            <div className="flex flex-wrap gap-1.5 text-ui">
-              {!selExpanded ? (
-                <>
-                  <button
-                    onClick={() => setSelExpanded(true)}
-                    className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
-                    title="Spørger Straks eller Langsomt, og skriver svarene direkte ind i den markerede tekst"
-                  >
-                    Besvar markeringen
-                  </button>
-                  <button
-                    onClick={useSelectionAsContext}
-                    className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
-                    title="Teksten vedhæftes som baggrundsviden, assistenten kan trække på"
-                  >
-                    Brug som kontekst
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setSelExpanded(false);
-                      void autonomous.run('selection', 'instant');
-                    }}
-                    className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
-                    title="Skriver alle svar på én gang"
-                  >
-                    Straks
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelExpanded(false);
-                      void autonomous.run('selection', 'progressive');
-                    }}
-                    className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
-                    title="Skriver bogstav for bogstav, ét spørgsmål ad gangen, fra toppen af markeringen"
-                  >
-                    Langsomt
-                  </button>
-                </>
-              )}
-            </div>
-            {/* One line, not three. Both buttons carry the full explanation in
-                their tooltip, and the empty state introduces them — three
-                permanent lines of help under two buttons is the panel
-                explaining itself instead of getting out of the way. */}
-            <p className="awa-note">Svar skrives ind i markeringen · kontekst vedhæftes som baggrundsviden.</p>
-          </div>
-        )}
-
         <ContextChips />
 
         <TemplateBar />
 
-        <AutonomousBar />
-
         {/*
-          One row, three controls, no labels.
-          Labelled and spelled out, these took two rows of a six-row stack of
-          chrome sitting above a one-line input — in a 400px panel where the
-          composer is the point. The values say what they are, so the labels
-          were repeating the answer next to the question.
+          One row, no labels.
+          Labelled and spelled out, these took two rows of chrome sitting above
+          a one-line input — in a 400px panel where the composer is the point.
+          The values say what they are, so the labels were repeating the answer
+          next to the question.
         */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <Picker
-            value={op}
-            onChange={(v) => s.set({ operation: v as PromptOperation })}
-            title="Hvad assistenten skal gøre. Chat svarer på det, du skriver; de øvrige arbejder på den tekst, du har markeret på siden."
-            options={Object.entries(OPERATION_LABELS) as [string, string][]}
-          />
           <Picker
             value={s.prefs.tone ?? 'neutral'}
             onChange={(v) => s.set({ prefs: { ...s.prefs, tone: v as (typeof TONES)[number][0] } })}
@@ -299,22 +120,6 @@ export function ChatView() {
           />
         </div>
 
-        {/* A verb needs something to act on, so say plainly whether it has it. */}
-        {op !== 'chat' && (
-          <p className="awa-note">
-            {subject ? (
-              <>
-                <b>{OPERATION_LABELS[op]}</b> arbejder på de <span className="awa-num">{subject.length.toLocaleString('da-DK')}</span>{' '}
-                tegn, du har markeret.
-              </>
-            ) : (
-              <>
-                <b>{OPERATION_LABELS[op]}</b> arbejder på markeret tekst. Markér et stykke på siden først.
-              </>
-            )}
-          </p>
-        )}
-
         <div className="flex items-end gap-2">
           <textarea
             ref={composerRef}
@@ -327,7 +132,7 @@ export function ChatView() {
               }
             }}
             rows={1}
-            placeholder={OPERATION_HINT[op]}
+            placeholder="Skriv til assistenten…"
             className="max-h-[168px] min-h-[42px] flex-1 resize-none overflow-y-auto rounded-xl border border-hairline bg-paper px-3 py-2 outline-none placeholder:text-graphite focus:border-ink"
           />
           {s.streaming ? (
@@ -341,8 +146,8 @@ export function ChatView() {
           ) : (
             <button
               onClick={send}
-              disabled={!canSend}
-              title={op === 'chat' ? 'Send' : `${OPERATION_LABELS[op]} den markerede tekst`}
+              disabled={!input.trim()}
+              title="Send"
               className="rounded-xl bg-ink px-3 py-2 font-medium text-paper hover:opacity-85 disabled:opacity-40"
             >
               ↑
@@ -356,60 +161,6 @@ export function ChatView() {
           <TargetHint />
         </div>
       </div>
-    </div>
-  );
-}
-
-// One capability, two entry points to the same machine — the whole open
-// document here, "Besvar markeringen" on the selection bar above (scope:
-// 'selection'). No review step, no approval gate, no third mode — pressing
-// Straks or Langsomt writes directly (D-04). While a run is active the full
-// transport lives in AutoRunBar below; this button hides so a second run
-// can't be started on top of the first.
-function AutonomousBar() {
-  const s = useStore();
-  const [expanded, setExpanded] = useState(false);
-
-  // Hidden only while a run is genuinely in flight, so a second run cannot be
-  // started on top of the first. Once it has finished it must come back:
-  // hiding it until "Skjul" is pressed meant the panel's primary action simply
-  // vanished after every successful run, with nothing on screen saying why or
-  // how to get it back.
-  if (isRunActive(s.autoRun?.state)) return null;
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <button
-        onClick={() => setExpanded((e) => !e)}
-        className="rounded-full border border-hairline px-3 py-1 text-ui hover:border-ink"
-        title="Finder hvert spørgsmål i det felt eller dokument, du sidst klikkede i, og skriver et svar under hvert af dem"
-      >
-        Besvar alle spørgsmål
-      </button>
-      {expanded && (
-        <>
-          <button
-            onClick={() => {
-              setExpanded(false);
-              void autonomous.run('document', 'instant');
-            }}
-            className="rounded-full bg-ink px-3 py-1 text-ui text-paper hover:opacity-85"
-            title="Skriver alle svar på én gang"
-          >
-            Straks
-          </button>
-          <button
-            onClick={() => {
-              setExpanded(false);
-              void autonomous.run('document', 'progressive');
-            }}
-            className="rounded-full border border-hairline px-3 py-1 text-ui hover:border-ink"
-            title="Skriver bogstav for bogstav, ét spørgsmål ad gangen, fra toppen af dokumentet"
-          >
-            Langsomt
-          </button>
-        </>
-      )}
     </div>
   );
 }
@@ -542,15 +293,10 @@ function TemplateBar() {
 /**
  * The first thing a new user ever sees inside the panel.
  *
- * It used to be one encouraging line and an instruction to drag files at a
- * button the open panel is covering. Nothing said that the product answers a
- * whole questionnaire in place, or works inside Google Docs at all — the two
- * things it is actually for, and the reason the first users wanted it.
- *
- * So this states the three capabilities in the order a person meets them, and
- * names the one they are standing in right now. No tour, no dismissable
- * coach-marks, nothing to click through: it is simply what fills the panel
- * until the first message, and it leaves the moment there is a conversation.
+ * It states what the product does in the order a person meets it, and names
+ * the page they are standing in. No tour, no dismissable coach-marks, nothing
+ * to click through: it is simply what fills the panel until the first
+ * message, and it leaves the moment there is a conversation.
  */
 function EmptyState() {
   const onDocs = typeof location !== 'undefined' && location.host === 'docs.google.com';
@@ -561,16 +307,12 @@ function EmptyState() {
       </p>
       <ul className="mx-auto max-w-[300px] space-y-2.5">
         {[
-          ['Spørg om hvad som helst', 'Skriv nedenfor. Svaret kan sættes direkte ind, hvor du står.'],
+          ['Spørg om hvad som helst', 'Skriv nedenfor. Svaret kommer som et udkast, du kan rette i.'],
           [
-            'Markér tekst, vælg en handling',
-            'Omskriv, forenkl, oversæt eller uddyb det, du har markeret på siden.',
-          ],
-          [
-            'Besvar alle spørgsmål',
+            'Sæt svaret ind, hvor du står',
             onDocs
-              ? 'Du står i et Google Docs-dokument. Knappen finder hvert spørgsmål og skriver svaret under det.'
-              : 'Finder hvert spørgsmål i det felt, du sidst klikkede i, og skriver et svar under hvert af dem.',
+              ? 'Klik i dokumentet, og vælg Indsæt straks eller Indsæt langsomt. Langsomt skriver bogstav for bogstav i det tempo, du vælger.'
+              : 'Klik i det felt, teksten skal ind i, og vælg Indsæt straks eller Indsæt langsomt. Langsomt skriver bogstav for bogstav i det tempo, du vælger.',
           ],
         ].map(([title, body]) => (
           <li key={title} className="border-l-2 border-hairline pl-2.5">
@@ -821,104 +563,6 @@ function InsertBar() {
         </button>
       </div>
       <div className="truncate text-aside text-graphite">{st.targetLabel}</div>
-    </div>
-  );
-}
-
-// The whole-run transport for autonomous mode (07-04) — reachable from
-// either entry point (document or selection scope), styled like InsertBar.
-// Stop and undo act on the WHOLE run, one user-visible step (D-15); there is
-// no per-answer control anywhere here. Collapsing the panel unmounts this
-// component, but the run itself lives outside the React tree (D-14) and
-// keeps going — see apps/extension/insertion/autonomous/orchestrator.ts.
-function AutoRunBar() {
-  const s = useStore();
-  const st = s.autoRun;
-  if (!st) return null;
-  const pct = Math.round(st.progress * 100);
-  // Between pressing the button and the first character there is one network
-  // call that finds the questions — measured against production 2026-08-25 at
-  // 9.7s, 14.0s and 29.4s. For all of it the run said "Skriver · 0 / 0 · 0%":
-  // claiming to write before it has anything to write, beside a counter that
-  // reads as "nothing to do". Both are knowable from what is already here —
-  // a run that is writing always has at least one answer to write.
-  const finding = st.state === 'writing' && st.answersTotal === 0;
-  return (
-    <div className="sticky bottom-0 space-y-2 rounded-2xl border border-hairline bg-paper p-3 shadow-lg">
-      <div className="flex items-baseline justify-between">
-        <span className="awa-eyebrow !text-ink">
-          {st.state === 'writing' && (finding ? 'Finder spørgsmål' : 'Skriver')}
-          {st.state === 'paused' && 'På pause'}
-          {/* Færdig keeps its checkmark: 07-03's regression suite already asserts on "Færdig ✓" verbatim. */}
-          {st.state === 'done' && 'Færdig ✓'}
-          {st.state === 'stopped' && 'Stoppet'}
-          {st.state === 'idle' && 'Fortrudt'}
-          {st.state === 'error' && 'Fejl'}
-        </span>
-        <span className="awa-eyebrow">{finding ? 'Et øjeblik' : `${st.answersDone} / ${st.answersTotal} · ${pct}%`}</span>
-      </div>
-      {st.detail === 'user-typing' && (
-        <div className="text-ui text-graphite">På pause — du begyndte at skrive. Fortsæt når du er klar.</div>
-      )}
-      {st.placement === 'block' && st.degradedReason && <div className="text-ui text-graphite">{st.degradedReason}</div>}
-      {/* The galley line: ink advancing across paper. No countdown, no ETA — a
-          backgrounded tab throttles Langsomt's timers, so any estimate here
-          would just be a lie (D-14). Before the questions are known there is no
-          fraction to draw either, so it travels instead of filling. */}
-      <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-wash">
-        {finding ? (
-          <div className="awa-galley absolute left-0 top-0 h-full rounded-full bg-ink" />
-        ) : (
-          <div className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200" style={{ width: `${pct}%` }} />
-        )}
-      </div>
-      {/* Same as the insert bar above: paused, this row is Fortsæt, Stop,
-          "Fortryd alle svar" and Skjul, which is wider still. */}
-      <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap text-ui">
-        {st.state === 'writing' && (
-          <button onClick={() => autonomous.pause()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
-            ⏸ Pause
-          </button>
-        )}
-        {st.state === 'paused' && (
-          <button onClick={() => autonomous.resume()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
-            ▶ Fortsæt
-          </button>
-        )}
-        {(st.state === 'writing' || st.state === 'paused') && (
-          <button onClick={() => autonomous.stop()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
-            ■ Stop
-          </button>
-        )}
-        {(st.state === 'done' || st.state === 'stopped' || st.state === 'paused' || st.state === 'error') && (
-          <button onClick={() => autonomous.undo()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
-            ↩ Fortryd alle svar
-          </button>
-        )}
-        <button onClick={() => autonomous.dismiss()} className="ml-auto px-2 py-1 text-graphite hover:text-ink">
-          Skjul
-        </button>
-      </div>
-      <div className="truncate text-aside text-graphite">{st.targetLabel}</div>
-      {/* There was a "Uden grundlag i dine kilder" list here. It named the
-          questions the answer had been invented for — which the person already
-          knows, having asked a machine to fill in a form it had no sources for,
-          and which only made them doubt a draft they were going to edit anyway.
-          Removed 2026-08-26 with the prompt change that made every answer a
-          usable draft. `unplaced` below stays: an answer that never reached the
-          document is something they cannot see for themselves. */}
-      {st.unplaced.length > 0 && (
-        <div className="space-y-1 border-t border-hairline pt-2 text-aside">
-          <p className="awa-eyebrow !text-ink">Kunne ikke placeres · {st.unplaced.length}</p>
-          <ul className="list-disc space-y-0.5 pl-4 text-graphite">
-            {st.unplaced.map((u, i) => (
-              <li key={i}>
-                {u.questionText} — {u.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }

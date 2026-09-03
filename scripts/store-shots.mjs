@@ -1,5 +1,5 @@
 /**
- * The five Chrome Web Store screenshots, taken from the real product.
+ * The four Chrome Web Store screenshots, taken from the real product.
  *
  * Not mockups and not the test fixture. Every shot is this extension doing the
  * thing the listing claims, in a real Google document, at exactly 1280x800 —
@@ -7,17 +7,15 @@
  *
  * WHY GOOGLE DOCS AND NOT THE LOCAL FIXTURE: two reasons, and the second is the
  * one that decided it. The listing's strongest claim is that this writes into
- * Google Docs, which most extensions cannot, so showing it five times is worth
+ * Google Docs, which most extensions cannot, so showing it four times is worth
  * more than any wording. And the panel's footer names its insertion target: on
  * a locally served page that reads "text area — 127.0.0.1:53211", which is a
  * developer's machine leaking into a store listing. In a Google document the
  * same line reads "Google Docs-dokument".
  *
  * ORDER IS LOAD BEARING. The transport bar stays on screen after a run until
- * it is dismissed, and the panel deliberately hides the marked-text card while
- * a run is live, so a selection shot taken after an insertion shows the wrong
- * thing entirely. The clean states are photographed first, the insertion last,
- * and the whole-document run gets a document of its own.
+ * it is dismissed, so the clean states are photographed first and the
+ * insertion last.
  *
  * Prereqs: extension built (production, no VITE_BACKEND_URL) and the
  * .chrome-profile-cft profile signed into Google.
@@ -91,10 +89,9 @@ try {
   await page.waitForTimeout(1500);
   await openPanelAndSignIn();
 
-  // ---- 1. marked text, on a clean document, before anything has run ------
-  await page.keyboard.press('Meta+a');
-  await page.waitForTimeout(1500);
-  await shot('01-markeret-tekst', page, 'select text: answer it, or attach it as background');
+  // ---- 1. the panel introducing itself, on a document with text in it -----
+  await page.waitForTimeout(800);
+  await shot('01-klar', page, 'the panel open on a document, before the first question');
 
   // ---- 2. the hero: a draft, and the choice of how it goes in ------------
   await clickIntoDoc(page);
@@ -127,30 +124,7 @@ try {
   await page.waitForTimeout(14_000);
   await shot('04-indsaet-langsomt', page, 'letter-by-letter insertion, pausable mid-run');
 
-  // ============ Document B: the whole-document run, on a clean page ======
-  // A fresh document rather than the one above: undo leaves the transport bar
-  // standing by design, and a half-inserted draft would sit under the answers.
-  await newDoc(page);
-  await page.waitForTimeout(4000);
-  await clickIntoDoc(page);
-  await typeIntoDoc(page, DOC_TEXT);
-  await page.waitForTimeout(1500);
-  await host.locator('button[title*="Skriveassistent"]').first().click().catch(() => {});
-  await page.waitForTimeout(1500);
-  await clickIntoDoc(page);
-  await page.waitForTimeout(500);
-
-  await btn('Besvar alle spørgsmål').click();
-  await page.waitForTimeout(800);
-  // Exact match: "Straks" also matches "Indsæt straks", and a loose selector
-  // picked that instead on the first run — re-inserting the draft into the
-  // document and photographing the mess.
-  await btn('Straks').click();
-  await host.getByText('Færdig', { exact: false }).first().waitFor({ timeout: 420_000 }).catch(() => {});
-  await page.waitForTimeout(3000);
-  await shot('05-besvar-alle', page, 'every question in the document answered under the right one');
-
-  console.log(`\n${shots.length}/5 screenshots written to store-assets/`);
+  console.log(`\n${shots.length}/4 screenshots written to store-assets/`);
 } catch (err) {
   await page.screenshot({ path: resolve(OUT, '99-crash.png') }).catch(() => {});
   console.error(`\nFAILED after ${shots.length} shot(s): ${err.message}`);

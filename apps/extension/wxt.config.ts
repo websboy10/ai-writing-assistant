@@ -9,25 +9,6 @@ import tailwindcss from '@tailwindcss/vite';
 const backendUrl = process.env.VITE_BACKEND_URL ?? '';
 const isLocalBackend = /localhost|127\.0\.0\.1/.test(backendUrl);
 
-// Second OAuth client (D-17): type "Chrome Extension", used only by
-// chrome.identity.getAuthToken() for Docs API access. Separate from the
-// "Web application" client from GOOGLE-SETUP.md Step 6, which powers
-// Supabase sign-in via launchWebAuthFlow — the two are unrelated credentials
-// serving unrelated code paths.
-//
-// Committed as a fallback, not left env-only: this ID is not a secret
-// (Chrome Extension clients have none, and it ships inside this manifest,
-// public either way — GOOGLE-SETUP.md Step 8). An .env-only value would
-// build fine but silently produce a manifest with an empty client_id on any
-// checkout or CI run lacking that dotfile, which is worse than shipping no
-// oauth2 block at all — exactly the trap this comment exists to prevent.
-const googleDocsClientId =
-  process.env.VITE_GOOGLE_DOCS_CLIENT_ID ||
-  '508090872713-v9u4q1seerj9ohlsqppfer80n0aatd0k.apps.googleusercontent.com';
-// Must match DOCS_SCOPE in utils/protocol.ts. Exactly `documents` — never
-// `drive` or `drive.file` (T-07-03).
-const GOOGLE_DOCS_SCOPE = 'https://www.googleapis.com/auth/documents';
-
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   vite: () => ({
@@ -63,11 +44,5 @@ export default defineConfig({
       },
     },
     action: { default_title: 'AI Skriveassistent' },
-    // Empty client_id is worse than no oauth2 block at all (never lets Chrome
-    // silently probe with a blank credential) — same conditional-spread
-    // pattern as host_permissions above.
-    ...(googleDocsClientId
-      ? { oauth2: { client_id: googleDocsClientId, scopes: [GOOGLE_DOCS_SCOPE] } }
-      : {}),
   },
 });

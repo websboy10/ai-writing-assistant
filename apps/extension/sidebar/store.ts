@@ -1,14 +1,6 @@
 import { create } from 'zustand';
-import type {
-  BillingInfo,
-  ChatMessage,
-  ContextItem,
-  ConversationSummary,
-  OutputPrefs,
-  PromptOperation,
-  UsageInfo,
-} from '@awa/shared';
-import { type InsertionState, type RunState } from '@/insertion';
+import type { BillingInfo, ChatMessage, ContextItem, ConversationSummary, OutputPrefs, UsageInfo } from '@awa/shared';
+import { type InsertionState } from '@/insertion';
 import { call } from './api';
 import { stopGeneration } from './chat';
 
@@ -29,24 +21,6 @@ interface InsertStatus {
   unverified?: boolean;
 }
 
-/**
- * One run, many InsertionSessions (07-03). `unplaced` and `ungrounded` are
- * carried here now but only rendered as a gap list from 07-04 onward — this
- * plan's UI just shows the state word and answersDone/answersTotal.
- */
-interface AutoRunStatus {
-  state: RunState;
-  detail?: string;
-  answersDone: number;
-  answersTotal: number;
-  progress: number; // 0..1
-  targetLabel?: string;
-  placement: 'in-place' | 'block';
-  degradedReason?: string;
-  unplaced: { questionText: string; reason: string }[];
-  ungrounded: string[];
-}
-
 interface AwaState {
   // session
   email: string | null;
@@ -58,7 +32,6 @@ interface AwaState {
   streaming: boolean;
   error: string | null;
   notice: string | null;
-  operation: PromptOperation;
   /**
    * What is typed in the composer but not yet sent.
    *
@@ -83,8 +56,6 @@ interface AwaState {
    * message bubble does not re-render on every streamed token (WR-14).
    */
   hasInsertTarget: boolean;
-  // autonomous mode (07-03)
-  autoRun: AutoRunStatus | null;
   // usage/history
   usage: UsageInfo | null;
   history: ConversationSummary[];
@@ -114,14 +85,12 @@ export const useStore = create<AwaState>((set, get) => ({
   streaming: false,
   error: null,
   notice: null,
-  operation: 'chat',
   draft: '',
   prefs: { tone: 'neutral', length: 'same' },
   context: [],
   contextBusy: null,
   insertStatus: null,
   hasInsertTarget: false,
-  autoRun: null,
   usage: null,
   history: [],
   billing: null,
@@ -180,7 +149,6 @@ export const useStore = create<AwaState>((set, get) => ({
       error: null,
       notice: null,
       insertStatus: null,
-      autoRun: null,
     });
   },
 }));

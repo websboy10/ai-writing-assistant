@@ -93,57 +93,28 @@ try {
   const composer = host.locator('textarea');
   r.ok('signed in — the composer is on screen', (await composer.count()) > 0);
 
-  // ---- the empty state teaches the three capabilities ----------------------
+  // ---- the empty state teaches the two capabilities ------------------------
   const empty = await panelText();
   await shot('01-empty');
   r.ok('empty state names asking', empty.includes('Spørg om hvad som helst'));
-  r.ok('empty state names the selection actions', empty.includes('Markér tekst, vælg en handling'));
-  r.ok('empty state names answering a questionnaire', empty.includes('Besvar alle spørgsmål'));
-  r.ok('empty state points at the new context buttons', empty.includes('Denne side'));
+  r.ok('empty state names inserting where you stand', empty.includes('Sæt svaret ind, hvor du står'));
+  r.ok('empty state points at the context buttons', empty.includes('Denne side'));
+  r.ok('nothing about answering markings or whole documents', !/Besvar/.test(empty));
 
-  // ---- all eight operations are reachable ---------------------------------
-  const opSelect = host.locator('select[title*="Hvad assistenten skal"]');
-  r.ok('the Handling picker exists', (await opSelect.count()) > 0);
-  const opValues = await opSelect.locator('option').evaluateAll((os) => os.map((o) => o.value));
-  const EXPECTED_OPS = ['chat', 'summarize', 'rewrite', 'expand', 'simplify', 'explain', 'translate', 'continue'];
-  r.ok(
-    `all eight operations are offered (saw ${opValues.length})`,
-    EXPECTED_OPS.every((o) => opValues.includes(o)),
-    opValues.join(','),
-  );
+  // ---- one way to ask: type and send ---------------------------------------
+  r.ok('no operation picker', (await host.locator('select[title*="Hvad assistenten skal"]').count()) === 0);
   const toneValues = await host
     .locator('select[title*="Tonefaldet"]')
     .locator('option')
     .evaluateAll((os) => os.map((o) => o.value));
   r.ok('tone is settable', toneValues.includes('formal') && toneValues.includes('casual'), toneValues.join(','));
+  const sendBtn = host.locator('button[title="Send"]');
+  r.ok('send is disabled while the composer is empty', await sendBtn.isDisabled());
+  await composer.fill('Skriv én kort sætning om, hvad en medarbejdersamtale er.');
+  await page.waitForTimeout(200);
+  r.ok('send is enabled once something is typed', await sendBtn.isEnabled());
 
-  // ---- an operation without marked text says so ---------------------------
-  await opSelect.selectOption('simplify');
-  await page.waitForTimeout(400);
-  r.ok(
-    'picking a verb with nothing marked explains what it needs',
-    (await panelText()).includes('Markér et stykke på siden først'),
-  );
-  const sendBtn = host.locator('button[title*="Forenkl den markerede"]');
-  r.ok('send is disabled until something is marked', await sendBtn.isDisabled());
-
-  // ---- marking text on the page reaches the panel -------------------------
-  await page.evaluate(() => {
-    const p = document.getElementById('p1');
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(p);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  });
-  await page.waitForTimeout(1600); // the selection poll runs once a second
-  const marked = await panelText();
-  await shot('02-selection');
-  r.ok('the panel notices marked text', marked.includes('Du har markeret tekst'));
-  r.ok('the operation binds to the marked text', /Forenkl.*arbejder på de/s.test(marked));
-  r.ok('send is enabled once text is marked', await sendBtn.isEnabled());
-
-  // ---- the operation actually runs (the one AI call) ----------------------
+  // ---- the question actually runs (the one AI call) -----------------------
   await sendBtn.click();
   // Terminal = a draft to insert, OR any banner at all.
   //
@@ -169,11 +140,10 @@ try {
     // Say what the product said, rather than making the reader guess from a
     // failed assertion three lines further down.
     const banner = await host.locator('button[title="Skjul beskeden"]').first().evaluate((b) => b.parentElement?.textContent ?? '');
-    r.ok('the operation ran', false, `the panel answered: ${banner.slice(0, 180)}`);
+    r.ok('the question ran', false, `the panel answered: ${banner.slice(0, 180)}`);
   }
-  await shot('03-after-operation');
-  r.ok('the operation produced a draft with insertion offered', afterRun.includes('Indsæt straks'));
-  r.ok('the default ask reads like a person wrote it', afterRun.includes('Forenkl den markerede tekst.'));
+  await shot('03-after-question');
+  r.ok('the question produced a draft with insertion offered', afterRun.includes('Indsæt straks'));
   r.ok('no markdown asterisks reached the draft', !/\*\*/.test(afterRun), afterRun.slice(0, 200));
 
   // ---- "+ Denne side" attaches the page ------------------------------------
@@ -196,7 +166,7 @@ try {
   r.ok('the attached item is the page, sized in characters', /Medarbejdersamtale 2026 · \d/.test(attached), attached);
   r.ok(
     'the page text excludes the panel’s own interface',
-    !withPage.includes('Besvar alle spørgsmål\nFinder hvert'),
+    !withPage.includes('Sæt svaret ind, hvor du står\nKlik'),
   );
 
   // ---- a long paste becomes context, not composer soup --------------------
@@ -391,7 +361,7 @@ try {
   await ctx.route('**/api/chat', (route) =>
     route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: '' }),
   );
-  const runBtn = host.locator('button[title="Send"], button[title*="den markerede tekst"]').first();
+  const runBtn = host.locator('button[title="Send"]').first();
   await host.locator('textarea').first().fill('Skriv en enkelt sætning.');
   await runBtn.click();
   const spoke = await page

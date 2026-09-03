@@ -157,29 +157,11 @@ try {
   ok('undo restored the textarea', undoneVal === '', `value="${undoneVal.slice(0, 40)}"`);
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
-  console.log('\n— Marked text: two clearly-stated functions —');
+  console.log('\n— Marked text —');
   await page.locator('#plain').fill('Hvad er status på projektet?');
   await page.locator('#plain').click();
   await page.locator('#plain').press('ControlOrMeta+a');
-  await page.waitForTimeout(1400); // selection poll runs every second
-  const selBarText = await shadowText();
-  ok('selection bar appears with both actions', /Du har markeret tekst/.test(selBarText) && /Besvar markeringen/.test(selBarText) && /Brug som kontekst/.test(selBarText));
-  // Wording updated by 07-04 (D-04a): "Besvar" now writes directly into the
-  // marking instead of generating a draft to review — the explanatory line
-  // changed to say so truthfully. "Kontekst" is untouched (D-04b).
-  // Condensed from three lines to one on 2026-08-25: both buttons carry the
-  // full explanation in their tooltip and the empty state introduces them, so
-  // three permanent lines of help under two buttons was the panel explaining
-  // itself instead of getting out of the way. The meaning must still be there.
-  ok('the two functions are explained in words', /skrives ind i markeringen/i.test(selBarText) && /baggrundsviden/.test(selBarText));
-
-  // Function 2: use as context → a small chip with a corner ✕
-  await host.locator('button', { hasText: 'Brug som kontekst' }).click();
   await page.waitForTimeout(300);
-  ok('selection became a context chip', /Markeret tekst \(/.test(await shadowText()));
-  await host.locator('button[title^="Fjern"]').first().click();
-  await page.waitForTimeout(300);
-  ok('chip removable via corner ✕', !/Markeret tekst \(/.test(await shadowText()));
 
   console.log('\n— Insertion lands BELOW the marked text, never on it —');
   // The field still holds a full selection; insert must go under it, not replace it.
@@ -252,34 +234,12 @@ try {
   ok('undo preserves user typing', afterUndo.includes('x'), `after undo="${afterUndo.slice(0, 40)}"`);
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
-  console.log('\n— Output settings: action, tone, length —');
-  // DELIBERATE REVERSAL, 2026-08-25. An earlier phase stripped the panel back
-  // to "the one output setting: length", and this assertion used to demand
-  // that tone, templates and operations stayed gone.
-  //
-  // They were gone from the UI but never from the product: the backend had
-  // implemented all eight operations, with Danish labels sitting in
-  // packages/shared, since the beginning — and PROJECT.md calls them what the
-  // product IS ("ask it to draft, rewrite, summarize, translate or explain").
-  // `store.operation` was pinned to 'chat' and `subject` was never sent, so
-  // seven of the eight were unreachable dead code and marked text could only
-  // be answered or attached, never worked on. Same for tone, and for the whole
-  // templates table, its RLS policy and its three endpoints.
-  //
-  // The three controls are one row of selects, which is fewer rows than the
-  // single length setting occupied as chips — the simplification is kept, the
-  // capability is not thrown away with it.
+  console.log('\n— Output settings: tone, length —');
   const lengthSelect = host.locator('select[title*="Hvor langt"]');
   await lengthSelect.selectOption('shorter');
   ok('length is settable', (await lengthSelect.inputValue()) === 'shorter');
-  const opSelect = host.locator('select[title*="Hvad assistenten skal"]');
-  const ops = await opSelect.locator('option').evaluateAll((os) => os.map((o) => o.value));
-  ok(
-    'all eight writing operations are reachable',
-    ['chat', 'summarize', 'rewrite', 'expand', 'simplify', 'explain', 'translate', 'continue'].every((o) => ops.includes(o)),
-    ops.join(','),
-  );
   ok('tone is settable', (await host.locator('select[title*="Tonefaldet"]').count()) === 1);
+  ok('no operation picker: chat is the only way to ask', (await host.locator('select[title*="Hvad assistenten skal"]').count()) === 0);
 
   console.log('\n— Usage counter —');
   ok('real usage numbers visible in header', /\d+ \/ \d+/.test(await shadowText()));

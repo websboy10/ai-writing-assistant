@@ -19,22 +19,10 @@ try {
   if (!(await host.locator('textarea[placeholder*="Skriv til"], input[type="email"]').count())) await fab.click();
   await page.waitForTimeout(1500);
 
-  // Type one question, then run the whole-document answer.
-  const box = await page.locator('[class*="kix-page"]').first().boundingBox();
-  const view = page.viewportSize() ?? { height: 800 };
-  await page.mouse.click(box.x + box.width / 2, Math.min(box.y + box.height - 140, view.height - 60));
-  await page.keyboard.type('Hvad er status på projektet?', { delay: 12 });
-  await page.waitForTimeout(2500);
-
-  await host.getByRole('button', { name: 'Besvar alle spørgsmål', exact: true }).click();
-  await host.getByRole('button', { name: 'Straks', exact: true }).click();
-  await page
-    .waitForFunction(
-      () => /Færdig ✓|ingen kunne besvares|ikke fundet nogen|Fejl/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
-      undefined,
-      { timeout: 180_000 },
-    )
-    .catch(() => {});
+  // Ask one question through the composer, which is the only AI call left.
+  await host.locator('textarea[placeholder*="Skriv til"]').fill('Svar med ét ord: ja.');
+  await host.locator('button', { hasText: '↑' }).click();
+  await host.locator('text=Indsæt straks').waitFor({ timeout: 120_000 }).catch(() => {});
 
   console.log(`\ndoc: ${docId}`);
   console.log(`\n--- every /api/ request observed (${seen.length}) ---`);

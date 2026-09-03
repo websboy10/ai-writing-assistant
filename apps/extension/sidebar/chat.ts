@@ -24,7 +24,7 @@ export function stopGeneration(): void {
   });
 }
 
-export function sendChat(userText: string, subject?: string): void {
+export function sendChat(userText: string): void {
   const s = useStore.getState();
   if (s.streaming) return;
 
@@ -41,8 +41,7 @@ export function sendChat(userText: string, subject?: string): void {
     messages: [...s.messages, userMsg]
       .filter((m) => m.role === 'user' || m.role === 'assistant')
       .map((m) => ({ role: m.role, content: m.content })),
-    operation: s.operation,
-    subject,
+    operation: 'chat',
     context: s.context.length ? s.context : undefined,
     prefs: s.prefs,
     conversationId: s.conversationId,

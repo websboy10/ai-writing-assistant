@@ -6,26 +6,6 @@ export const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL ?? 'https://
 
 // ---- one-shot messages (UI/content ↔ background) ----
 
-// One non-empty Docs paragraph, as read by 'docs-get' (D-16 step 1). Carries
-// the API's own startIndex/endIndex untouched — those are the coordinates
-// Find-positioning (insertion/autonomous/docs-find.ts) and the D-16a
-// batchUpdate fallback both key off.
-export interface DocsParagraph {
-  index: number;
-  text: string;
-  startIndex: number;
-  endIndex: number;
-  namedStyleType?: string;
-  /** Inline images in this paragraph as data URLs — see AutonomousParagraph.images. */
-  images?: string[];
-}
-
-// Exactly `documents`, never `drive` or `drive.file` (T-07-03). Must match
-// the scope in wxt.config.ts's oauth2 manifest block — the two can't share
-// an import because wxt.config.ts runs in Node at build time, not the
-// extension bundle.
-export const DOCS_SCOPE = 'https://www.googleapis.com/auth/documents';
-
 export type OneShotRequest =
   | { kind: 'api'; path: string; method?: string; body?: unknown }
   | { kind: 'upload'; name: string; mime: string; base64: string }
@@ -36,12 +16,10 @@ export type OneShotRequest =
   | { kind: 'session' }
   | { kind: 'screenshot' }
   | { kind: 'google-auth' }
-  // data: { granted: boolean } — false is only ever returned as ok:false with
-  // a specific `error`; a caller never has to distinguish granted:false from
-  // a thrown error, because there isn't a success/false state, only ok/error.
-  | { kind: 'docs-auth'; interactive: boolean }
-  | { kind: 'docs-get'; documentId: string } // data: { title: string; paragraphs: DocsParagraph[] }
-  | { kind: 'docs-batch-update'; documentId: string; requests: unknown[] }; // data: { replies: unknown[] }
+  // The open Google Doc as plain text, through Docs' own export and the
+  // browser's cookies. No OAuth: the page itself cannot make this call (its
+  // CSP blocks it), the worker can. data: { text: string }
+  | { kind: 'docs-export'; documentId: string };
 
 export interface OneShotResponse {
   ok: boolean;

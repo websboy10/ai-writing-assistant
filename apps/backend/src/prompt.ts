@@ -1,8 +1,7 @@
 import type { ChatMessage, ChatRequest } from '@awa/shared';
 
 /**
- * The two things every reply must get right, shared by chat and autonomous
- * mode (../autonomous/prompt.ts imports it).
+ * The two things every reply must get right.
  *
  * PLAIN TEXT is not a style preference — it is the product working at all.
  * Every insertion path writes `text/plain`, so `**Salgsteknikker**` reaches the
