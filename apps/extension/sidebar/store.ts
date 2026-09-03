@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BillingInfo, ChatMessage, ContextItem, ConversationSummary, OutputPrefs, UsageInfo } from '@awa/shared';
-import { type InsertionState } from '@/insertion';
+import { DEFAULT_PACING, MAX_WPM, MIN_WPM, type InsertionState, type PacingConfig } from '@/insertion';
 import { call } from './api';
 import { stopGeneration } from './chat';
 
@@ -56,6 +56,11 @@ interface AwaState {
    * message bubble does not re-render on every streamed token (WR-14).
    */
   hasInsertTarget: boolean;
+  /**
+   * How "Indsæt langsomt" types. Persisted in chrome.storage.local, so the
+   * tempo a person settled on holds across every tab and every restart.
+   */
+  pacing: PacingConfig;
   // usage/history
   usage: UsageInfo | null;
   history: ConversationSummary[];
@@ -68,6 +73,7 @@ interface AwaState {
   loadBilling: () => Promise<void>;
   loadHistory: (q?: string) => Promise<void>;
   signOut: () => Promise<void>;
+  setPacing: (partial: Partial<PacingConfig>) => void;
   addContext: (item: ContextItem) => void;
   removeContext: (id: string) => void;
   newConversation: () => void;
@@ -91,6 +97,7 @@ export const useStore = create<AwaState>((set, get) => ({
   contextBusy: null,
   insertStatus: null,
   hasInsertTarget: false,
+  pacing: DEFAULT_PACING,
   usage: null,
   history: [],
   billing: null,
@@ -100,12 +107,14 @@ export const useStore = create<AwaState>((set, get) => ({
   loadSession: async () => {
     const res = await call({ kind: 'session' });
     const data = res.data as { email: string } | null;
+    const { pacing } = await chrome.storage.local.get('pacing');
     // Theme is fixed to light: the settings page is gone, so a stored 'dark'
     // from an earlier build would be a trap with no way out.
     set({
       email: data?.email ?? null,
       view: data ? 'chat' : 'auth',
       theme: 'light',
+      pacing: sanitizePacing(pacing),
     });
     if (data) {
       void get().loadUsage();
@@ -135,6 +144,12 @@ export const useStore = create<AwaState>((set, get) => ({
     set({ email: null, view: 'auth', messages: [], conversationId: null, history: [], usage: null, billing: null });
   },
 
+  setPacing: (partial) => {
+    const pacing = sanitizePacing({ ...get().pacing, ...partial });
+    set({ pacing });
+    void chrome.storage.local.set({ pacing });
+  },
+
   addContext: (item) => set({ context: [...get().context, item] }),
   removeContext: (id) => set({ context: get().context.filter((c) => c.id !== id) }),
 
@@ -153,3 +168,12 @@ export const useStore = create<AwaState>((set, get) => ({
   },
 }));
 
+/**
+ * Whatever storage holds becomes a config the engine can run: a value from an
+ * older build, or none at all, falls back to the default rather than to NaN.
+ */
+function sanitizePacing(raw: unknown): PacingConfig {
+  const r = (raw ?? {}) as Partial<PacingConfig>;
+  const wpm = typeof r.wpm === 'number' && Number.isFinite(r.wpm) ? Math.min(MAX_WPM, Math.max(MIN_WPM, Math.round(r.wpm))) : DEFAULT_PACING.wpm;
+  return { wpm };
+}

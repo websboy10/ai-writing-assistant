@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import type { OutputPrefs, PromptTemplate } from '@awa/shared';
 import { call } from '../api';
 import { sendChat, stopGeneration } from '../chat';
+import { MAX_WPM, MIN_WPM } from '@/insertion';
 import { inserter } from '../inserter';
 import { useStore, type UiMessage } from '../store';
 import { Banner } from './AuthView';
@@ -120,6 +121,8 @@ export function ChatView() {
           />
         </div>
 
+        <PacingRow />
+
         <div className="flex items-end gap-2">
           <textarea
             ref={composerRef}
@@ -161,6 +164,39 @@ export function ChatView() {
           <TargetHint />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * How "Indsæt langsomt" types, set once and remembered.
+ *
+ * A slider rather than three named presets: the point of slow mode is that a
+ * person reads along, and how fast that is comfortable differs by person and
+ * by document. The figure beside it is in words per minute because that is
+ * the unit people already have a feel for (a typist does 40 to 60).
+ */
+function PacingRow() {
+  const pacing = useStore((st) => st.pacing);
+  const setPacing = useStore((st) => st.setPacing);
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-aside text-graphite">
+      <label
+        className="flex min-w-[200px] flex-1 items-center gap-2"
+        title="Tempoet for Indsæt langsomt, i ord i minuttet. En person skriver typisk 30 til 60."
+      >
+        <span className="awa-eyebrow shrink-0">Tempo</span>
+        <input
+          type="range"
+          min={MIN_WPM}
+          max={MAX_WPM}
+          step={5}
+          value={pacing.wpm}
+          onChange={(e) => setPacing({ wpm: Number(e.target.value) })}
+          className="h-1 min-w-0 flex-1 accent-ink"
+        />
+        <span className="awa-num w-[76px] shrink-0 text-right">{pacing.wpm} ord/min</span>
+      </label>
     </div>
   );
 }
@@ -406,9 +442,10 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
   // empty content, so a mount-time seed would make Save erase the response.
   const [draft, setDraft] = useState('');
   const [copied, setCopied] = useState(false);
-  // A narrow selector, not the whole store: this re-renders when the answer
+  // Narrow selectors, not the whole store: this re-renders when the answer
   // changes and never on a streamed token.
   const canInsert = useStore((st) => st.hasInsertTarget);
+  const wpm = useStore((st) => st.pacing.wpm);
 
   if (m.role === 'user') {
     return <div className="ml-10 whitespace-pre-wrap rounded-xl bg-wash px-3 py-2 text-body">{m.content}</div>;
@@ -483,7 +520,7 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
           <button
             onClick={() => inserter.start(m.content, 'progressive')}
             className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
-            title="Skriver bogstav for bogstav i menneskeligt tempo (ca. 30 ord i minuttet), og kan sættes på pause eller stoppes når som helst"
+            title={`Skriver bogstav for bogstav, ${wpm} ord i minuttet (tempoet vælges nederst), og kan sættes på pause eller stoppes når som helst`}
           >
             Indsæt langsomt
           </button>

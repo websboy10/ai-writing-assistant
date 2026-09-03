@@ -55,14 +55,17 @@ export interface InsertionAdapter {
 }
 
 /**
- * One knob, no settings UI: slow mode types letter by letter at a human tempo.
- * 30 words/minute (the standard 5-chars-per-word measure → 2.5 letters/sec)
- * is deliberately unhurried — the user reads along as if a person were typing.
+ * How slow mode types. `wpm` is words per minute on the standard
+ * five-letters-per-word measure, so 30 is 2.5 letters a second: deliberately
+ * unhurried, the user reads along as if a person were typing. The slider in
+ * the panel moves it between MIN_WPM and MAX_WPM.
  */
 export interface PacingConfig {
   wpm: number;
 }
 
+export const MIN_WPM = 10;
+export const MAX_WPM = 200;
 export const DEFAULT_PACING: PacingConfig = { wpm: 30 };
 
 export type InsertionState = 'idle' | 'running' | 'paused' | 'stopped' | 'done' | 'error';

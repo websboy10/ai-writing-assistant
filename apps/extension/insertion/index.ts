@@ -7,7 +7,7 @@ import { GDocsAdapter } from './adapters/gdocs';
 export { TargetTracker, isGoogleDocs, parseDocumentId } from './target';
 export { InsertionSession } from './engine';
 export { GDocsAdapter } from './adapters/gdocs';
-export { DEFAULT_PACING } from './types';
+export { DEFAULT_PACING, MIN_WPM, MAX_WPM } from './types';
 // Everything written to an editor goes through text/plain, which renders
 // markdown literally — see plaintext.ts for the measurement.
 export { stripMarkdown } from './plaintext';

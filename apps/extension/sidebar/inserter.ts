@@ -1,6 +1,5 @@
 import {
   adapterFor,
-  DEFAULT_PACING,
   GDocsAdapter,
   InsertionSession,
   isGoogleDocs,
@@ -65,7 +64,7 @@ class Inserter {
           : !!target.range && !target.range.collapsed;
     const finalText = hasSelection ? `\n${text}` : text;
 
-    this.session = new InsertionSession(adapter, finalText, DEFAULT_PACING, {
+    this.session = new InsertionSession(adapter, finalText, store.pacing, {
       onState: (state, detail) => {
         const s = useStore.getState();
         if (state === 'error') {
