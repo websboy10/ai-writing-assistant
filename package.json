@@ -15,7 +15,8 @@
     "verify:drop": "node scripts/verify-drop.mjs",
     "verify:paywall": "node scripts/verify-paywall.mjs",
     "verify:all": "pnpm typecheck && pnpm test && pnpm verify:rls && pnpm verify:drop && pnpm verify && pnpm verify:ui && pnpm verify:docs",
-    "verify:prod": "bash scripts/verify-prod.sh"
+    "verify:prod": "bash scripts/verify-prod.sh",
+    "zip:store": "AWA_STORE_BUILD=1 pnpm --filter shared build && AWA_STORE_BUILD=1 pnpm --filter extension zip"
   },
   "devDependencies": {
     "playwright": "^1.49.0",

@@ -23,11 +23,22 @@ i devconsole. Rækkefølgen følger fanerne i konsollen.
 Pakken der skal uploades:
 `apps/extension/.output/extension-0.1.0-chrome.zip` (108 KB, bygget 2026-09-04)
 
-Kontrolleret ved at pakke den ud: ingen `oauth2`-nøgle, tilladelserne er
+> **`key` må IKKE med i pakken.** Målt ved upload 2026-09-04: butikken afviste
+> pakken med "Feltet key er ikke tilladt i manifestet". Butikken tildeler selv
+> udvidelsens id og nægter en pakke, der prøver at kræve et. `pnpm zip:store`
+> udelader feltet; den almindelige byggekommando beholder det, fordi et fast id
+> lokalt er det, der gør Google-login konfigurerbart under udvikling.
+>
+> **Følgen skal håndteres efter første upload:** den udgivne udvidelse får et
+> ANDET id end den lokale, så butikkens id skal tilføjes til Supabases
+> redirect-liste og til Google OAuth-klienten, ellers virker Google-login ikke
+> for nogen, der henter den i butikken.
+
+Kontrolleret ved at pakke den ud: ingen `oauth2`-nøgle, ingen `key`, tilladelserne er
 `storage`, `activeTab`, `clipboardWrite` og `identity`, værterne er `<all_urls>`
 plus backendens eget domæne. Ingen localhost, ingen nøgler.
 
-Byg den om med `pnpm --filter extension zip` — **uden** `VITE_BACKEND_URL`. Med
+Byg den om med **`pnpm zip:store`** — aldrig `pnpm --filter extension zip` alene, og **uden** `VITE_BACKEND_URL`. Med
 den variabel sat kommer `http://127.0.0.1:8787/*` med i manifestets
 host_permissions, og en tilladelse til udviklerens egen maskine er ikke noget,
 der kan begrundes i et review. Den nuværende pakke er kontrolleret: kun
