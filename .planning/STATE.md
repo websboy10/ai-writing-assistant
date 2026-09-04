@@ -74,9 +74,25 @@ attached chip: a short count on a long document means the synthetic select-all
 did not take. A read that comes back empty is reported as a failure, never as an
 empty document. TESTING.md has the walkthrough.
 
-**Not deployed, not pushed.** The backend still serves the deleted
-`/api/autonomous/answer` route until someone deploys; nothing calls it. Commits
-are local.
+**Deployed and pushed, 2026-09-04.** Production is
+`dpl_73J1wHnfn31DDKBQUAJ3zKf7zKRN`, deployed with the Vercel CLI from the repo
+root. Checked against the live domain afterwards, not assumed: `/api/health`
+200, `/api/autonomous/answer` **404** (the deleted route is genuinely gone),
+unauthenticated chat 401, billing status answers. `scripts/verify.mjs` re-run
+against the deployed backend: 44/44.
+
+**How this project deploys, because it is not obvious.** The Vercel project
+`ai-skriveassistent-api` has **no GitHub link** (`link: null`), so pushing to
+`origin/master` deploys nothing. Every deployment in its history came from the
+CLI. There is no `.vercel` directory in the repo either (it is gitignored and
+was lost with the machine), so the link has to be supplied by hand from the repo
+root, where the project's own `rootDirectory: apps/backend` then applies:
+
+```
+VERCEL_ORG_ID=team_p1rF17AClZ3lYE1MDZiSvzgf \
+VERCEL_PROJECT_ID=prj_2LcxQhYnQPKyAcdixxrPJmc43w4d \
+vercel --prod --yes
+```
 
 ## What exists and how it was verified
 

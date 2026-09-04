@@ -184,6 +184,20 @@ checked from this side afterwards rather than taken on trust:
 itself, and your walkthrough of Google Docs above. Google's OAuth verification
 is no longer on this list — see the section above.
 
+**Deploying the backend is not automatic, and this is the one thing that looks
+like it should be.** The Vercel project has no GitHub connection, so pushing to
+GitHub deploys nothing at all. It goes out with the Vercel CLI, from the
+project root:
+
+```
+VERCEL_ORG_ID=team_p1rF17AClZ3lYE1MDZiSvzgf \
+VERCEL_PROJECT_ID=prj_2LcxQhYnQPKyAcdixxrPJmc43w4d \
+vercel --prod --yes
+```
+
+Last deployed 2026-09-04. Check it landed with
+`curl -s -o /dev/null -w "%{http_code}" https://ai-skriveassistent-api.vercel.app/api/health`.
+
 ## Checking it yourself, without clicking
 
 Everything below drives a real Chrome with the real extension. They are the
