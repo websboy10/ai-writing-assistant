@@ -39,11 +39,12 @@ editor: through the document you already have open, at the cursor you placed.
   `documents` scope, no Drive scope, and no Google sign-in prompt for this.
   An earlier version of the extension asked for `auth/documents`; that was
   removed along with the feature that needed it.
-- **"+ Denne side" on a Google Doc** fetches the document's own plain-text
-  export with the cookies your browser already has, exactly as it would if you
-  chose File, Download, Plain text yourself. It only ever succeeds for a
-  document the account signed into your browser can already open, and it is
-  only ever sent when you press that button.
+- **"+ Denne side" on a Google Doc** asks the document for its own text the
+  way you would: it selects all and copies, inside the page, and reads the
+  result. No request is made to Google, nothing is put on your system
+  clipboard, and no account is involved. It happens only when you press that
+  button. Your cursor ends up at the end of the document afterwards, and the
+  panel says so.
 - **Where the text goes:** to our backend, and from there to the AI provider on
   the paid endpoints where training and prompt publication are disabled — the
   same route as everything else you send. It is not stored beyond the

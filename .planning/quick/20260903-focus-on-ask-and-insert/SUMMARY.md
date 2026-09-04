@@ -40,11 +40,15 @@ of steps rather than a queue of chunks. Slips are neighbouring-key errors,
 transpositions, doubled and skipped letters, noticed a character or two later
 and backspaced; now and then the last word or two are deleted and typed again.
 
-**4. "+ Denne side" on Google Docs, without a permission.** It used to read the
-document through the Docs API and the sensitive `auth/documents` scope. It now
-fetches the document's own plain-text export from the background worker with
-the cookies the browser already holds — the same thing as choosing File →
-Download → Plain text.
+**4. "+ Denne side" on Google Docs, without a Google account.** It used to read
+the document through the Docs API and the sensitive `auth/documents` scope.
+The first pass replaced that with the document's own `/export?format=txt`
+fetched with the browser's cookies, which asked for no permission but still
+required a signed-in account with access. The operator rejected that dependency
+outright, so it now does what a person does: select all, copy, read the result,
+all inside the page. No network call, no cookies, no account, and the system
+clipboard is never touched. The `docs-export` handler and its message kind are
+deleted.
 
 **5. Documentation.** TESTING.md, PRIVACY.md, the store listing, the store
 guide, the Google setup guide, REQUIREMENTS.md, ROADMAP.md and STATE.md all
@@ -95,11 +99,11 @@ date, and that the text is never cut where Google Docs would eat the space.
 ## Blocked, and it is the operator's
 
 **Google Docs is unproven.** This machine has no Google session, so neither
-insertion into a real document nor the rewritten "+ Denne side" has been run end
-to end. The refusal path *was* measured from the extension's own service worker
-on 2026-09-04: a document the browser cannot open answers `HTTP 404` with
-`text/html`, so the code rejects it rather than attaching a sign-in page as if
-it were the user's document. The walkthrough is in TESTING.md.
+insertion into a real document nor the new "+ Denne side" has been run end to
+end. The thing to look at is the character count on the attached chip: a short
+count on a long document means the synthetic select-all did not take. A read
+that comes back empty is reported as a failure, never as an empty document. The
+walkthrough is in TESTING.md.
 
 **Not deployed, not pushed.** Commits are local. The deleted
 `/api/autonomous/answer` route stays live on Vercel until the backend is

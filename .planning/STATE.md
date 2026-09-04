@@ -59,12 +59,20 @@ on through the rich-text section too, which is the hardest place to take
 characters back. Unit tests: 45, including that human typing ends byte-identical
 to the draft across 60 seeded runs.
 
+**Nothing Google-account-shaped is left, by operator instruction (2026-09-04).**
+"+ Denne side" briefly read a Doc through its own `/export?format=txt` with the
+browser's cookies. That asked for no permission, but it still only worked for a
+browser signed into an account with access — a dependency on Google the operator
+would not carry. It now does what a person does: select all, copy, read the
+result, entirely inside the page. No network call, no cookies, no account, and
+nothing touches the system clipboard. The `docs-export` handler is deleted.
+
 **Unproven, and it needs the operator.** Google Docs. There is no Google session
-on this machine, so neither insertion into a real Doc nor the rewritten
-"+ Denne side" has been run end to end. What *was* measured is the refusal path:
-a document the browser cannot open answers with HTML and a 404, and the code
-checks for exactly that rather than attaching a sign-in page as if it were the
-user's document. TESTING.md has the walkthrough.
+on this machine, so neither insertion into a real Doc nor the new "+ Denne side"
+has been run end to end. The one thing to check is the character count on the
+attached chip: a short count on a long document means the synthetic select-all
+did not take. A read that comes back empty is reported as a failure, never as an
+empty document. TESTING.md has the walkthrough.
 
 **Not deployed, not pushed.** The backend still serves the deleted
 `/api/autonomous/answer` route until someone deploys; nothing calls it. Commits

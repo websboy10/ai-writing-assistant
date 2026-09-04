@@ -300,9 +300,10 @@ e-mail og navn til kontooprettelsen.
 > brugte den. Det betyder, at **Googles OAuth-verifikation ikke længere er en
 > blokering for en offentlig udgivelse** — kun Web Store-reviewet er tilbage.
 > På Google Docs skriver udvidelsen gennem dokumentet, brugeren allerede har
-> åbent, og "+ Denne side" henter dokumentets egen teksteksport med de cookies,
-> browseren allerede har — præcis som hvis brugeren selv valgte Filer,
-> Download, Almindelig tekst.
+> åbent, og "+ Denne side" beder dokumentet om sin egen tekst på samme måde som
+> brugeren selv ville: markér alt, kopiér, læs resultatet — inde i siden. Der
+> sendes ingen forespørgsel til Google, der røres ikke ved udklipsholderen, og
+> der er ingen Google-konto indblandet.
 
 **Remote code** *(Google spørger: bruger du fjernkode?)*
 

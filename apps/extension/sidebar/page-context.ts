@@ -1,6 +1,5 @@
 import { MAX_CONTEXT_CHARS_PER_ITEM, type ContextItem } from '@awa/shared';
-import type { OneShotRequest, OneShotResponse } from '@/utils/protocol';
-import { isGoogleDocs, parseDocumentId } from '@/insertion';
+import { gdocsWholeDocumentText, isGoogleDocs } from '@/insertion';
 import { newContextId } from './ingest';
 
 /**
@@ -9,43 +8,48 @@ import { newContextId } from './ingest';
  * Two different reads, because the two kinds of page are genuinely different:
  *
  *   Google Docs   Docs paints to canvas, so there is nothing on the page to
- *                 read. Docs' own text export answers with the whole document
- *                 for anyone whose browser is signed in, and the background
- *                 worker fetches it with those cookies. No Google permission
- *                 is asked for, none is needed.
+ *                 read. It is asked for its own text the way a person asks:
+ *                 select all, copy. No Google account, no permission, no
+ *                 network call — see gdocsWholeDocumentText.
  *   anything else `innerText` of the body, which is what the reader sees —
  *                 not `textContent`, which would drag in script and style
  *                 bodies and every hidden menu on the page.
  */
 
-function oneShot(req: OneShotRequest): Promise<OneShotResponse> {
-  return chrome.runtime.sendMessage(req);
-}
-
 export interface PageContextResult {
   item?: ContextItem;
   error?: string;
+  /** Something that went fine but the user still has to know about. */
+  notice?: string;
 }
 
-export async function readPageAsContext(): Promise<PageContextResult> {
+export function readPageAsContext(): PageContextResult {
   if (isGoogleDocs()) return readDocs();
   return readOrdinaryPage();
 }
 
-async function readDocs(): Promise<PageContextResult> {
-  const documentId = parseDocumentId();
-  if (!documentId) {
-    return { error: 'Dette ser ud til at være Google Docs, men dokumentets id kunne ikke læses fra adressen.' };
+function readDocs(): PageContextResult {
+  const text = gdocsWholeDocumentText().replace(/\n{3,}/g, '\n\n').trim();
+  if (!text) {
+    // Never "the document is empty": we cannot tell an empty document from a
+    // read that failed, and guessing wrong attaches nothing while claiming
+    // there was nothing to attach.
+    return {
+      error:
+        'Teksten i dokumentet kunne ikke læses. Klik ind i dokumentet, så markøren står i det, og prøv igen — eller markér teksten selv og brug Brug som kontekst.',
+    };
   }
-  const res = await oneShot({ kind: 'docs-export', documentId });
-  if (!res.ok) return { error: res.error ?? 'Dokumentet kunne ikke læses.' };
-  const { text } = res.data as { text: string };
-  const trimmed = text.replace(/\n{3,}/g, '\n\n').trim();
-  if (!trimmed) return { error: 'Dokumentet er tomt — der er ingen tekst at vedhæfte.' };
   // The tab is titled "<document> - Google Docs"; the document's own name is
   // the half worth keeping.
   const title = document.title.replace(/\s*[-–]\s*Google Docs\s*$/, '').trim();
-  return { item: toItem(title || 'Google Docs-dokument', trimmed) };
+  return {
+    item: toItem(title || 'Google Docs-dokument', text),
+    // Reading the document means selecting it, and a selection has to be
+    // collapsed somewhere. Saying so beats letting the user find out when
+    // their next insertion lands at the bottom of the page.
+    notice:
+      'Dokumentet er vedhæftet. Markøren står nu sidst i dokumentet — klik der, hvor teksten skal ind, før du indsætter.',
+  };
 }
 
 function readOrdinaryPage(): PageContextResult {

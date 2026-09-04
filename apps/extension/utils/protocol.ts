@@ -15,11 +15,7 @@ export type OneShotRequest =
   | { kind: 'reset'; email: string }
   | { kind: 'session' }
   | { kind: 'screenshot' }
-  | { kind: 'google-auth' }
-  // The open Google Doc as plain text, through Docs' own export and the
-  // browser's cookies. No OAuth: the page itself cannot make this call (its
-  // CSP blocks it), the worker can. data: { text: string }
-  | { kind: 'docs-export'; documentId: string };
+  | { kind: 'google-auth' };
 
 export interface OneShotResponse {
   ok: boolean;

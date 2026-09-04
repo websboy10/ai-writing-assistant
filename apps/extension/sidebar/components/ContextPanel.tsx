@@ -55,14 +55,18 @@ export function ContextChips() {
     }
     s.set({ contextBusy: 'Læser siden…', error: null });
     try {
-      const { item, error } = await readPageAsContext();
+      const { item, error, notice } = readPageAsContext();
       if (error || !item) {
         s.set({ error: error ?? 'Siden kunne ikke læses.' });
         return;
       }
       s.addContext(item);
+      // Truncation is the more urgent of the two: it says the assistant is
+      // working from part of the page, which changes what its answer is worth.
       if (item.truncated) {
         s.set({ notice: `Siden var lang — de første ${item.chars.toLocaleString('da-DK')} tegn er vedhæftet.` });
+      } else if (notice) {
+        s.set({ notice });
       }
     } finally {
       s.set({ contextBusy: null });

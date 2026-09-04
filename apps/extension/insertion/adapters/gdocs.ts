@@ -1,6 +1,6 @@
 import type { InsertionAdapter, InsertResult } from '../types';
 import { awaLog, describeNode } from '../debug';
-import { gdocsSelectionTextNow } from '../target';
+import { gdocsCommandKey, gdocsSelectionTextNow, pressGdocsKey } from '../target';
 
 /**
  * Google Docs adapter — the fragile one, by design kept fully isolated.
@@ -179,7 +179,7 @@ export class GDocsAdapter implements InsertionAdapter {
     // collapses it to its end (same synthetic-keystroke channel as undo).
     if (GDocsAdapter.hasSelection()) {
       const el = this.targetEl();
-      if (el) pressKey(el, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 });
+      if (el) pressGdocsKey(el, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 });
     }
     return { ok: true, verified: false };
   }
@@ -253,7 +253,7 @@ export class GDocsAdapter implements InsertionAdapter {
     const el = this.targetEl();
     if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt forsvandt midt i indsættelsen.' };
     const n = Math.min(count, this.netChars);
-    for (let i = 0; i < n; i++) pressKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
+    for (let i = 0; i < n; i++) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
     this.netChars -= n;
     this.deletions += n;
     return { ok: true, verified: false };
@@ -263,14 +263,10 @@ export class GDocsAdapter implements InsertionAdapter {
     const el = this.targetEl();
     if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt kan ikke nås længere.' };
     if (this.deletions > 0) {
-      for (let i = 0; i < this.netChars; i++) pressKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
+      for (let i = 0; i < this.netChars; i++) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
     } else {
-      const platform =
-        (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ??
-        navigator.platform;
-      const isMac = platform.toLowerCase().includes('mac');
       for (let i = 0; i < this.chunksInserted; i++) {
-        pressKey(el, { key: 'z', code: 'KeyZ', keyCode: 90, which: 90, ...(isMac ? { metaKey: true } : { ctrlKey: true }) });
+        pressGdocsKey(el, { key: 'z', code: 'KeyZ', keyCode: 90, which: 90, ...gdocsCommandKey() });
       }
     }
     this.chunksInserted = 0;
@@ -278,10 +274,4 @@ export class GDocsAdapter implements InsertionAdapter {
     this.deletions = 0;
     return { ok: true, verified: false };
   }
-}
-
-function pressKey(el: HTMLElement, init: KeyboardEventInit): void {
-  const full: KeyboardEventInit = { bubbles: true, cancelable: true, ...init };
-  el.dispatchEvent(new KeyboardEvent('keydown', full));
-  el.dispatchEvent(new KeyboardEvent('keyup', full));
 }

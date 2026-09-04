@@ -4,7 +4,7 @@ import { PlainAdapter } from './adapters/plain';
 import { ContentEditableAdapter } from './adapters/contenteditable';
 import { GDocsAdapter } from './adapters/gdocs';
 
-export { TargetTracker, isGoogleDocs, parseDocumentId } from './target';
+export { TargetTracker, isGoogleDocs, gdocsWholeDocumentText } from './target';
 export { InsertionSession } from './engine';
 export { GDocsAdapter } from './adapters/gdocs';
 export { DEFAULT_PACING, MIN_WPM, MAX_WPM } from './types';

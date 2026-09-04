@@ -116,20 +116,28 @@ instead — that is designed behaviour, not a crash.
 ### "+ Denne side" on a Google Doc — new, and unproven
 
 Attaching the open document as background used to need a Google permission.
-It now reads the document's own plain-text export using the cookies your
-browser already has, the same thing that happens if you choose File → Download
-→ Plain text yourself. **No permission is requested any more.**
+Then it used the document's own export, which needed no permission but still
+needed the browser to be signed into an account with access. **Both are gone.**
+It now does what you would do: select all, copy, read the result — inside the
+page, with no request to Google and no account involved at all.
 
 Press **+ Denne side** in a Google Doc and click the chip to read back what was
-attached. It should be the document's text.
+attached. Check two things:
+
+1. **Is it the whole document?** The chip shows a character count and the
+   preview shows the exact text. A short count on a long document means the
+   select-all did not take, and that is the failure that matters — tell me the
+   number you see.
+2. **The panel should say your cursor moved.** Reading the document means
+   selecting it, and the selection has to be collapsed somewhere, so the caret
+   ends up at the end. Click where you want text before inserting.
+
+Nothing on your system clipboard is touched.
 
 This path has not been run against a real document on this machine: there is no
-Google session here to run it with. What was measured (2026-09-04) is the
-refusal: a document the browser cannot open answers with an HTML sign-in page,
-not text, and the extension checks for exactly that rather than attaching the
-sign-in page as if it were your document. If it fails for you, it should say so
-in one Danish sentence — tell me if it says anything else, or attaches
-something that is not your document.
+Google session here to open one with. If it fails, it should say so in one
+Danish sentence and tell you to click into the document. Tell me if it says
+anything else, or attaches something that is not your document.
 
 ## What deliberately doesn't work yet
 
@@ -145,10 +153,12 @@ This section used to explain which parts of the product were held up by
 Google's verification of the OAuth app, because `auth/documents` is a sensitive
 scope and that review is measured in weeks.
 
-**There is nothing left to wait for.** The extension no longer asks for any
-Google scope beyond sign-in: writing into a Doc goes through the document you
-already have open, and "+ Denne side" reads the document's own text export with
-the cookies the browser already holds. The manifest has no `oauth2` key at all.
+**There is nothing left to wait for.** Nothing the extension does to a Google
+Doc involves a Google account: writing goes through the document you already
+have open, and "+ Denne side" selects and copies inside the page. The manifest
+has no `oauth2` key at all. The only Google anything left in the product is the
+"Fortsæt med Google" button for creating an account, which is a sign-in
+convenience and asks for nothing but your email and name.
 
 So a **public** Chrome Web Store listing is now gated by the store review
 alone, not by Google's OAuth verification on top of it.

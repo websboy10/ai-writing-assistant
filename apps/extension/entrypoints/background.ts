@@ -253,28 +253,6 @@ export default defineBackground(() => {
         });
         return { ok: userRes?.ok ?? true, status: 200, data: { email } };
       }
-      case 'docs-export': {
-        // Docs' own plain-text export, with the cookies this browser already
-        // holds. The Docs page itself cannot make this call (its CSP blocks
-        // it); the worker can, and needs no Google permission for it. A
-        // browser that is signed out, or an account without access, is
-        // redirected to a sign-in page: an HTML answer where text was asked
-        // for, which is how those two cases are told apart from success.
-        const url = `https://docs.google.com/document/d/${encodeURIComponent(msg.documentId)}/export?format=txt`;
-        const res = await fetch(url, { credentials: 'include' }).catch(() => null);
-        if (!res) return { ok: false, status: 0, error: 'Google Docs kunne ikke nås lige nu. Prøv igen om et øjeblik.' };
-        const type = res.headers.get('content-type') ?? '';
-        if (!res.ok || !type.startsWith('text/plain')) {
-          return {
-            ok: false,
-            status: res.status,
-            error: 'Dokumentet kunne ikke læses. Den Google-konto, der er logget ind i denne Chrome-profil, skal have adgang til det.',
-          };
-        }
-        // The export opens with a BOM and uses Windows line endings.
-        const text = (await res.text()).replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
-        return { ok: true, status: 200, data: { text } };
-      }
     }
   }
 

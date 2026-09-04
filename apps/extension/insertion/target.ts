@@ -18,10 +18,27 @@ export function isGoogleDocs(): boolean {
   return location.host === 'docs.google.com' && !!document.querySelector(GDOCS_IFRAME);
 }
 
-/** The document id out of a docs.google.com/document/d/<id>/edit address. */
-export function parseDocumentId(): string | null {
-  const m = location.href.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
-  return m ? m[1] : null;
+/**
+ * A synthetic keystroke aimed at the element Docs listens on.
+ *
+ * The one channel this codebase has for telling Docs to do something it has no
+ * paste for: collapse a selection, undo, backspace, select all. Lives here
+ * rather than in the adapter because three different callers need it and a
+ * second copy of a Docs resolution has drifted out of step once already
+ * (see gdocsEventTarget above).
+ */
+export function pressGdocsKey(el: HTMLElement, init: KeyboardEventInit): void {
+  const full: KeyboardEventInit = { bubbles: true, cancelable: true, ...init };
+  el.dispatchEvent(new KeyboardEvent('keydown', full));
+  el.dispatchEvent(new KeyboardEvent('keyup', full));
+}
+
+/** Cmd on a Mac, Ctrl everywhere else — for the shortcuts Docs owns. */
+export function gdocsCommandKey(): { metaKey: true } | { ctrlKey: true } {
+  const platform =
+    (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+    navigator.platform;
+  return platform.toLowerCase().includes('mac') ? { metaKey: true } : { ctrlKey: true };
 }
 
 /**
@@ -77,6 +94,40 @@ export function gdocsSelectionTextNow(): string {
   } catch {
     return '';
   }
+}
+
+/**
+ * The whole document's text, with no Google account involved at any point.
+ *
+ * This used to fetch Docs' own `/export?format=txt` with the browser's
+ * cookies. That asked for no permission, but it still only worked for a
+ * browser signed into an account with access to the file — a dependency on
+ * Google that the product is not willing to carry.
+ *
+ * So it does what a person does instead: select all, copy. Both halves already
+ * exist and are proven. `pressGdocsKey` is the same channel that collapses a
+ * selection before every insertion, and `gdocsSelectionTextNow` is the
+ * synthetic-copy read the selection bar was built on — Docs serialises the
+ * marked text into a DataTransfer we supply, and nothing reaches the system
+ * clipboard because the event is untrusted and the DataTransfer is our own.
+ *
+ * The caret ends up at the end of the document, because collapsing a
+ * select-all has nowhere else to put it. The caller says so out loud rather
+ * than letting the user discover it when their next insertion lands somewhere
+ * they did not expect.
+ *
+ * Returns '' when Docs gives nothing back, which the caller must treat as a
+ * failure and never as an empty document.
+ */
+export function gdocsWholeDocumentText(): string {
+  const el = gdocsEventTarget();
+  if (!el) return '';
+  pressGdocsKey(el, { key: 'a', code: 'KeyA', keyCode: 65, which: 65, ...gdocsCommandKey() });
+  const text = gdocsSelectionTextNow();
+  // Collapse, whether or not the read worked: leaving the user's whole
+  // document selected is how the next keystroke deletes all of it.
+  pressGdocsKey(el, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 });
+  return text;
 }
 
 function isTextInput(el: Element): el is HTMLInputElement | HTMLTextAreaElement {

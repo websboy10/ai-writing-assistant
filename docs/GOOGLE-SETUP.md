@@ -299,17 +299,18 @@ What the product does on Google Docs now:
 - **Writing** goes through the document the user already has open, at the
   cursor they placed — the same mechanism as every other editor. No API, no
   token, no permission prompt.
-- **"+ Denne side"** fetches the document's own plain-text export with the
-  cookies the browser already holds, exactly as a person choosing File,
-  Download, Plain text would. It succeeds only for a document the signed-in
-  browser can already open, and refuses clearly when it cannot — an
-  inaccessible document answers with an HTML sign-in page rather than text, and
-  the extension checks for exactly that rather than attaching it as if it were
-  the user's document (measured 2026-09-04: HTTP 404, `text/html`).
+- **"+ Denne side"** asks the document for its own text the way a person does:
+  select all, copy, read the result, all inside the page. No request reaches
+  Google, nothing touches the system clipboard, and no account is involved.
+  A read that comes back empty is reported as a failure, never as an empty
+  document.
 
-So **Steps 1 to 6 are all that remain, and they only serve sign-in.** There is
-no `documents` scope anywhere, which also means no Google OAuth verification
-standing between the extension and a public Chrome Web Store listing.
+So **Steps 1 to 6 are all that remain, and they only serve sign-in** — the
+"Fortsæt med Google" button on the account screen, which is a convenience for
+creating an account and has nothing to do with documents. Nothing the extension
+does to a Google Doc involves a Google account, a token or a scope. That also
+means no Google OAuth verification standing between the extension and a public
+Chrome Web Store listing.
 
 > If you already created the "AI Skriveassistent – Docs" Chrome Extension
 > client from an older version of this guide, nothing uses it. You can delete
