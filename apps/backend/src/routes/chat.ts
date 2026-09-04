@@ -96,6 +96,7 @@ export function chatRoutes(app: FastifyInstance): void {
     let assistantText = '';
     let tokensIn = 0;
     let tokensOut = 0;
+    let costCredits: number | null = null;
     let servedBy = '';
     const startedAt = Date.now();
 
@@ -112,9 +113,10 @@ export function chatRoutes(app: FastifyInstance): void {
           assistantText += text;
           send({ type: 'token', text });
         },
-        onUsage: (i, o) => {
+        onUsage: (i, o, cost) => {
           tokensIn = i;
           tokensOut = o;
+          costCredits = cost;
         },
         // A fallback that nobody can see is a fallback nobody fixes: the chain
         // silently served every request from its last model for an unknown
@@ -168,6 +170,10 @@ export function chatRoutes(app: FastifyInstance): void {
         chars_out: assistantText.length,
         context_items: body.context?.length ?? 0,
         ms: Date.now() - startedAt,
+        // What this answer cost, in OpenRouter credits. Summed over a window
+        // this is real spend, and divided into the remaining balance it is a
+        // runway in days — both on the dashboard, neither guessed.
+        cost: costCredits,
       });
     } catch (err) {
       // The quota point was consumed up front (QUOT-01). If the user received

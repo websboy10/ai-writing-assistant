@@ -4,7 +4,16 @@ import { env } from './env.js';
 export interface StreamHandlers {
   onToken: (text: string) => void;
   onMeta: (model: string) => void;
-  onUsage: (tokensIn: number, tokensOut: number) => void;
+  /**
+   * `cost` is what this one generation actually cost, in OpenRouter credits.
+   *
+   * It arrives free with `usage: { include: true }`, which this file already
+   * asks for, and was being dropped on the floor. Recording it is the
+   * difference between a dashboard that can say "answers cost 0.004 credits
+   * each and the balance lasts 41 days" and one that can only say how many
+   * tokens went past. Null when the provider did not report one.
+   */
+  onUsage: (tokensIn: number, tokensOut: number, cost: number | null) => void;
   /**
    * A model in the chain failed and the next one is being tried.
    *
@@ -243,7 +252,8 @@ async function streamOne(
         const delta = parsed.choices?.[0]?.delta?.content;
         if (typeof delta === 'string' && delta.length) handlers.onToken(delta);
         if (parsed.usage) {
-          handlers.onUsage(parsed.usage.prompt_tokens ?? 0, parsed.usage.completion_tokens ?? 0);
+          const cost = typeof parsed.usage.cost === 'number' ? parsed.usage.cost : null;
+          handlers.onUsage(parsed.usage.prompt_tokens ?? 0, parsed.usage.completion_tokens ?? 0, cost);
         }
         // OpenRouter surfaces upstream provider errors as an SSE data payload.
         if (parsed.error) throw new Error(parsed.error.message ?? 'provider error');
