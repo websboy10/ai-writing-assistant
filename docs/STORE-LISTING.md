@@ -14,7 +14,11 @@ Skrevet 2026-08-06. Alt herunder er skrevet til at blive **kopieret direkte ind*
 i devconsole. Rækkefølgen følger fanerne i konsollen.
 
 Pakken der skal uploades:
-`apps/extension/.output/extension-0.1.0-chrome.zip` (118 KB, bygget 2026-08-27)
+`apps/extension/.output/extension-0.1.0-chrome.zip` (108 KB, bygget 2026-09-04)
+
+Kontrolleret ved at pakke den ud: ingen `oauth2`-nøgle, tilladelserne er
+`storage`, `activeTab`, `clipboardWrite` og `identity`, værterne er `<all_urls>`
+plus backendens eget domæne. Ingen localhost, ingen nøgler.
 
 Byg den om med `pnpm --filter extension zip` — **uden** `VITE_BACKEND_URL`. Med
 den variabel sat kommer `http://127.0.0.1:8787/*` med i manifestets
@@ -208,11 +212,23 @@ Rækkefølgen er ikke tilfældig: butikken viser den første som forsidebillede,
 nummer 4 er den, der sælger produktet — men den giver først mening, når man har
 set panelet først.
 
-Skal de tages om (UI'et har ændret sig, teksten skal være en anden):
+> **De nuværende filer i `store-assets/` er forældede og må ikke uploades.**
+> De er fra 2026-09-02 og viser panelet som det så ud før: `01-markeret-tekst.png`
+> og `05-besvar-alle.png` viser funktioner, der ikke findes mere, og resten viser
+> et panel uden tempo-skyder. De ligger der stadig, fordi de kun kan tages om i
+> et rigtigt Google-dokument, og det kræver en Google-konto, som denne maskine
+> ikke har.
+
+Tag dem om — det er ét kald, og det kræver at `.chrome-profile-cft` er logget
+ind på Google:
 
 ```
 node scripts/store-shots.mjs
 ```
+
+Skriptet skriver de fire nye filer. Slet `01-markeret-tekst.png` og
+`05-besvar-alle.png` bagefter; de bliver ikke overskrevet, fordi de ikke længere
+har et navn, skriptet bruger.
 
 ---
 
