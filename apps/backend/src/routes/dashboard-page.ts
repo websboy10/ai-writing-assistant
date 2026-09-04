@@ -33,6 +33,7 @@ h1{font:600 1.45rem/1.2 Charter,Georgia,serif;margin:0}
 .btn{font:inherit;font-size:.85rem;padding:6px 14px;border-radius:999px;border:1px solid var(--line);
   background:var(--card);color:var(--ink);cursor:pointer}
 .btn:hover{border-color:var(--ink)}
+.btn.on{background:var(--bad);border-color:var(--bad);color:#fff}
 
 /* health strip */
 .health{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}
@@ -97,7 +98,9 @@ form .btn{padding:11px;background:var(--ink);color:#fff;border-color:var(--ink)}
 <div id="app">
   <div class="top">
     <h1>ChatBot Skriv</h1>
-    <div><span class="stamp" id="stamp"></span> <button class="btn" id="refresh">Opdatér</button></div>
+    <div><span class="stamp" id="stamp"></span>
+      <button class="btn" id="paywallToggle" title="Skifter kun det nye brugere får ved oprettelse">…</button>
+      <button class="btn" id="refresh">Opdatér</button></div>
   </div>
   <div class="health" id="health"></div>
 
@@ -198,9 +201,47 @@ $('login').addEventListener('submit', async (e) => {
   token = b.access_token;
   sessionStorage.setItem('awa_admin', token);
   load();
+  loadPaywallConfig();
 });
 
 $('refresh').addEventListener('click', () => load());
+
+function renderPaywallBtn(hardPaywall) {
+  const b = $('paywallToggle');
+  b.textContent = hardPaywall ? 'Hård betalingsmur: TIL' : 'Hård betalingsmur: FRA (prøveperiode)';
+  b.classList.toggle('on', hardPaywall);
+}
+
+async function loadPaywallConfig() {
+  try {
+    const r = await fetch('/api/admin/config', { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) return;
+    const b = await r.json();
+    renderPaywallBtn(b.hardPaywall);
+  } catch (e) { /* leaves the button on its placeholder label */ }
+}
+
+$('paywallToggle').addEventListener('click', async () => {
+  const turningOn = !$('paywallToggle').classList.contains('on');
+  const msg = turningOn
+    ? 'Slå hård betalingsmur TIL?\n\nNye brugere får ingen prøveperiode. Alle der er i gang med en prøveperiode nu bliver spærret med det samme.'
+    : 'Slå hård betalingsmur FRA?\n\nNye brugere får 7 dages gratis prøveperiode igen. Allerede spærrede konti forbliver spærrede.';
+  if (!confirm(msg)) return;
+  const btn = $('paywallToggle');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/admin/config', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: turningOn }),
+    });
+    const b = await r.json();
+    if (!r.ok) { alert(b.error || 'Kunne ikke skifte.'); return; }
+    renderPaywallBtn(b.hardPaywall);
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 async function load() {
   $('login').style.display = 'none';
@@ -316,5 +357,5 @@ async function load() {
   }
 }
 
-if (token) load();
+if (token) { load(); loadPaywallConfig(); }
 </script></body></html>`;

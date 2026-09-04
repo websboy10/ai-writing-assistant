@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type Stripe from 'stripe';
 import { env } from '../env.js';
 import { verifyUser, anonRpc, type AuthedUser } from '../supabase.js';
+import { capture } from '../analytics.js';
 import { stripe } from '../billing.js';
 import { hogql } from '../analytics.js';
 import { enforce, HOUR } from '../limit.js';
@@ -70,6 +71,31 @@ export function adminRoutes(app: FastifyInstance): void {
       product: unwrap(product),
       usage: unwrap(usage),
     };
+  });
+
+  /** Whether new signups get a trial or land straight on the paywall. */
+  app.get('/api/admin/config', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    const [row] = await anonRpc<{ hard_paywall: boolean }[]>('admin_get_config');
+    return { hardPaywall: row?.hard_paywall ?? false };
+  });
+
+  /**
+   * Flips it. Turning it ON also expires everyone currently mid-trial, not
+   * just future signups — see the migration for why that's the intended
+   * behaviour, not a side effect.
+   */
+  app.post<{ Body: { enabled?: boolean } }>('/api/admin/config', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    const enabled = req.body?.enabled;
+    if (typeof enabled !== 'boolean') {
+      return reply.code(400).send({ error: 'enabled skal være true eller false', code: 'bad_request' });
+    }
+    await anonRpc('admin_set_hard_paywall', { p_enabled: enabled });
+    await capture(user.id, 'admin_hard_paywall_toggled', { enabled });
+    return { hardPaywall: enabled };
   });
 
   app.get('/dashboard', async (_req, reply) => {
