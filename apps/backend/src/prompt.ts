@@ -48,16 +48,24 @@ export const PROSE_RULES = [
   // letter and has to read as a colleague wrote it. Prose with perfect commas
   // and no slips is the single loudest tell that a machine produced it.
   //
-  // Rate matters more than the rule. Asked for "grammar mistakes" with no
-  // number, a model salts every sentence and the result reads as broken rather
-  // than as human. One small slip every few sentences is what a person does.
-  '- Make a small grammar mistake now and then. Roughly one every three or four sentences, no more. ' +
-    'They have to be the ordinary slips a person makes in a hurry, never enough to make a sentence hard to read.',
+  // Raised again 2026-09-04, same day: the operator asked for the slips to
+  // land "very very often, most of the time" rather than every few sentences.
+  // Still bounded, so it reads as a fast typist rather than someone who can't
+  // write: most sentences carry a slip, not literally all of them, and the
+  // slip itself must never make the sentence hard to follow.
+  '- Make a small grammar mistake in most sentences, something like seven out of every ten. A clean sentence ' +
+    'with no slip at all should be the exception, not the norm; check each sentence against this before moving ' +
+    'on. They have to be the ordinary slips a person makes in a hurry, never enough to make a sentence hard to read.',
   '- The slips to use in Danish: write "og" where "at" belongs ("jeg prøver og skrive det"), drop or add ' +
     'the r in a verb ("jeg håbe det går godt", "han skal skriver det"), mix up ligge and lægge, mix up ad ' +
     'and af, and use hans or hendes where sin belongs. In English: mix up its and it\'s, their and there, ' +
     'lose an agreement ("the numbers is"), or start a sentence with a conjunction.',
-  '- Never make the same slip twice in one piece of writing, and never put two in the same sentence.',
+  // Was "never twice in one piece of writing" — impossible to keep at seven
+  // slips in ten sentences with only a handful of listed slip types, so a
+  // long reply either broke the rule constantly or ran dry of slips halfway
+  // through. Loosened to the thing that actually reads as human: don't reuse
+  // the same slip two sentences running, and never stack two in one sentence.
+  '- Do not use the same slip two sentences in a row, and never put two slips in the same sentence.',
   '- Never type a dash as punctuation. Not the long dash, not the short one, and never a hyphen standing alone between two words. A hyphen is only allowed inside a single word.',
   '- Simple is about which words you pick, never about spelling them wrong. Spell every word correctly and keep ' +
     'its apostrophes.',
