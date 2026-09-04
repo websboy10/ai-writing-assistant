@@ -1,8 +1,15 @@
 # How to test the app — 10 minutes
 
-Updated 2026-08-06. Plain language. Everything here was already walked through
+Updated 2026-09-04. Plain language. Everything here was already walked through
 in a real browser by automated tests before being handed to you — but your
 walkthrough is the proof that counts.
+
+**What changed on 2026-09-04.** The product now does one thing: you ask, you
+get a draft, and it goes into your document — instantly, or typed out at a
+speed you choose. "Besvar alle spørgsmål" and "Besvar markeringen" are gone,
+and with them the Google Docs permission. New: a tempo slider, and a switch
+called **Skriv som et menneske** that makes the typing slip and correct itself
+the way a person does.
 
 ## What's already running
 
@@ -38,11 +45,13 @@ confirmation email; click the link, then sign in.
    Try the ■ button mid-reply to stop it.
 5. **Insert — the main event**. Every reply has exactly two insert buttons:
    - **Indsæt straks** — everything lands at once
-   - **Indsæt langsomt** — letter by letter at human typing tempo (~30 words
-     per minute), so anyone watching the doc sees normal typing
+   - **Indsæt langsomt** — letter by letter, at the speed the slider is set to
    - Click into the **plain textarea** on the test page first, then try
      **Indsæt langsomt**: Pause, Fortsæt, and **Fortryd indsættelse** (the
      field returns to exactly how it was)
+   - **Move the tempo slider** (just under the attachments row) and insert
+     again. It runs from 10 to 200 words a minute; 30 is where it starts, and
+     200 is roughly as fast as anyone types. It is remembered.
 6. **The trap test**: click into the second field ("framework-controlled") and
    press **Indsæt straks**. The text must stay there. This field actively tries
    to reject inserted text the way LinkedIn and Gmail do.
@@ -51,12 +60,16 @@ confirmation email; click the link, then sign in.
 8. **Files**: press **+ Fil** → attach any PDF, Word, text, Markdown or image
    file → ask "opsummér den vedhæftede fil". Scanned PDFs and photos of text
    work too (they're read with Danish OCR). Also try **+ Skærmbillede**.
-9. **Marked text — two jobs, both offered when you select text on a page**:
-   - **Besvar markeringen** — the assistant answers the marked text, and the
-     answer is inserted on a new line *below* the marked text, never over it
-   - **Brug som kontekst** — the marked text is attached as background
-     knowledge (a chip, like a file)
-10. **History**: top of panel → Historik. Search, export, delete. **Log ud** is
+9. **Skriv som et menneske** — the switch beside the tempo slider. Turn it on,
+   ask for a paragraph, and press **Indsæt langsomt** while watching the field.
+   You should see the occasional wrong letter appear and get taken back, and
+   now and then a word deleted and typed again. When it finishes, the text must
+   be exactly the draft that was in the panel — check the end of it.
+   It is off until you turn it on, and it stays on once you do.
+10. **Insertion below a selection** — select some text in a field first, then
+   press **Indsæt straks**. The answer lands on a new line *below* what you
+   selected, never over it.
+11. **History**: top of panel → Historik. Search, export, delete. **Log ud** is
     the only other button up there — there is no settings page anymore.
 
 ## Freemium & betaling (nyt)
@@ -79,127 +92,66 @@ confirmation email; click the link, then sign in.
 
 ## The Google Docs test — needs your eyes
 
-This is the one thing automation couldn't verify, because it needs a signed-in
-Google account. It matters most — your first users live in Docs.
+This is the one thing automation cannot verify here, because it needs a
+signed-in Google account and this machine has none. It matters most — your
+first users live in Docs.
 
 1. In the test Chrome window, sign in to Google and open any Google Doc
-2. Select a line in the document (e.g. a question someone wrote)
-3. Open the panel → **Besvar markeringen** → send → press **Indsæt langsomt**
-4. Tell me what you saw — "it typed under my selection" or "nothing happened"
-   is exactly the level of detail I need
+2. Click into the document so the cursor is in it
+3. Open the panel, ask for a couple of sentences, and press **Indsæt straks**
+4. Do it again with **Indsæt langsomt**, and once more with **Skriv som et
+   menneske** switched on
+5. Press **Fortryd indsættelse** after each and check the document goes back to
+   how it was
 
-If Docs insertion isn't working, the extension will say so and offer Copy
-instead — that's designed behavior, not a crash.
+*What to tell me:* "it typed into my document" or "nothing happened" is exactly
+the level of detail I need. For the human-typing run, also say whether the
+finished text was correct — a leftover wrong letter is the one failure that
+would matter, and it is the thing the automated tests cover on every other kind
+of editor but cannot cover here.
 
-## Autonomous mode — the 20-minute walkthrough
+If Docs insertion is not working, the extension says so and offers Copy
+instead — that is designed behaviour, not a crash.
 
-This is the feature from Phase 7: a project leader sends a worker a document
-full of questions, the worker presses one button, and the answers get written
-in. Six checks. Say what you saw for each, including anything slow or ugly.
+### "+ Denne side" on a Google Doc — new, and unproven
 
-**Before you start:** reload the extension at `chrome://extensions` **and**
-press Cmd+R on the document tab. Skipping the second gives "Extension context
-invalidated" — a panel that renders but does nothing.
+Attaching the open document as background used to need a Google permission.
+It now reads the document's own plain-text export using the cookies your
+browser already has, the same thing that happens if you choose File → Download
+→ Plain text yourself. **No permission is requested any more.**
 
-### 1. A plain text field (the easy case)
+Press **+ Denne side** in a Google Doc and click the chip to read back what was
+attached. It should be the document's text.
 
-Test page → the first textarea, which already holds five questions. Click into
-it → **Besvar alle spørgsmål** → **Straks**.
-
-*Correct:* every question keeps its own text, and an answer appears on the line
-directly beneath it. The one plain statement in the middle gets nothing.
-
-A question nothing in your material could answer gets a real answer too, written
-as though it were simply true — invented figures, dates and names that fit the
-subject. That is deliberate (changed 2026-08-26): what lands in the document is
-a first draft you edit, and an invented-but-sensible answer can be edited where
-"det fremgår ikke af dokumentet" cannot. Nothing anywhere says which answers
-were made up; you asked a machine to fill in a form it had no sources for, so
-being told so inside your own document was noise you then had to delete.
-
-### 2. A rich-text editor
-
-Same page, second field (the contenteditable). Same button, but pick
-**Langsomt**.
-
-*Correct:* the answers type themselves out, first question first, working
-downward. **Pause** stops the whole run, not one answer; **Fortsæt** picks it
-up; **Fortryd alle svar** takes every answer back out in one press. Close the
-panel mid-run — the run must keep going without it.
-
-### 3. A real Google Doc — the one that matters
-
-Make a document with three questions in it, the kind you'd actually be sent.
-Open it, open the panel, **Besvar alle spørgsmål** → **Langsomt**.
-
-The first time, Google will ask for permission to access your documents. Say
-yes here (check 5 is where you say no).
-
-*Correct:* each answer typed under its own question, top down, your own
-formatting untouched. **Fortryd alle svar** brings it all back out.
-
-*Known open:* spaces may be missing inside slow-typed text on Docs
-("detterikke"). That's the whitespace bug in the table above, not a new fault —
-note whether you see it and move on.
-
-### 4. Ten questions at once, from a marking
-
-In the same document, mark a block of ten questions → **Besvar markeringen** →
-either mode.
-
-*Correct:* the panel asks Straks or Langsomt and then writes — no draft, no
-second Insert press. All ten answered in place, none skipped.
-
-### 5. Say no to Google
-
-Remove the permission at
-[myaccount.google.com/permissions](https://myaccount.google.com/permissions),
-or use a fresh Chrome profile. Run autonomous mode on a Doc again and
-**decline**.
-
-*Correct:* you still get answers — collected in one block at the cursor, each
-question repeated above its answer — and the panel states plainly why the
-placement is different. **What must not happen: nothing, silently.**
-
-### 6. The old behaviour still works
-
-Mark some text → **Brug som kontekst**.
-
-*Correct:* a chip appears above the message box and nothing is written into the
-document. Exactly as before — this button was not supposed to change.
+This path has not been run against a real document on this machine: there is no
+Google session here to run it with. What was measured (2026-09-04) is the
+refusal: a document the browser cannot open answers with an HTML sign-in page,
+not text, and the extension checks for exactly that rather than attaching the
+sign-in page as if it were your document. If it fails for you, it should say so
+in one Danish sentence — tell me if it says anything else, or attaches
+something that is not your document.
 
 ## What deliberately doesn't work yet
 
 | Thing | Why | When |
 |---|---|---|
 | "Continue with Google" button | Needs the Google credential from `docs/SETUP.md` Job 4 (10 min, your Google account) | Whenever you want it |
-| Letter-by-letter spacing inside Google Docs | Each letter is its own paste and Docs appears to drop the space that comes with it, so slow insertion lands as "detterikke". Open — needs one observation in a real Doc before it can be fixed honestly (see the whitespace probe in the spike panel) | Next Docs session |
-| Google OAuth verification for autonomous mode | `auth/documents` is a sensitive scope. The app is in Testing mode: up to 100 users you add yourself, no verification. Public launch needs Google to verify the OAuth app | Before public launch |
+| "+ Denne side" inside Google Docs | Rewritten to need no Google permission; the refusal path is measured but the success path needs a signed-in browser | Your walkthrough |
 | Rich-editor insertion on Gmail/LinkedIn/Slack/Notion | Built and passing on an equivalent test editor; needs sign-ins to verify on the real sites — same as the Docs test above | Your walkthrough |
 
-## What the Google approval actually gates
+## The Google approval is no longer a thing
 
-`auth/documents` is a sensitive scope, so a public launch needs Google to
-verify the OAuth app — a process measured in weeks, and it is listed below as a
-launch blocker. It is worth knowing that it does **not** block everything, because
-that changes the order you can ship in.
+This section used to explain which parts of the product were held up by
+Google's verification of the OAuth app, because `auth/documents` is a sensitive
+scope and that review is measured in weeks.
 
-Works with no Google approval at all — it drives Docs' own find bar, exactly as
-a person would:
+**There is nothing left to wait for.** The extension no longer asks for any
+Google scope beyond sign-in: writing into a Doc goes through the document you
+already have open, and "+ Denne side" reads the document's own text export with
+the cookies the browser already holds. The manifest has no `oauth2` key at all.
 
-- Chat, and both insert modes, in a real document
-- Undo
-- **Besvar markeringen** — mark a section, get every question in it answered
-
-Needs the approval, because both have to *read* the document through the API:
-
-- **Besvar alle spørgsmål** across a whole document
-- **+ Denne side** on Google Docs (on every other site it reads the page directly)
-
-So a first release could ship Docs support on the marking path and add
-whole-document answering when Google comes back, rather than waiting for them
-before anything ships at all. Your call — it is a sequencing question, not a
-technical one.
+So a **public** Chrome Web Store listing is now gated by the store review
+alone, not by Google's OAuth verification on top of it.
 
 ## Things only you can do
 
@@ -213,16 +165,14 @@ checked from this side afterwards rather than taken on trust:
    whose tasks are pictures cannot be read at all without them.
 
 2. ~~**Add `SUPABASE_SERVICE_ROLE_KEY` to Vercel.**~~ **Done.** Proved by the
-   behaviour that key exists for: an autonomous run that finds no questions now
-   charges 2 and refunds 2, net zero. That refund had never once worked — first
+   behaviour that key exists for: a run that produces no answer refunds the
+   quota point it charged, net zero. That refund had never once worked — first
    because `rpc()` crashed on the empty 204 body a `void` function returns, then
    because the privileged call had no key to make it with.
 
-**Still outstanding, and genuinely yours:** Google's OAuth verification. It
-gates only whole-document answering and "+ Denne side" **on Docs**, so it does
-not hold up a first release; see the capability table above for exactly what
-runs without it. Google takes roughly 2–6 weeks, so it is worth starting early
-even though nothing is blocked on it today.
+**Still outstanding, and genuinely yours:** the Chrome Web Store submission
+itself, and your walkthrough of Google Docs above. Google's OAuth verification
+is no longer on this list — see the section above.
 
 ## Checking it yourself, without clicking
 
@@ -231,18 +181,17 @@ proof behind any claim that something works.
 
 | Command | What it proves | Costs AI quota |
 |---|---|---|
-| `pnpm typecheck && pnpm test` | 58 unit tests; nothing about the UI | no |
+| `pnpm typecheck && pnpm test` | 45 unit tests, including that human typing always ends up as exactly the draft over 60 different random runs; nothing about the UI | no |
 | `pnpm verify:rls` | The paywall and the daily limit cannot be picked open | no |
 | `pnpm verify:drop` | Dragging a file onto the edge button attaches it | no |
-| `pnpm verify:ui` | 45 points: the panel, all eight actions, marked text, page-as-context, long paste, templates, resize, and a stream that dies before the first token | 1 request |
+| `pnpm verify:ui` | The panel itself: asking, page-as-context, long paste, templates, resize, banners, Danish sign-in errors, and a stream that dies before the first token | 1 request |
 | `pnpm verify:paywall` | The whole payment flow, with a Stripe test card, and puts the account back afterwards | no |
-| `pnpm verify:docs` | 27 points on Google Docs: insert, undo, slow insert, answer a marking, answer a whole document, undo all | ~9 requests |
-| `pnpm verify:autonomous` | 42 points on autonomous mode in ordinary editors: ten questions in one marking, pause/resume, undo-everything-in-one-press, an unanswerable question getting a real answer anyway, and the full acceptance walk with an attached file | ~20 requests |
-| `pnpm verify:all` | Everything above except the paywall and autonomous | ~12 requests |
-| `node scripts/spike-docs-image.mjs` | A Google Doc whose only content is a PICTURE of a task: the answer is written underneath it | ~2 requests |
+| `pnpm verify` | 44 points in a real browser: sign-in, live streaming chat, both insert modes, pause/resume/stop/undo, the tempo slider, **Skriv som et menneske** (the field is sampled while it types, and some samples must NOT be a prefix of the draft), the framework-revert trap, rich text, the typing-race guard, history and export | ~2 requests |
+| `pnpm verify:docs` | Google Docs: insert, undo, slow insert — needs a Google session in `.chrome-profile-cft` | ~3 requests |
+| `pnpm verify:all` | Everything above except the paywall | ~4 requests |
 | `pnpm verify:prod` | The same, but against the DEPLOYED backend, with the extension built exactly as a user installs it | ~10 requests |
 
-`pnpm verify:docs --only=answer-selection` runs one section on its own.
+`pnpm verify:docs --only=chat-progressive` runs one section on its own.
 
 The daily limit is 200 requests per account, resetting at 02.00 Danish time. A
 full round of Docs testing uses about 5% of it.

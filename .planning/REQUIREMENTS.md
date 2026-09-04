@@ -82,25 +82,24 @@ to exactly one roadmap phase.
 - [ ] **HIST-02**: Conversations persist across devices for a signed-in user
 - [x] **HIST-03**: User can delete a conversation, and deletion removes stored content
 
-### Autonomous Mode
+### Autonomous Mode — WITHDRAWN 2026-09-04
 
-- [x] **AUTO-01**: User can answer every question in the open document with one button, each answer written directly beneath its question
-- [x] **AUTO-02**: User can mark text holding one question or twenty, press "Besvar markeringen", and have every marked question answered in place — the panel asks Straks or Langsomt and then writes, with no generate-into-the-panel step
-- [x] **AUTO-03**: The AI decides what counts as a question — question marks, numbered fields, imperative prompts and headings with blank space beneath all count; there is no rule-based detector
-- [x] **AUTO-04**: Answers are built from the document itself plus any files already attached in the panel
-- [x] **AUTO-05**: Questions the assistant had nothing to draw on are listed in the panel, never marked in the document and never a gate
-- [x] **AUTO-06**: Each question's position is resolved at the moment it is needed, never all measured up front
-- [x] **AUTO-07**: Straks and Langsomt are the entire interface — no review step, no approval gate, no third mode, no settings
-- [x] **AUTO-08**: Langsomt types letter by letter starting at the first question and working downward, one answer at a time
-- [x] **AUTO-09**: User can pause, resume, stop and undo an entire run as a single action
-- [x] **AUTO-10**: A keystroke from the user during a run auto-pauses the whole run
-- [x] **AUTO-11**: On Google Docs the document is read once via the Docs API, and answers land at exact positions with the user's formatting intact
-- [x] **AUTO-12**: Google Docs positioning uses Docs' own Find; typing reuses the existing insertion engine, costing zero write quota
-- [x] **AUTO-13**: Docs access is obtained via chrome.identity against a Chrome-Extension OAuth client, requested at first use, with a partial consent grant treated as a refusal
-- [x] **AUTO-14**: A user who declines the Google permission, or whose Docs call fails, still gets every answer and is told plainly that the placement is degraded
-- [x] **AUTO-15**: A long run continues while the panel is collapsed
-- [x] **AUTO-16**: "Brug som kontekst" behaves exactly as it did before this phase
-- [x] **AUTO-17**: Every autonomous-mode failure states what went wrong and what to do next — never a silent no-op
+AUTO-01 to AUTO-17 are withdrawn, and the code that satisfied them is deleted.
+They were all built and all marked complete; the operator's own use is what
+retired them. Answering questions in place inside Google Docs never became
+dependable enough to hand to a user — the formatting and the placement were
+the parts that kept failing — and the whole capability dragged Google's
+verification of a sensitive OAuth scope along behind it for a public listing.
+
+What replaces them is not a smaller version of the same thing. It is the one
+behaviour that was already dependable, made adjustable: ask, get a draft, put
+it into the document at a speed you choose. See PACE-01 and PACE-02 under the
+Insertion Engine.
+
+### Insertion Engine — added 2026-09-04
+
+- [x] **PACE-01**: User can set how fast progressive insertion types, from 10 to 200 words per minute, and the setting is remembered across sessions and tabs
+- [x] **PACE-02**: User can switch on a human typing style in which the assistant makes and corrects small mistakes as it writes — wrong letters noticed a beat later, and the occasional word deleted and retyped — while the finished text is always byte-identical to the draft. Off by default, remembered once set
 
 ### Trust, Quotas & Compliance
 
@@ -225,31 +224,17 @@ Explicitly excluded. Documented to prevent scope creep.
 | QUOT-06 | Phase 6 — Quota Hardening, Usage Transparency & Trust Polish | Pending |
 | QUOT-07 | Phase 1 — Foundation: Sidebar, Accounts & Guarded Chat | Pending |
 | QUOT-08 | Phase 6 — Quota Hardening, Usage Transparency & Trust Polish | Pending |
+| PACE-01 | Quick task 2026-09-04 — focus on ask, answer, insert | Complete |
+| PACE-02 | Quick task 2026-09-04 — focus on ask, answer, insert | Complete |
 
-| AUTO-01 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-02 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-03 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-04 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-05 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-06 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-07 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-08 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-09 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-10 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-11 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-12 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-13 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-14 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-15 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-16 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
-| AUTO-17 | Phase 7 — Autonomous mode: answer every question in a document | Complete |
 
 **Coverage:**
 
-- v1 requirements: 77 total (60 original + 17 AUTO added with Phase 7)
-- Mapped to phases: 77
+- v1 requirements: 62 total (60 original + 2 PACE added 2026-09-04; the 17 AUTO
+  requirements were withdrawn the same day, with their code)
+- Mapped to phases: 62
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-08-05*
-*Last updated: 2026-08-06 — AUTO-01..AUTO-17 coined during Phase 7 planning from CONTEXT decisions D-01..D-17 (77/77 mapped across 7 phases)*
+*Last updated: 2026-09-04 — AUTO-01..AUTO-17 withdrawn with the code that satisfied them; PACE-01 and PACE-02 added for the tempo control and the human typing style (62/62 mapped)*

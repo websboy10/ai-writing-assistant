@@ -1,9 +1,11 @@
 # Chrome Web Store — færdig tekst til alle felter
 
-> **GENOPTAGET 2026-08-27.** Pausen fra 6. august er ovre. De tre ting, pausen
-> udskød, er gjort: beskrivelserne er gennemgået og udvidet med "Besvar alle
-> spørgsmål" og billedopgaver (begge kom til efter 6. august), skærmbillederne
-> er taget mod det nuværende UI, og blokeringen nederst er afklaret.
+> **OPDATERET 2026-09-04.** Produktet er skåret ind til én ting: spørg, få et
+> udkast, sæt det ind — straks eller langsomt, i det tempo du vælger. "Besvar
+> alle spørgsmål" og "Besvar markeringen" er fjernet, og med dem Google
+> Docs-tilladelsen `auth/documents`. **Det fjerner Googles OAuth-verifikation
+> som blokering for en offentlig udgivelse** — den eneste ting her, der blev
+> målt i uger.
 >
 > Skærmbillederne holder kun så længe UI'et gør. Ændrer panelet sig igen før
 > indsendelse, så tag dem om — det er ét kommandokald, ikke et stykke arbejde.
@@ -58,8 +60,8 @@ Alt+Shift+A), så åbner et panel i højre side. Skriv til assistenten som i en
 almindelig chat. Når svaret er klar, vælger du selv, hvordan det skal ind:
 
 • Indsæt straks — hele teksten lander på ét sekund
-• Indsæt langsomt — bogstav for bogstav i et naturligt skrivetempo, cirka 30
-  ord i minuttet, så det ser ud som almindelig skrivning
+• Indsæt langsomt — bogstav for bogstav i et skrivetempo, du selv vælger med
+  en skyder, fra roligt til hurtigt
 
 Undervejs kan du sætte på pause, fortsætte, stoppe helt og fortryde. Begynder du
 selv at skrive midt i en indsættelse, sætter assistenten automatisk på pause og
@@ -77,22 +79,15 @@ Træk PDF, Word, tekst, Markdown eller billeder ind i samtalen, og skriv ud fra
 indholdet. Scannede dokumenter og fotos af tekst læses automatisk med OCR, med
 fuld understøttelse af dansk.
 
-MARKÉR TEKST — VÆLG HVAD DEN SKAL BRUGES TIL
+DIT TEMPO — OG EN SKRIVESTIL, DER LIGNER ET MENNESKE
 
-Markér tekst på en side og vælg mellem to ting: få den besvaret, så svaret
-lander lige under det markerede — eller vedhæft den som baggrund til samtalen.
-Assistenten overskriver aldrig det, du har markeret.
+Skyderen bestemmer, hvor hurtigt teksten skrives ind. Slår du "Skriv som et
+menneske" til, laver assistenten undervejs de små fejl et menneske laver: et
+forkert bogstav, der opdages et par tegn senere og rettes, og en gang imellem
+et ord, der slettes og skrives om. Det ser ud som en kollega, der sidder og
+skriver i dokumentet. Slutteksten er altid præcis det udkast, du godkendte.
 
-BESVAR ET HELT DOKUMENT PÅ ÉN GANG
-
-Har du et spørgeskema, en opgave eller en formular med mange spørgsmål, finder
-assistenten hvert enkelt spørgsmål og skriver svaret under det rigtige af dem.
-Én knap starter det. Du kan følge med undervejs, sætte på pause, stoppe — og
-fortryde hele kørslen med ét tryk, uanset hvor mange svar der nåede ind.
-
-Opgaver, der står som billeder i dokumentet, læses med. En scannet
-matematikopgave, et fotograferet spørgsmål eller en indsat tabel bliver besvaret
-som alt andet.
+Funktionen er slået fra, indtil du selv slår den til.
 
 DINE SAMTALER GEMMES
 
@@ -204,14 +199,13 @@ en butiksside er offentlig.
 
 | # | Fil | Hvad den viser |
 |---|---|---|
-| 1 | `01-markeret-tekst.png` | Markeret tekst, og de to ting den kan bruges til |
+| 1 | `01-klar.png` | Panelet åbent i et rigtigt dokument, før det første spørgsmål |
 | 2 | `02-udkast.png` | Et færdigt udkast og de fire måder at bruge det på |
 | 3 | `03-vedhaeft-filer.png` | Vedhæftet fil som baggrund for svaret |
 | 4 | `04-indsaet-langsomt.png` | Indsættelse bogstav for bogstav, midt i en kørsel |
-| 5 | `05-besvar-alle.png` | Hele dokumentet besvaret, ét svar under hvert spørgsmål |
 
 Rækkefølgen er ikke tilfældig: butikken viser den første som forsidebillede, og
-nummer 5 er den, der sælger produktet — men den giver først mening, når man har
+nummer 4 er den, der sælger produktet — men den giver først mening, når man har
 set panelet først.
 
 Skal de tages om (UI'et har ændret sig, teksten skal være en anden):
@@ -285,31 +279,14 @@ brugeren kan oprette konto uden at vælge endnu et kodeord. Der hentes kun
 e-mail og navn til kontooprettelsen.
 ```
 
-**`oauth2` (manifest-nøglen) — scope `https://www.googleapis.com/auth/documents`**
-
-```
-Udvidelsens ene formål er at indsætte tekst i den editor, brugeren arbejder i.
-Google Docs tegner sit dokument til et canvas, så der findes ingen tekst i
-siden at læse eller skrive i. Derfor er Docs-API'et den eneste måde at finde
-spørgsmålene i dokumentet og placere svaret under det rigtige af dem.
-
-Tilladelsen bedes der først om, når brugeren selv starter "Besvar alle
-spørgsmål" i et åbent Google-dokument — aldrig ved oprettelse af konto, og
-aldrig hvis funktionen ikke bruges. Der læses ét dokument, det brugeren har
-åbent, én gang per kørsel. Der skrives kun svarene, som almindelig tekst.
-Deling, rettigheder, kommentarer, versionshistorik og Drive røres aldrig — der
-bedes ikke om Drive-scope, så andre filer kan hverken ses eller listes.
-
-Afviser brugeren tilladelsen, virker funktionen stadig: svarene samles i én
-blok ved markøren, og panelet siger hvorfor placeringen er anderledes.
-```
-
-> **Til gennemgangen:** `auth/documents` er et *sensitive scope*. OAuth-appen
-> står i **Testing**-tilstand — den virker for op til 100 udtrykkeligt
-> tilføjede testbrugere uden Googles verifikation. **Før offentlig lancering
-> skal OAuth-appen gennem Googles verifikation** (separat proces fra Web
-> Store-reviewet, og typisk længere). Unlisted-udgivelse til betabrugere kan
-> køre på Testing-tilstanden i mellemtiden.
+> **Der bedes ikke længere om noget Google-scope.** Manifestet har ingen
+> `oauth2`-nøgle, og `auth/documents` er væk sammen med den funktion, der
+> brugte den. Det betyder, at **Googles OAuth-verifikation ikke længere er en
+> blokering for en offentlig udgivelse** — kun Web Store-reviewet er tilbage.
+> På Google Docs skriver udvidelsen gennem dokumentet, brugeren allerede har
+> åbent, og "+ Denne side" henter dokumentets egen teksteksport med de cookies,
+> browseren allerede har — præcis som hvis brugeren selv valgte Filer,
+> Download, Almindelig tekst.
 
 **Remote code** *(Google spørger: bruger du fjernkode?)*
 
@@ -388,6 +365,7 @@ erklæringer nederst i Privacy-fanen kan sættes med god samvittighed.
 betalte modeller via OpenRouter-kontoen. Gratis-kæden bruges kun til vores egen
 testtrafik. Det er den regning, rettelsen flytter — ikke en teknisk risiko.
 
-**Tilbage før Submit:** OAuth-appens verifikation hos Google (se
-`auth/documents` ovenfor) er den eneste rigtige blokering for en **offentlig**
-udgivelse. Unlisted til betabrugere kan sendes ind nu.
+**Tilbage før Submit:** ingenting fra vores side. Den blokering, der stod her —
+Googles verifikation af OAuth-appen, fordi `auth/documents` er et *sensitive
+scope* — er væk, fordi tilladelsen ikke længere bedes om. Både **Unlisted** og
+**Public** kan sendes ind nu; kun Web Store-reviewet er tilbage.

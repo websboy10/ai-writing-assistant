@@ -1,7 +1,7 @@
 ---
 quick_id: 20260903-focus-on-ask-and-insert
 type: quick
-status: in-progress
+status: complete
 created: 2026-09-03
 operator_request: >
   Strip "Besvar markeringen" (answers written into the marked text) and

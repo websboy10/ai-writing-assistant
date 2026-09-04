@@ -33,8 +33,7 @@ leverer al teksten færdigskrevet, du kopierer den ind:
   AI-skriveassistent, der indsætter tekst i felter, brugeren selv vælger
 - **Permission justifications** — jeg skriver begrundelsen for hver:
   `<all_urls>` (assistenten skal kunne indsætte tekst på den side, brugeren
-  arbejder på), `storage`, `activeTab`, `clipboardWrite`, `identity` og
-  Google Docs-scopet `auth/documents` (autonom tilstand — se Trin 3½)
+  arbejder på), `storage`, `activeTab`, `clipboardWrite` og `identity`
 - **Privacy policy URL**: `https://ai-skriveassistent.vercel.app/privatliv.html` ✅ (findes allerede)
 - **Data use**-skemaet: vi indsamler login-oplysninger og brugerindhold, kun
   til appens funktion, sælges ikke, deles ikke til reklame — jeg giver dig
@@ -45,30 +44,28 @@ leverer al teksten færdigskrevet, du kopierer den ind:
   Perfekt til betabrugere, samme review-proces, og du kan skifte til Public
   senere uden ny godkendelse af selve udvidelsen.
 
-## Trin 3½ — Tjek før du trykker Submit (DIG — 2 min)
+## Trin 3½ — Én ting at kontrollere efter upload (DIG — 1 min)
 
-**Udvidelsens ID skal være det samme som det, Google Docs-nøglen er udstedt til.**
+**Udvidelsens ID skal være det, Supabases redirect-liste kender.**
 
-Autonom tilstand henter et Docs-token gennem en OAuth-klient af typen *Chrome
-Extension*, og den klient er bundet til ét bestemt udvidelses-ID. Passer de to
-ikke sammen, fejler tilladelsen med `bad client id` for hver eneste bruger —
-og alt andet i udvidelsen ser normalt ud imens.
+"Log ind med Google" sender brugeren tilbage til
+`https://<udvidelses-id>.chromiumapp.org/`, og Supabase accepterer kun adresser,
+der står på dens liste. Vi har låst ID'et på forhånd: `wxt.config.ts` indeholder
+en `key`-værdi, og Chrome udleder altid ID'et af den, så butikken får samme ID
+som din lokale kopi.
 
-Vi har låst ID'et på forhånd: `wxt.config.ts` indeholder en `key`-værdi, og
-Chrome udleder altid ID'et af den. Derfor får butikken samme ID som din lokale
-kopi, i stedet for at finde på et nyt ved upload. **Kontrollér det alligevel én
-gang efter upload:** ID'et står øverst på udgivelsens side i devconsole, og det
-skal stå ord for ord som *Item ID* på OAuth-klienten i Google Cloud Console →
-*Credentials*. Er de forskellige, ret klienten (ikke udvidelsen) og gem.
+**Kontrollér det alligevel én gang efter upload:** ID'et står øverst på
+udgivelsens side i devconsole. Er det et andet, tilføj
+`https://<det-nye-id>.chromiumapp.org/*` til Supabases Redirect URLs. Supabase
+accepterer flere ad gangen, så begge kan virke samtidig.
 
-Samme fælde som Supabase-redirect-URL'en: begge peger på et ID, der skal være
-identisk to steder, og begge fejler tavst for brugeren, ikke for dig.
+Det fejler tavst for brugeren, ikke for dig — derfor står det her.
 
-**Og den store:** `auth/documents` er et *sensitive scope*. OAuth-appen står i
-**Testing**-tilstand — den dækker op til 100 testbrugere, du selv tilføjer, uden
-Googles verifikation. Til en **Unlisted** betaudgivelse er det nok. Skal
-udvidelsen være **Public**, skal OAuth-appen først verificeres af Google — en
-selvstændig proces oven i Web Store-reviewet, og typisk den langsomste af de to.
+> **Der er ikke længere noget Google-scope at vente på.** Udvidelsen beder ikke
+> om `auth/documents`, så der er ingen *sensitive scope*, ingen Testing-tilstand
+> med 100 brugere og ingen OAuth-verifikation før en offentlig udgivelse. Det
+> var tidligere den langsomste af de to processer; nu er der kun Web
+> Store-reviewet.
 
 ## Trin 4 — Indsend til review (1 klik)
 

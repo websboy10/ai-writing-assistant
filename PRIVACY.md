@@ -30,31 +30,26 @@
 - Free models, whose providers may train on inputs, are used only for our own
   synthetic test traffic — never for your content.
 
-## Google Docs access (autonomous mode)
+## Google Docs
 
-Autonomous mode — the button that answers every question in a document — asks
-for one Google permission, and only when you first use it on a Google Doc.
-Never at sign-up, and never if you don't use the feature.
+The assistant writes into a Google Doc the same way it writes into any other
+editor: through the document you already have open, at the cursor you placed.
 
-- **The permission is `https://www.googleapis.com/auth/documents`, and nothing
-  else.** It covers the document you have open. It does not include Drive.
-- **What is read:** the text and paragraph structure of the document you are
-  looking at, once per run, so the questions can be found and the answers
-  placed under the right ones.
-- **What is written:** only the answers, and only as plain text under the
-  question each belongs to. Your own text is never edited, moved or deleted.
+- **No Google permission is requested, and none is needed.** There is no
+  `documents` scope, no Drive scope, and no Google sign-in prompt for this.
+  An earlier version of the extension asked for `auth/documents`; that was
+  removed along with the feature that needed it.
+- **"+ Denne side" on a Google Doc** fetches the document's own plain-text
+  export with the cookies your browser already has, exactly as it would if you
+  chose File, Download, Plain text yourself. It only ever succeeds for a
+  document the account signed into your browser can already open, and it is
+  only ever sent when you press that button.
+- **Where the text goes:** to our backend, and from there to the AI provider on
+  the paid endpoints where training and prompt publication are disabled — the
+  same route as everything else you send. It is not stored beyond the
+  conversation it belongs to.
 - **What is never touched:** sharing settings, permissions, comments, version
-  history, other documents, and Drive itself — file listings included. We
-  cannot see that a file exists unless you have it open and start a run.
-- **Where the document text goes:** to our backend, and from there to the AI
-  provider on the paid endpoints where training and prompt publication are
-  disabled — the same route as everything else you send. It is not stored
-  beyond the conversation the run belongs to.
-- **You can say no.** Decline the permission and autonomous mode still works:
-  the answers arrive collected in one block at your cursor, with each question
-  repeated above its answer, and the panel tells you plainly why the placement
-  is different. You can withdraw the permission at any time at
-  [myaccount.google.com](https://myaccount.google.com/permissions).
+  history, other documents, and Drive itself. Nothing can list your files.
 
 ## Deletion
 
@@ -69,5 +64,4 @@ account removes everything (contact us during beta: sehit@degirmenci.dk).
 | Storage | Remember your session, theme and settings |
 | Active tab / tabs | Screenshot capture and sidebar toggling |
 | Clipboard write | The Copy button and the clipboard fallback when insertion fails |
-| Identity | Google sign-in, and the Docs permission above when you first use autonomous mode on a Doc |
-| Google Docs (`auth/documents`) | Read the open document's questions and write the answers under them — requested at first use, never at sign-up, and declinable |
+| Identity | "Continue with Google" sign-in, and nothing else |

@@ -44,14 +44,23 @@ configured, exactly as it does today.
 
 ---
 
-## Step 2 — Turn on the Google Docs API (1 min)
+## Step 2 — Turn on the Google Docs API (skip — no longer used)
+
+> **Not needed any more.** The extension does not call the Docs API; see
+> Step 7. Left here only so an older checklist does not look truncated. If you
+> already enabled it, turning it off changes nothing.
+
+<details><summary>The old step</summary>
+
+### Turn on the Google Docs API (1 min)
 
 1. Left menu → **APIs & Services** → **Library**
 2. Search for **Google Docs API**
 3. Click it → **Enable**
 
-That's the API Phase 7 uses to read a document's structure and write answers
-where they belong.
+That's the API the removed whole-document answering used.
+
+</details>
 
 ---
 
@@ -146,20 +155,15 @@ Clients, Data Access**. Those five are the rest of this job.
    `.../auth/userinfo.email`.
 4. Clear the filter, type `userinfo.profile`, then tick the row
    `.../auth/userinfo.profile`.
-5. Scroll the panel to the very bottom, to the box headed
-   **Manually add scopes**.
-6. Paste this in, exactly:
-   ```
-   https://www.googleapis.com/auth/documents
-   ```
-7. Click **Add to table**.
-8. Confirm the table now lists three scopes — the two userinfo ones and
-   `.../auth/documents`.
-9. Click **Update** (bottom of the panel).
-10. Click **Save**.
+5. Confirm the table lists those two scopes and nothing else.
+6. Click **Update** (bottom of the panel).
+7. Click **Save**.
 
-> Google will mark `documents` as a **sensitive scope** and may show a warning.
-> That is expected and is not a problem — Step 5 explains why.
+> **Do not add `.../auth/documents` here.** An older version of this guide did;
+> the extension no longer uses it, and it is Google's *sensitive* scope — the
+> one that would put a public listing behind a verification process measured in
+> weeks. Two ordinary userinfo scopes need no verification at all. If it is
+> already in your table from an earlier run, remove it.
 
 ---
 
@@ -284,86 +288,33 @@ have to send me anything.
 
 ---
 
-## Step 7 — What happens after sign-in is wired (my part)
+## Step 7 — Google Docs needs no key at all (my part)
 
-Earlier drafts of this doc said I'd take the Docs permission from Supabase's
-sign-in token and refresh it on the backend. **That plan is out** — Supabase
-does not refresh a `provider_token`, and Google's tokens expire hourly, so
-making it work would have meant putting your Google **client secret** on our
-server. That directly contradicts what Step 6 promised you: the secret stays
-in Supabase, full stop.
+Earlier drafts of this doc set up a **second** OAuth client so the extension
+could read and write documents through the Docs API. **That is gone**, together
+with the feature that needed it: answering every question in a document.
 
-Here's what happens instead (D-16/D-17), all inside the extension, no secret
-involved at any point:
-- The extension asks Chrome directly for a Docs token, using the second,
-  secret-less client from **Step 8** below (`chrome.identity.getAuthToken`).
-  Chrome caches and refreshes that token itself.
-- It reads the open document's structure with **one API request** —
-  `documents.get` — to get every paragraph's exact text and position.
-- Typing happens **locally**, the same way the existing Straks/Langsomt
-  insertion already works: Google's Find (Ctrl+F) moves the cursor to the
-  right question, then the extension types the answer in, letter by letter.
-  No further API calls, no write-quota limit, and it looks like someone
-  actually typing the document — because that mechanism is unchanged, it's
-  only *finding the right spot* that's new.
-- If any of that is declined or fails, it falls back to today's paste
-  mechanism, visibly, same as it does now.
-- I walk the whole flow in a real browser before calling any of it done.
+What the product does on Google Docs now:
 
-**You don't need to send me a client secret for any of this.** The Step 6
-secret lives in Supabase; I never need to see it. If you ever paste a secret
-into a chat, rotate it afterwards.
+- **Writing** goes through the document the user already has open, at the
+  cursor they placed — the same mechanism as every other editor. No API, no
+  token, no permission prompt.
+- **"+ Denne side"** fetches the document's own plain-text export with the
+  cookies the browser already holds, exactly as a person choosing File,
+  Download, Plain text would. It succeeds only for a document the signed-in
+  browser can already open, and refuses clearly when it cannot — an
+  inaccessible document answers with an HTML sign-in page rather than text, and
+  the extension checks for exactly that rather than attaching it as if it were
+  the user's document (measured 2026-09-04: HTTP 404, `text/html`).
 
----
+So **Steps 1 to 6 are all that remain, and they only serve sign-in.** There is
+no `documents` scope anywhere, which also means no Google OAuth verification
+standing between the extension and a public Chrome Web Store listing.
 
-## Step 8 — Nøglen til dokumenterne (2 min)
-
-A **second** OAuth client, only for reading and writing documents — separate
-from the Step 6 client, which only handles sign-in. Two clients because they
-serve two different Google APIs behind two different code paths (see Step 7).
-
-1. Google Cloud Console → confirm you're in the **AI Skriveassistent** project.
-
-   > **This is the step that actually goes wrong.** On 2026-08-17 the client was
-   > created in Google's auto-made `my-first-project` instead, and nothing said
-   > so. That project has no consent screen, no `documents` scope and no test
-   > users, so Chrome got back *"Service has been disabled for this account"*,
-   > **no permission prompt ever appeared**, and adding test users to the right
-   > project changed nothing — the extension was authenticating against the
-   > wrong one. Check the project name in the picker at the top before clicking
-   > anything, and check it again after **Create**: the console silently drops
-   > you into the default project.
-
-2. Left menu → **Clients** *(older console: **APIs & Services** → **Credentials**)*.
-3. **+ Create client** *(older: **+ Create credentials** → **OAuth client ID**)*.
-4. **Application type** — choose **Chrome Extension**.
-   > This time it genuinely is "Chrome Extension" — unlike Step 6a, which had
-   > to be "Web application" because sign-in runs through Supabase.
-5. **Name** — type:
-   ```
-   AI Skriveassistent – Docs
-   ```
-6. **Item ID** — paste:
-   ```
-   foidkbeinmfolejjjfjcokmmknimohof
-   ```
-7. Click **Create**.
-8. Copy the **Client ID** it shows you.
-
-**There is no client secret for this type of client — and that's the point.**
-Chrome Extension clients don't have one, so nothing secret ever enters this
-codebase. The Client ID itself isn't a secret either: it ships inside the
-extension's public manifest, where anyone installing the extension can read
-it anyway. Safe to commit, safe to paste anywhere.
-
-**Two known traps, handled in code:**
-- **Granular consent** — Google now lets a user approve sign-in while
-  unticking document access. The code checks `grantedScopes`; a partial grant
-  is never treated as success.
-- **Pre-publication** — whether `chrome.identity.getAuthToken` works before
-  the extension is on the Web Store was unverified. It's tested first,
-  cheaply, in Phase 7's opening spike (`07-SPIKE.md`) rather than discovered
-  late.
+> If you already created the "AI Skriveassistent – Docs" Chrome Extension
+> client from an older version of this guide, nothing uses it. You can delete
+> it in Google Cloud Console → Clients, or leave it; it grants nothing on its
+> own.
 
 ---
 
