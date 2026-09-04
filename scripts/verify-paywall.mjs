@@ -128,7 +128,7 @@ try {
   const page = await ctx.newPage();
   await page.goto('http://127.0.0.1:8788/');
   const host = page.locator('awa-sidebar');
-  const fab = host.locator('button[title*="Skriveassistent"]');
+  const fab = host.locator('button[title*="ChatBot"]');
   await fab.waitFor({ timeout: 10_000 });
   await fab.click();
   await host.locator('input[type="email"]').fill(EMAIL);
@@ -143,7 +143,9 @@ try {
 
   // 2. Upgrade opens Stripe Checkout
   const pagePromise = ctx.waitForEvent('page', { timeout: 25_000 });
-  await host.locator('button', { hasText: 'Opgrader' }).click();
+  // The card subscription, not the month pass: the pass is a one-off payment
+  // whose Stripe test flow is a different page. Its own check lives below.
+  await host.locator('button', { hasText: 'Abonnement' }).click();
   const checkout = await pagePromise;
   await checkout.waitForLoadState('domcontentloaded');
   ok('checkout opens on checkout.stripe.com', checkout.url().includes('checkout.stripe.com'), checkout.url().slice(0, 80));

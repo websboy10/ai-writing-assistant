@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import type { OutputPrefs, PromptTemplate } from '@awa/shared';
+import { LENGTH_HINTS, LENGTH_LABELS, type OutputLength, type PromptTemplate } from '@awa/shared';
 import { call } from '../api';
 import { sendChat, stopGeneration } from '../chat';
 import { MAX_WPM, MIN_WPM } from '@/insertion';
@@ -13,13 +13,7 @@ import { ContextChips } from './ContextPanel';
 // style.css — "Galley" design system).
 const SERIF = { fontFamily: 'Charter, Georgia, Cambria, serif' };
 
-const TONES: [NonNullable<OutputPrefs['tone']>, string][] = [
-  ['neutral', 'Neutral'],
-  ['formal', 'Formel'],
-  ['friendly', 'Venlig'],
-  ['confident', 'Bestemt'],
-  ['casual', 'Afslappet'],
-];
+const LENGTHS: [OutputLength, string][] = (['short', 'medium', 'long'] as const).map((k) => [k, LENGTH_LABELS[k]]);
 
 export function ChatView() {
   const s = useStore();
@@ -96,28 +90,19 @@ export function ChatView() {
         <TemplateBar />
 
         {/*
-          One row, no labels.
-          Labelled and spelled out, these took two rows of chrome sitting above
-          a one-line input — in a 400px panel where the composer is the point.
-          The values say what they are, so the labels were repeating the answer
-          next to the question.
+          One picker now, where there were two.
+          Tone went with the five adjectives it offered: the voice is set by the
+          system prompt, and a "Formel" switch argued with it on every request.
+          Length stayed, and became three fixed sizes with real word counts
+          behind them — the tooltip states them, so the row is a promise rather
+          than a hint.
         */}
         <div className="flex flex-wrap items-center gap-1.5">
           <Picker
-            value={s.prefs.tone ?? 'neutral'}
-            onChange={(v) => s.set({ prefs: { ...s.prefs, tone: v as (typeof TONES)[number][0] } })}
-            title="Tonefaldet i det, assistenten skriver"
-            options={TONES}
-          />
-          <Picker
-            value={s.prefs.length ?? 'same'}
-            onChange={(v) => s.set({ prefs: { ...s.prefs, length: v as 'shorter' | 'same' | 'longer' } })}
-            title="Hvor langt svaret skal være"
-            options={[
-              ['shorter', 'Kortere'],
-              ['same', 'Samme længde'],
-              ['longer', 'Længere'],
-            ]}
+            value={s.prefs.length ?? 'medium'}
+            onChange={(v) => s.setPrefs({ length: v as OutputLength })}
+            title={`Svarets længde. ${LENGTH_HINTS[s.prefs.length ?? 'medium']}`}
+            options={LENGTHS}
           />
         </div>
 

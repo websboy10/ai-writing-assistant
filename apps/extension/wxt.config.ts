@@ -15,7 +15,7 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
-    name: 'AI Skriveassistent',
+    name: 'ChatBot Skriv',
     description: 'AI-skriveassistent med styrbar indsættelse direkte i det tekstfelt, du allerede skriver i.',
     version: '0.1.0',
     // Pins the extension ID to foidkbeinmfolejjjfjcokmmknimohof. Without this,
@@ -40,9 +40,9 @@ export default defineConfig({
     commands: {
       'toggle-sidebar': {
         suggested_key: { default: 'Alt+Shift+A' },
-        description: 'Åbn/luk AI Skriveassistenten',
+        description: 'Åbn/luk ChatBot Skriv',
       },
     },
-    action: { default_title: 'AI Skriveassistent' },
+    action: { default_title: 'ChatBot Skriv' },
   },
 });

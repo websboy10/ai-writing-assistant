@@ -66,7 +66,7 @@ try {
   await host.waitFor({ state: 'attached', timeout: 10_000 });
   ok('shadow host injected', true);
 
-  const fab = host.locator('button[title*="Skriveassistent"]');
+  const fab = host.locator('button[title*="ChatBot"]');
   await fab.waitFor({ timeout: 5_000 });
   ok('floating button visible', await fab.isVisible());
 
@@ -343,12 +343,22 @@ try {
   ok('undo preserves user typing', afterUndo.includes('x'), `after undo="${afterUndo.slice(0, 40)}"`);
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
-  console.log('\n— Output settings: tone, length —');
-  const lengthSelect = host.locator('select[title*="Hvor langt"]');
-  await lengthSelect.selectOption('shorter');
-  ok('length is settable', (await lengthSelect.inputValue()) === 'shorter');
-  ok('tone is settable', (await host.locator('select[title*="Tonefaldet"]').count()) === 1);
+  console.log('\n— Output settings: one picker, three definite sizes —');
+  const lengthSelect = host.locator('select[title*="Svarets længde"]');
+  const sizes = await lengthSelect.locator('option').evaluateAll((os) => os.map((o) => o.value));
+  ok('exactly short, medium and long', sizes.join(',') === 'short,medium,long', sizes.join(','));
+  await lengthSelect.selectOption('short');
+  ok('length is settable', (await lengthSelect.inputValue()) === 'short');
+  // The tooltip is the promise: it names the word count the backend enforces,
+  // so a picker that says nothing measurable would be a hint, not a rule.
+  ok(
+    'the picker states the word count it promises',
+    /40 til 70 ord/.test((await lengthSelect.getAttribute('title')) ?? ''),
+    (await lengthSelect.getAttribute('title')) ?? '',
+  );
+  ok('tone is gone: the voice is fixed, not a setting', (await host.locator('select[title*="Tonefaldet"]').count()) === 0);
   ok('no operation picker: chat is the only way to ask', (await host.locator('select[title*="Hvad assistenten skal"]').count()) === 0);
+  ok('exactly one picker left in the composer', (await host.locator('select[title*="Svarets længde"]').count()) === 1);
 
   console.log('\n— The tempo and the switch survive a restart —');
   // A reload is the only honest way to check this: chrome.storage lives in the
@@ -357,7 +367,7 @@ try {
   // here — after everything that needs a draft to insert.
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
-  await host.locator('button[title*="Skriveassistent"]').click();
+  await host.locator('button[title*="ChatBot"]').click();
   await page.waitForTimeout(1200);
   ok('the chosen tempo is remembered', (await host.locator('input[type="range"]').inputValue()) === '200', `slider=${await host.locator('input[type="range"]').inputValue()}`);
   ok('the human-typing switch is remembered', await host.locator('input[type="checkbox"]').first().isChecked());

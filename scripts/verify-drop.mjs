@@ -13,7 +13,7 @@ const ctx = await chromium.launchPersistentContext('', { channel: 'chromium', he
 const page = await ctx.newPage();
 await page.goto('http://127.0.0.1:8788/');
 const host = page.locator('awa-sidebar');
-const fab = host.locator('button[title*="Skriveassistent"]');
+const fab = host.locator('button[title*="ChatBot"]');
 await fab.waitFor({ timeout: 10000 });
 
 // sign in first (upload requires auth)
@@ -29,7 +29,7 @@ const baseBox = await fab.boundingBox();
 
 const dropResult = await page.evaluate(async () => {
   const hostEl = document.querySelector('awa-sidebar');
-  const btn = hostEl.shadowRoot.querySelector('button[title*="Skriveassistent"]');
+  const btn = hostEl.shadowRoot.querySelector('button[title*="ChatBot"]');
   const dt = new DataTransfer();
   dt.items.add(new File(['Quarterly revenue grew twelve percent according to the drop test.'], 'drop-test.txt', { type: 'text/plain' }));
   const fire = (target, type) => target.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt, composed: true }));
@@ -50,13 +50,13 @@ console.log('grows more on hover:', dropResult.hoverSize > dropResult.attractSiz
 // wait for upload to land, badge to appear
 await page.waitForFunction(() => {
   const hostEl = document.querySelector('awa-sidebar');
-  const btn = hostEl?.shadowRoot?.querySelector('button[title*="Skriveassistent"]');
+  const btn = hostEl?.shadowRoot?.querySelector('button[title*="ChatBot"]');
   return /\d/.test(btn?.textContent ?? '') || /✓/.test(btn?.textContent ?? '');
 }, { timeout: 30000 });
 await page.waitForTimeout(2000); // let the ✓ settle into the badge
 const badge = await page.evaluate(() => {
   const hostEl = document.querySelector('awa-sidebar');
-  return hostEl.shadowRoot.querySelector('button[title*="Skriveassistent"]').textContent;
+  return hostEl.shadowRoot.querySelector('button[title*="ChatBot"]').textContent;
 });
 console.log('badge after drop:', JSON.stringify(badge), '→ context attached:', /1/.test(badge));
 await page.screenshot({ path: 'test-results/drop-badge.png' });
@@ -64,7 +64,7 @@ await page.screenshot({ path: 'test-results/drop-badge.png' });
 // open modal, confirm the item shows as a chip above the composer
 await page.evaluate(() => {
   const hostEl = document.querySelector('awa-sidebar');
-  hostEl.shadowRoot.querySelector('button[title*="Skriveassistent"]').click();
+  hostEl.shadowRoot.querySelector('button[title*="ChatBot"]').click();
 });
 await page.waitForTimeout(500);
 const listed = await page.evaluate(() => {

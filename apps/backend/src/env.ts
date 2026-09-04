@@ -35,8 +35,24 @@ export const env = {
   freeChain: (process.env.FREE_MODEL_CHAIN ??
     'inclusionai/ling-3.0-flash:free,nvidia/nemotron-3-nano-30b-a3b:free,google/gemma-4-31b-it:free,nvidia/nemotron-3-super-120b-a12b:free'
   ).split(',').map((s) => s.trim()).filter(Boolean),
+  /**
+   * The strong chain. Used when the request actually needs it: a long answer,
+   * or an attached document to reason over.
+   */
   paidChain: (process.env.PAID_MODEL_CHAIN ??
     'anthropic/claude-sonnet-5,google/gemini-3.5-flash,deepseek/deepseek-v4-flash'
+  ).split(',').map((s) => s.trim()).filter(Boolean),
+  /**
+   * The same models, cheapest and fastest first, for the requests that are the
+   * bulk of real use: a short or medium answer with nothing attached.
+   *
+   * Both chains are paid and both deny provider data collection, so routing
+   * between them cannot weaken the privacy boundary — see openrouter.ts. The
+   * only thing that changes is which model is tried first, and a short Danish
+   * paragraph does not need the most expensive model in the list to write it.
+   */
+  paidChainFast: (process.env.PAID_MODEL_CHAIN_FAST ??
+    'google/gemini-3.5-flash,deepseek/deepseek-v4-flash,anthropic/claude-sonnet-5'
   ).split(',').map((s) => s.trim()).filter(Boolean),
   /**
    * Ceiling on a single reply, and the reason the good models were unreachable.
@@ -55,11 +71,47 @@ export const env = {
    */
   maxTokens: Number(process.env.MAX_TOKENS ?? 4000),
   stripeSecretKey: required('STRIPE_SECRET_KEY'),
+  /** The 100 kr./md. recurring price. Card only — see stripePassPriceId. */
   stripePriceId: required('STRIPE_PRICE_ID'),
+  /**
+   * A one-off 100 kr price for the 30-day month pass, and the only way
+   * MobilePay money can reach this product: MobilePay is single-use and
+   * Stripe will not bill it again (docs.stripe.com/payments/mobilepay).
+   *
+   * Optional, so the backend still boots with only the subscription
+   * configured — the pass button then reports plainly that it is not set up
+   * rather than throwing on start and taking sign-in down with it.
+   */
+  stripePassPriceId: process.env.STRIPE_PASS_PRICE_ID ?? '',
+  /** Days one pass buys. Must match the price it is sold at. */
+  passDays: Number(process.env.PASS_DAYS ?? 30),
   // Set in production once the webhook endpoint exists in the Stripe
   // dashboard. Locally the success-page + on-demand sync covers the flow.
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
   // Only enabled where a tax registration exists (live). Enabling it without
   // one makes Stripe silently collect no tax — the classic Stripe Tax trap.
   stripeAutomaticTax: process.env.STRIPE_AUTOMATIC_TAX === '1',
+
+  // ---- analytics ----
+  /** Project write key. Absent → capture() is a no-op and nothing breaks. */
+  posthogKey: process.env.POSTHOG_KEY ?? '',
+  /** Personal API key, read side only. Never leaves the server. */
+  posthogApiKey: process.env.POSTHOG_API_KEY ?? '',
+  posthogProjectId: process.env.POSTHOG_PROJECT_ID ?? '',
+  // EU by default: the account is in the EU region and PRIVACY.md says data
+  // stays in the EU. A US host here would quietly make that untrue.
+  posthogHost: (process.env.POSTHOG_HOST ?? 'https://eu.i.posthog.com').replace(/\/+$/, ''),
+  // The query API lives on the app host, not the ingestion host.
+  posthogApiHost: (process.env.POSTHOG_API_HOST ?? 'https://eu.posthog.com').replace(/\/+$/, ''),
+
+  /**
+   * Who may open /dashboard. A list of e-mail addresses, not a shared secret,
+   * so it can sit in an env var without being a credential: whoever is listed
+   * still has to sign in with their own password through the normal auth
+   * routes, and the per-account throttle in routes/auth.ts still applies.
+   */
+  adminEmails: (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
 };

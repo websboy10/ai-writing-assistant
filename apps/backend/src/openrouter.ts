@@ -1,4 +1,4 @@
-import type { ChatMessage, ContentClass } from '@awa/shared';
+import type { ChatMessage, ContentClass, OutputLength } from '@awa/shared';
 import { env } from './env.js';
 
 export interface StreamHandlers {
@@ -69,6 +69,44 @@ function isCreditRefusal(reason: string): boolean {
   return reason.includes('402') || /requires more credits/i.test(reason);
 }
 
+/** What the request is asking for, as far as it affects which model runs it. */
+export interface RouteHint {
+  length?: OutputLength;
+}
+
+/**
+ * The point at which a prompt is carrying a document rather than a question.
+ *
+ * A typed instruction with no attachment is a few hundred characters. An
+ * attached PDF or a read-in Google Doc runs to tens of thousands (the per-item
+ * cap is 60,000). Six thousand sits well clear of the first and well below the
+ * second, so it separates the two without needing to know which one it is.
+ */
+const HEAVY_PROMPT_CHARS = 6_000;
+
+/**
+ * Smart routing: pick the chain by what the request needs, not by a constant.
+ *
+ * Both chains hold the same paid, no-training models — only the order differs —
+ * so this can never route real user content anywhere the privacy boundary
+ * forbids. That property is why the decision is safe to make from the request
+ * at all, and it must survive any future edit here: if a cheaper chain ever
+ * gains a training-enabled model, this function becomes a data leak rather than
+ * a saving.
+ *
+ * The rule is deliberately two measurable facts and no cleverness. Guessing
+ * "is this a hard question" from the wording is exactly the kind of heuristic
+ * that works in testing and then sends a legal letter to the cheapest model.
+ */
+export function pickChain(messages: ChatMessage[], hint: RouteHint): string[] {
+  const chars = messages.reduce((n, m) => n + m.content.length, 0);
+  const heavy = hint.length === 'long' || chars > HEAVY_PROMPT_CHARS;
+  const chain = heavy ? env.paidChain : env.paidChainFast;
+  // A misconfigured FAST chain must not silently disable the product; fall
+  // back to the one that is required to exist.
+  return chain.length ? chain : env.paidChain;
+}
+
 /**
  * Stream a completion, falling back through an ordered model chain.
  *
@@ -86,9 +124,10 @@ export async function streamChat(
   contentClass: ContentClass,
   signal: AbortSignal,
   handlers: StreamHandlers,
+  hint: RouteHint = {},
 ): Promise<void> {
   const isSynthetic = contentClass === 'synthetic';
-  const chain = isSynthetic ? env.freeChain : env.paidChain;
+  const chain = isSynthetic ? env.freeChain : pickChain(messages, hint);
   if (!chain.length) throw new PolicyError();
 
   const attempts: { model: string; reason: string }[] = [];

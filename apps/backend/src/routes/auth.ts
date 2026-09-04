@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { gotrue, anonRpc } from '../supabase.js';
+import { capture } from '../analytics.js';
 import { env } from '../env.js';
 
 /**
@@ -110,6 +111,10 @@ export function authRoutes(app: FastifyInstance): void {
       body: JSON.stringify({ email, password }),
     });
     const body = await res.json().catch(() => ({ error: `Auth service returned ${res.status}` }));
+    // The uuid, never the address. GoTrue returns the new user on success; on
+    // failure there is nobody to attribute the event to and nothing is sent.
+    const newId = (body as { id?: string; user?: { id?: string } }).id ?? (body as { user?: { id?: string } }).user?.id;
+    if (res.ok && newId) capture(newId, 'signed_up', {});
     return reply.code(res.status).send(body);
   });
 
@@ -125,6 +130,8 @@ export function authRoutes(app: FastifyInstance): void {
       body: JSON.stringify({ email, password }),
     });
     const body = await res.json().catch(() => ({ error: `Auth service returned ${res.status}` }));
+    const who = (body as { user?: { id?: string } }).user?.id;
+    if (res.ok && who) capture(who, 'signed_in', {});
     return reply.code(res.status).send(body);
   });
 

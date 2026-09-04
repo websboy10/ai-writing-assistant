@@ -14,7 +14,7 @@ const page = ctx.pages()[0] ?? (await ctx.newPage());
 try {
   const docId = await newDoc(page);
   const host = page.locator('awa-sidebar');
-  const fab = host.locator('button[title*="Skriveassistent"]');
+  const fab = host.locator('button[title*="ChatBot"]');
   await fab.waitFor({ timeout: 30_000 });
   if (!(await host.locator('textarea[placeholder*="Skriv til"], input[type="email"]').count())) await fab.click();
   await page.waitForTimeout(1500);

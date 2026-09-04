@@ -234,7 +234,7 @@ export function App() {
           }}
           onDragLeave={() => setDragState((s) => (s === 'hover' ? 'attract' : s))}
           onDrop={(e) => void handleDrop(e)}
-          title="AI Skriveassistent (Alt+Shift+A) — slip filer her for at vedhæfte dem"
+          title="ChatBot Skriv (Alt+Shift+A) — slip filer her for at vedhæfte dem"
           className={`flex h-12 w-12 items-center justify-center rounded-full border border-hairline bg-paper text-[19px] leading-none text-ink shadow-xl shadow-black/25 transition-all duration-200 ease-out hover:scale-110 ${scale} ${
             dragState !== 'idle' ? 'ring-4 ring-ink/25' : ''
           } ${justDropped ? 'ring-4 ring-ink/40' : ''}`}
@@ -294,7 +294,7 @@ export function App() {
           {/* The ✕ and tabs are shrink-0; the chips in the middle give way
               instead — the close button must never be pushed off the edge. */}
           <header className="flex items-center gap-1.5 border-b border-hairline py-3 pl-3 pr-2">
-            <img src={logo} alt="AI Skriveassistent" className="h-7 w-7 shrink-0" />
+            <img src={logo} alt="ChatBot Skriv" className="h-7 w-7 shrink-0" />
             <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
               {usage && (
                 <span

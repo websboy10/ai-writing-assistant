@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BillingInfo, ChatMessage, ContextItem, ConversationSummary, OutputPrefs, UsageInfo } from '@awa/shared';
+import type { BillingInfo, ChatMessage, ContextItem, ConversationSummary, OutputLength, OutputPrefs, UsageInfo } from '@awa/shared';
 import { DEFAULT_PACING, MAX_WPM, MIN_WPM, type InsertionState, type PacingConfig } from '@/insertion';
 import { call } from './api';
 import { stopGeneration } from './chat';
@@ -74,10 +74,14 @@ interface AwaState {
   loadHistory: (q?: string) => Promise<void>;
   signOut: () => Promise<void>;
   setPacing: (partial: Partial<PacingConfig>) => void;
+  setPrefs: (partial: Partial<OutputPrefs>) => void;
   addContext: (item: ContextItem) => void;
   removeContext: (id: string) => void;
   newConversation: () => void;
 }
+
+const DEFAULT_PREFS: OutputPrefs = { length: 'medium' };
+const LENGTHS: OutputLength[] = ['short', 'medium', 'long'];
 
 let idCounter = 0;
 export const nextId = (): string => `m${Date.now()}-${idCounter++}`;
@@ -92,7 +96,7 @@ export const useStore = create<AwaState>((set, get) => ({
   error: null,
   notice: null,
   draft: '',
-  prefs: { tone: 'neutral', length: 'same' },
+  prefs: DEFAULT_PREFS,
   context: [],
   contextBusy: null,
   insertStatus: null,
@@ -107,7 +111,7 @@ export const useStore = create<AwaState>((set, get) => ({
   loadSession: async () => {
     const res = await call({ kind: 'session' });
     const data = res.data as { email: string } | null;
-    const { pacing } = await chrome.storage.local.get('pacing');
+    const { pacing, prefs } = await chrome.storage.local.get(['pacing', 'prefs']);
     // Theme is fixed to light: the settings page is gone, so a stored 'dark'
     // from an earlier build would be a trap with no way out.
     set({
@@ -115,6 +119,7 @@ export const useStore = create<AwaState>((set, get) => ({
       view: data ? 'chat' : 'auth',
       theme: 'light',
       pacing: sanitizePacing(pacing),
+      prefs: sanitizePrefs(prefs),
     });
     if (data) {
       void get().loadUsage();
@@ -150,6 +155,17 @@ export const useStore = create<AwaState>((set, get) => ({
     void chrome.storage.local.set({ pacing });
   },
 
+  /**
+   * Persisted for the same reason the tempo is: a person who works in short
+   * answers works in short answers all day, and re-picking it after every
+   * browser restart is a small tax charged forever.
+   */
+  setPrefs: (partial) => {
+    const prefs = sanitizePrefs({ ...get().prefs, ...partial });
+    set({ prefs });
+    void chrome.storage.local.set({ prefs });
+  },
+
   addContext: (item) => set({ context: [...get().context, item] }),
   removeContext: (id) => set({ context: get().context.filter((c) => c.id !== id) }),
 
@@ -167,6 +183,20 @@ export const useStore = create<AwaState>((set, get) => ({
     });
   },
 }));
+
+/**
+ * A stored pref from an older build is the interesting case, not a missing one.
+ * Until 2026-09-04 this field held 'shorter' | 'same' | 'longer' and a tone
+ * beside it; both are gone. An unrecognised value must land on the default
+ * rather than travel to the backend, where an unknown length would silently
+ * select the medium rule anyway and the picker would show something the model
+ * never received.
+ */
+function sanitizePrefs(raw: unknown): OutputPrefs {
+  const r = (raw ?? {}) as Partial<OutputPrefs>;
+  const length = LENGTHS.includes(r.length as OutputLength) ? (r.length as OutputLength) : DEFAULT_PREFS.length;
+  return { length, ...(typeof r.language === 'string' ? { language: r.language.slice(0, 40) } : {}) };
+}
 
 /**
  * Whatever storage holds becomes a config the engine can run: a value from an

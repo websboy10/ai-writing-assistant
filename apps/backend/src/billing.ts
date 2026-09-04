@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { env } from './env.js';
 import { rpc, anonRpc, type AuthedUser } from './supabase.js';
+import { capture } from './analytics.js';
 
 export const stripe = new Stripe(env.stripeSecretKey);
 
@@ -10,6 +11,8 @@ export interface BillingRow {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   current_period_end: string | null;
+  /** A bought month pass, or null. See migration 0011 for why passes exist. */
+  access_until: string | null;
   updated_at: string;
 }
 
@@ -18,6 +21,7 @@ export interface Entitlement {
   status: BillingRow['status'];
   trialEndsAt: string;
   subscribed: boolean;
+  accessUntil: string | null;
 }
 
 /**
@@ -35,6 +39,9 @@ export async function getEntitlement(user: AuthedUser, installHash: string): Pro
     if (!row) throw new Error('billing_init did not create a row');
   }
 
+  // Only when the cache says no. A running pass or an active subscription is
+  // already an answer, and asking Stripe about it again costs a round trip on
+  // every single request.
   if (!isAllowed(row)) {
     const synced = await syncFromStripe(user, row);
     if (synced) row = (await fetchRow(user)) ?? row;
@@ -45,10 +52,19 @@ export async function getEntitlement(user: AuthedUser, installHash: string): Pro
     status: row.status,
     trialEndsAt: row.trial_ends_at,
     subscribed: !!row.stripe_subscription_id && (row.status === 'active' || row.status === 'past_due'),
+    accessUntil: passRunning(row) ? row.access_until : null,
   };
 }
 
+/** A month pass that has not run out yet. Null and past dates both mean no. */
+function passRunning(row: BillingRow): boolean {
+  return !!row.access_until && new Date(row.access_until).getTime() > Date.now();
+}
+
 function isAllowed(row: BillingRow): boolean {
+  // A bought month pass, checked first: it is money already taken, and it must
+  // open the gate whatever the subscription row happens to say.
+  if (passRunning(row)) return true;
   if (row.status === 'active') return true;
   // Grace while Stripe retries a failed renewal — cutting access on day one
   // of an expired card punishes paying customers for a bank hiccup.
@@ -57,15 +73,37 @@ function isAllowed(row: BillingRow): boolean {
   return false;
 }
 
+const BILLING_COLUMNS = 'status,trial_ends_at,stripe_customer_id,stripe_subscription_id,current_period_end,updated_at';
+
+/**
+ * Survives being deployed before migration 0011 has been applied.
+ *
+ * access_until is a column this code needs and an older database does not have,
+ * and PostgREST answers a select for a missing column with 400. Left
+ * unhandled, deploying this file first would fail EVERY entitlement check —
+ * /api/chat and /api/files both 503, /api/billing/status 503, the panel dead
+ * for every user including paying ones — until someone noticed and ran a
+ * migration. The blast radius is the whole product, and the cause would be an
+ * ordering mistake rather than a bug, which is the kind that happens at 23:00.
+ *
+ * So: ask for the column, and if the database says it has no such column, ask
+ * again without it and carry on with no pass. Loudly, because running like this
+ * means passes silently do not work and somebody has to finish the deploy.
+ */
 async function fetchRow(user: AuthedUser): Promise<BillingRow | null> {
   const { rest } = await import('./supabase.js');
-  const res = await rest(
-    user,
-    '/billing?select=status,trial_ends_at,stripe_customer_id,stripe_subscription_id,current_period_end,updated_at',
-  );
+  let res = await rest(user, `/billing?select=${BILLING_COLUMNS},access_until`);
+  if (res.status === 400) {
+    const detail = await res.text().catch(() => '');
+    if (!detail.includes('access_until')) throw new Error(`billing fetch failed: 400 ${detail.slice(0, 200)}`);
+    console.error('MIGRATION 0011 IS NOT APPLIED — month passes cannot work until it is');
+    res = await rest(user, `/billing?select=${BILLING_COLUMNS}`);
+  }
   if (!res.ok) throw new Error(`billing fetch failed: ${res.status}`);
   const rows = (await res.json()) as BillingRow[];
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  return { ...row, access_until: row.access_until ?? null };
 }
 
 /**
@@ -152,6 +190,10 @@ export async function applySubscription(sub: Stripe.Subscription): Promise<void>
     (sub.metadata?.user_id as string | undefined) ??
     (await anonRpc<string | null>('billing_user_for_customer', { p_customer_id: customerId }));
   if (!userId) return;
+  // Counted here rather than at the checkout route, because this is the only
+  // point that runs for every path a subscription can change by: the success
+  // redirect, the webhook, a card failing, a cancellation in the portal.
+  capture(userId, 'subscription_state', { state: mapStatus(sub.status), stripe_status: sub.status });
   await anonRpc('billing_set_subscription', {
     p_user_id: userId,
     p_customer_id: customerId,

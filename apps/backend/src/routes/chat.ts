@@ -4,6 +4,7 @@ import { verifyUser, rpc, rest, isUuid, type AuthedUser, danishTime, anonRpc } f
 import { assembleMessages } from '../prompt.js';
 import { streamChat, NoModelsError, PolicyError } from '../openrouter.js';
 import { getEntitlement } from '../billing.js';
+import { capture } from '../analytics.js';
 
 interface QuotaResult {
   ok: boolean;
@@ -38,8 +39,9 @@ export function chatRoutes(app: FastifyInstance): void {
       const install = typeof installRaw === 'string' && installRaw.length >= 8 ? installRaw.slice(0, 128) : 'unknown-device';
       const ent = await getEntitlement(user, install);
       if (!ent.allowed) {
+        capture(user.id, 'paywall_hit', { route: 'chat', status: ent.status });
         return reply.code(402).send({
-          error: 'Din gratis prøveperiode er udløbet. Opgrader for 50 kr. om måneden for at skrive videre.',
+          error: 'Din gratis prøveperiode er udløbet. Opgrader for 100 kr. om måneden for at skrive videre.',
           code: 'payment_required',
         });
       }
@@ -63,6 +65,7 @@ export function chatRoutes(app: FastifyInstance): void {
       });
     }
     if (!quota.ok) {
+      capture(user.id, 'quota_exceeded', { limit: quota.limit });
       return reply.code(429).send({
         error: `Du har brugt alle ${quota.limit} forespørgsler for i dag. Grænsen nulstilles ${danishTime(quota.resets_at)}.`,
         code: 'quota_exceeded',
@@ -93,13 +96,18 @@ export function chatRoutes(app: FastifyInstance): void {
     let assistantText = '';
     let tokensIn = 0;
     let tokensOut = 0;
+    let servedBy = '';
+    const startedAt = Date.now();
 
     try {
       const conversationId = await ensureConversation(user, body);
       send({ type: 'meta', conversationId, model: 'pending' });
 
       await streamChat(assembleMessages(body), body.contentClass, abort.signal, {
-        onMeta: (model) => send({ type: 'meta', conversationId, model }),
+        onMeta: (model) => {
+          servedBy = model;
+          send({ type: 'meta', conversationId, model });
+        },
         onToken: (text) => {
           assistantText += text;
           send({ type: 'token', text });
@@ -111,8 +119,17 @@ export function chatRoutes(app: FastifyInstance): void {
         // A fallback that nobody can see is a fallback nobody fixes: the chain
         // silently served every request from its last model for an unknown
         // length of time before this line existed.
-        onModelFailed: (model, reason) => req.log.warn({ model, reason }, 'model chain fallback'),
-      });
+        onModelFailed: (model, reason) => {
+          req.log.warn({ model, reason }, 'model chain fallback');
+          // Counted, not just logged: a chain whose first entry is permanently
+          // broken looks like a working product with a latency problem, and the
+          // logs are the one place nobody looks until someone complains.
+          capture(user.id, 'model_fallback', { model, reason: reason.slice(0, 120) });
+        },
+      },
+      // Smart routing (openrouter.ts → pickChain): a short answer with nothing
+      // attached does not need the most expensive model in the chain.
+      { length: body.prefs?.length });
 
       // Persist the exchange under the user's own JWT (RLS-scoped). A persist
       // failure must not fail a generation the user already received — log it
@@ -138,6 +155,15 @@ export function chatRoutes(app: FastifyInstance): void {
         type: 'done',
         usage: usage ? { used: usage.used, limit: usage.limit, resetsAt: usage.resets_at } : null,
       });
+      capture(user.id, 'chat_completed', {
+        model: servedBy,
+        length: body.prefs?.length ?? 'medium',
+        tokens_in: tokensIn,
+        tokens_out: tokensOut,
+        chars_out: assistantText.length,
+        context_items: body.context?.length ?? 0,
+        ms: Date.now() - startedAt,
+      });
     } catch (err) {
       // The quota point was consumed up front (QUOT-01). If the user received
       // zero tokens, give it back — charging for nothing burns beta quota on
@@ -148,6 +174,20 @@ export function chatRoutes(app: FastifyInstance): void {
           req.log.error(refundErr, 'refund_quota failed after zero-token generation failure'),
         );
       }
+      capture(user.id, 'chat_failed', {
+        code:
+          err instanceof PolicyError
+            ? 'policy_no_paid_models'
+            : err instanceof NoModelsError
+              ? err.isOutOfCredit
+                ? 'out_of_credit'
+                : 'all_models_failed'
+              : abort.signal.aborted
+                ? 'aborted_by_user'
+                : 'upstream_error',
+        partial: assistantText.length > 0,
+        ms: Date.now() - startedAt,
+      });
       if (err instanceof PolicyError) {
         send({
           type: 'error',

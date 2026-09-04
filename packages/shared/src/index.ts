@@ -18,11 +18,35 @@ export type PromptOperation =
   | 'translate'
   | 'continue';
 
+/**
+ * The one thing the user sets about the shape of a reply.
+ *
+ * Tone used to live here too, as five adjectives. It went 2026-09-04: the
+ * voice is now fixed by the system prompt (plain words, short sentences, the
+ * odd slip) and a "Formel" switch fought that on every request — two rules
+ * describing the same sentence, with the picker usually losing. One knob that
+ * works beats two that argue.
+ */
 export interface OutputPrefs {
-  tone?: 'neutral' | 'formal' | 'friendly' | 'confident' | 'casual';
-  length?: 'shorter' | 'same' | 'longer';
+  /** Three fixed sizes with real word counts behind them (see backend prompt.ts). */
+  length?: OutputLength;
   language?: string; // target language for translate
 }
+
+export type OutputLength = 'short' | 'medium' | 'long';
+
+export const LENGTH_LABELS: Record<OutputLength, string> = {
+  short: 'Kort',
+  medium: 'Middel',
+  long: 'Lang',
+};
+
+/** What each size promises, shown as the picker's tooltip so it is not a guess. */
+export const LENGTH_HINTS: Record<OutputLength, string> = {
+  short: 'Kort — 40 til 70 ord, højst fire sætninger, ét afsnit',
+  medium: 'Middel — 120 til 180 ord, to til tre afsnit',
+  long: 'Lang — 300 til 450 ord, fire til seks afsnit',
+};
 
 export interface ContextItem {
   id: string;
@@ -75,6 +99,16 @@ export interface BillingInfo {
   subscribed: boolean;
   trialEndsAt: string;
   trialDaysLeft: number;
+  /**
+   * When a bought month pass runs out, or null if none is running.
+   *
+   * A pass is the MobilePay route: MobilePay is a single-use wallet and Stripe
+   * cannot bill it again next month (docs.stripe.com/payments/mobilepay —
+   * "Recurring payments: No"), so the only honest way to take MobilePay money
+   * is to sell one month at a time and say so.
+   */
+  passEndsAt: string | null;
+  passDaysLeft: number;
 }
 
 export interface ConversationSummary {
@@ -133,3 +167,11 @@ export const OPERATION_LABELS: Record<PromptOperation, string> = {
   translate: 'Oversæt',
   continue: 'Skriv videre',
 };
+
+// ---- pricing, in one place ----
+// The number the extension shows. The backend keeps its own copy (its imports
+// from this package are type-only by contract — see routes/files.ts), and the
+// real authority is the Stripe Price. Three copies of one number is two too
+// many, but a shared runtime constant cannot cross into the Vercel bundle.
+export const PRICE_DKK = 100;
+export const PASS_DAYS = 30;

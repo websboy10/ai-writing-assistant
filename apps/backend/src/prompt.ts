@@ -42,22 +42,46 @@ export const PROSE_RULES = [
   // towards that, so the two rules have to sit next to each other.
   '- Not all the same length though. Put a very short sentence next to a longer one, the way people actually write.',
   '- Leave most commas out. Where a comma could go, skip it more often than you use it.',
+  // The operator's own words (2026-09-04): "write like a 13 year old. Miss
+  // commas and make grammar mistakes." The point is not sloppiness for its own
+  // sake — it is that this text is typed into a shared document letter by
+  // letter and has to read as a colleague wrote it. Prose with perfect commas
+  // and no slips is the single loudest tell that a machine produced it.
+  //
+  // Rate matters more than the rule. Asked for "grammar mistakes" with no
+  // number, a model salts every sentence and the result reads as broken rather
+  // than as human. One small slip every few sentences is what a person does.
+  '- Make a small grammar mistake now and then. Roughly one every three or four sentences, no more. ' +
+    'They have to be the ordinary slips a person makes in a hurry, never enough to make a sentence hard to read.',
+  '- The slips to use in Danish: write "og" where "at" belongs ("jeg prøver og skrive det"), drop or add ' +
+    'the r in a verb ("jeg håbe det går godt", "han skal skriver det"), mix up ligge and lægge, mix up ad ' +
+    'and af, and use hans or hendes where sin belongs. In English: mix up its and it\'s, their and there, ' +
+    'lose an agreement ("the numbers is"), or start a sentence with a conjunction.',
+  '- Never make the same slip twice in one piece of writing, and never put two in the same sentence.',
   '- Never type a dash as punctuation. Not the long dash, not the short one, and never a hyphen standing alone between two words. A hyphen is only allowed inside a single word.',
-  // Measured on production 2026-08-26: asked to correct "She dont have no
-  // time", it returned "She didnt have any time". The grammar was fixed and
-  // the apostrophe was dropped, because a simple voice had been read as
-  // permission to spell loosely. On a correction task the spelling IS the
-  // answer, so plainness has to stop at the word and never reach inside it.
   '- Simple is about which words you pick, never about spelling them wrong. Spell every word correctly and keep ' +
-    'its apostrophes. On a task where the correction itself is the answer, every character has to be right.',
+    'its apostrophes.',
+  // The one place a deliberate slip is not charm but a wrong answer. Measured
+  // 2026-08-26 before any of this existed: asked to correct "She dont have no
+  // time" the model returned "She didnt have any time" — it read a plain voice
+  // as licence to write loosely, and on a correction task the characters ARE
+  // the answer. Adding deliberate mistakes above makes that failure far more
+  // likely, so the exception has to be stated in the same breath.
+  '- The mistakes stop completely when the writing itself is the thing being judged: correcting someone\'s ' +
+    'grammar or spelling, a translation, a name, an address, a figure, a date, a quote, or anything inside ' +
+    'quotation marks. There every character has to be right.',
   '- Start with the substance. Never open by restating the request or with "Her er", "Selvfølgelig" or "Absolut".',
   '- Stop when the point is made. No closing summary, no "Sammenfattende", no offer to help further.',
   '- Cut the filler: "Det er vigtigt at bemærke", "Det er værd at nævne", "I en verden hvor", "Når alt kommer til alt".',
   '- Do not force everything into three parallel points. Use the number of points the subject actually has.',
   '- Simple words still have to be exact. Give the real figure, the real date, the real name. Never "forskellige faktorer" or "en række områder".',
+  // The trailing clause used to read "where it asks for no size, keep it
+  // short", which is now the LENGTH rule's job and disagreed with it outright
+  // whenever the user picked Lang. Two rules answering the same question
+  // differently is how a picker stops working.
   '- Give the task the size it asks for, and count it. A task that asks for five lines gets five lines, each one on ' +
     'its own line. Three points gets three. One sentence gets one sentence. Two hundred words gets close to two ' +
-    'hundred. Where it asks for no size, keep it short.',
+    'hundred. Where it names no size, the LENGTH rule below decides.',
   // "Do not overclaim beyond the sources" is what made this refuse, and a
   // refusal is worthless here: everything written lands in the user's document
   // as a draft they edit. The split matters though — inventing while
@@ -107,14 +131,37 @@ const SYSTEM_VOICE = [
     'add nothing to it.',
 ].join('\n');
 
-/** Tone as an instruction rather than a bare adjective the model must interpret. */
-const TONE_INSTRUCTIONS: Record<string, string> = {
-  formal: 'Keep the register formal and professional: full sentences, no contractions, no exclamation marks.',
-  friendly: 'Keep the register warm and approachable, addressing the reader directly, without becoming chatty.',
-  confident: 'Write with conviction: direct claims, active voice, no hedging qualifiers.',
-  casual: 'Keep it relaxed and conversational, the way a colleague writes to a colleague.',
-  neutral: '',
+/**
+ * Length as a contract, not a nudge.
+ *
+ * The old picker offered "shorter / same length / longer", which is a
+ * comparison with nothing to compare against: on a fresh question there is no
+ * source material, so "Be noticeably more concise than the source material"
+ * asked the model to be shorter than nothing and it simply ignored it.
+ * Three named sizes with real numbers is a rule a model can actually obey, and
+ * the operator can predict what lands in the document before pressing send.
+ */
+const LENGTH_INSTRUCTIONS: Record<string, string> = {
+  short:
+    'LENGTH: short. Between 40 and 70 words. Four sentences at the most, in one single paragraph. No list, ' +
+    'no headings, no closing line. Stop as soon as the point is made.',
+  medium:
+    'LENGTH: medium. Between 120 and 180 words, in two or three paragraphs. Each paragraph is at least two ' +
+    'sentences. At most one list, and only where a list genuinely helps.',
+  long:
+    'LENGTH: long. Between 300 and 450 words, in four to six paragraphs. Cover the subject properly rather ' +
+    'than padding it out: no repetition, no restating the question, no summary at the end.',
 };
+
+/**
+ * A size the user typed themselves outranks the picker, always. "Skriv fem
+ * linjer" with the picker on Long has to give five lines — the person asking
+ * for a number is being specific on purpose, and the picker is only what
+ * happens when they are not.
+ */
+const LENGTH_OVERRIDE =
+  'If the request itself names a size — a number of words, lines, sentences, bullets or paragraphs — ' +
+  'that number wins over the length rule above and must be hit exactly.';
 
 const OPERATION_INSTRUCTIONS: Record<string, string> = {
   // Not "helpfully". That word is what the model has been trained to answer
@@ -148,14 +195,12 @@ export function assembleMessages(req: ChatRequest): ChatMessage[] {
   // labels carry the same structure without modelling the syntax.
   sections.push(`TASK\n${OPERATION_INSTRUCTIONS[req.operation] ?? OPERATION_INSTRUCTIONS.chat}`);
 
-  if (req.prefs) {
-    const prefs: string[] = [];
-    if (req.prefs.tone && req.prefs.tone !== 'neutral') prefs.push(`${TONE_INSTRUCTIONS[req.prefs.tone]}`);
-    if (req.prefs.length === 'shorter') prefs.push('Be noticeably more concise than the source material.');
-    if (req.prefs.length === 'longer') prefs.push('Be noticeably more detailed than the source material.');
-    if (req.operation === 'translate') prefs.push(`Target language: ${req.prefs.language ?? 'English'}.`);
-    if (prefs.length) sections.push(`OUTPUT PREFERENCES\n${prefs.join(' ')}`);
-  }
+  // Always emitted, never conditional. An absent or unknown length used to mean
+  // "say nothing about length", which is how a request with no picker value
+  // came back as three words or as nine paragraphs with equal probability.
+  const prefs: string[] = [LENGTH_INSTRUCTIONS[req.prefs?.length ?? ''] ?? LENGTH_INSTRUCTIONS.medium, LENGTH_OVERRIDE];
+  if (req.operation === 'translate') prefs.push(`Target language: ${req.prefs?.language ?? 'English'}.`);
+  sections.push(`OUTPUT PREFERENCES\n${prefs.join('\n')}`);
 
   if (req.context?.length) {
     const ctx = req.context

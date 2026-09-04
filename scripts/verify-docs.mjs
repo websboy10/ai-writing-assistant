@@ -138,7 +138,7 @@ async function clearDoc(docId) {
 }
 
 async function openSidebar() {
-  const fab = host.locator('button[title*="Skriveassistent"]');
+  const fab = host.locator('button[title*="ChatBot"]');
   await fab.waitFor({ timeout: 30_000 });
   // Already open if the composer or the sign-in form is on screen.
   const open = await host.locator('textarea[placeholder*="Skriv til"], input[type="email"]').count();

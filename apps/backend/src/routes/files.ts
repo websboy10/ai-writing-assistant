@@ -9,6 +9,9 @@ import type { ParsedFile } from '@awa/shared';
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_CONTEXT_CHARS_PER_ITEM = 60_000;
 import { verifyUser } from '../supabase.js';
+import { getEntitlement } from '../billing.js';
+import { enforce, DAY, MINUTE } from '../limit.js';
+import { capture } from '../analytics.js';
 
 const require = createRequire(import.meta.url);
 
@@ -48,6 +51,44 @@ export function fileRoutes(app: FastifyInstance): void {
     const user = await verifyUser(req.headers.authorization);
     if (!user) return reply.code(401).send({ error: 'Log ind først', code: 'unauthenticated' });
 
+    // The paywall, on the other route that spends real money.
+    //
+    // This checked a session and nothing else, while OCR runs a scanned PDF
+    // through up to six vision-model calls on the operator's OpenRouter
+    // balance. So an account whose trial had run out could not chat, but could
+    // still burn the bill by uploading files all day — a hole that cost money
+    // rather than access, which is the worse kind. /api/chat has had this gate
+    // since BILL-01; this route never got it.
+    try {
+      const installRaw = req.headers['x-awa-install'];
+      const install = typeof installRaw === 'string' && installRaw.length >= 8 ? installRaw.slice(0, 128) : 'unknown-device';
+      const ent = await getEntitlement(user, install);
+      if (!ent.allowed) {
+        capture(user.id, 'paywall_hit', { route: 'files', status: ent.status });
+        return reply.code(402).send({
+          error: 'Din gratis prøveperiode er udløbet. Opgrader for at vedhæfte filer.',
+          code: 'payment_required',
+        });
+      }
+    } catch (err) {
+      req.log.error(err, 'entitlement check failed on /api/files');
+      return reply.code(503).send({
+        error: 'Dit abonnement kunne ikke kontrolleres lige nu — prøv igen om få sekunder.',
+        code: 'upstream_error',
+      });
+    }
+
+    // The only hard cap on the most expensive call this product makes. A
+    // paying account is entitled to the product, not to an unlimited vision
+    // budget: one scanned PDF is up to six model calls, so 60 files a day is
+    // already far past any real day's work and still bounds the bill.
+    if (!(await enforce(req, reply, 'files', user.id, [
+      { limit: 10, seconds: MINUTE },
+      { limit: 60, seconds: DAY },
+    ]))) {
+      return reply;
+    }
+
     const file = await req.file({ limits: { fileSize: MAX_FILE_BYTES } });
     if (!file) return reply.code(400).send({ error: 'Ingen fil i forespørgslen', code: 'bad_request' });
 
@@ -74,6 +115,7 @@ export function fileRoutes(app: FastifyInstance): void {
           code: 'no_text',
         });
       }
+      capture(user.id, 'file_parsed', { kind: parsed.kind, chars: parsed.chars, truncated: parsed.truncated });
       return finalize(parsed);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'unknown error';

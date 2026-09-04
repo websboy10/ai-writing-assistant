@@ -63,7 +63,7 @@ const host = page.locator('awa-sidebar');
 const btn = (name) => host.getByRole('button', { name, exact: true });
 
 async function openPanelAndSignIn() {
-  await host.locator('button[title*="Skriveassistent"]').first().click();
+  await host.locator('button[title*="ChatBot"]').first().click();
   await page.waitForTimeout(1200);
   const emailField = host.locator('input[type="email"]');
   if (await emailField.count()) {

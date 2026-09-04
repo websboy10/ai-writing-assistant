@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { verifyUser, rest, isUuid } from '../supabase.js';
+import { enforce, DAY } from '../limit.js';
 
 const MAX_NAME = 60;
 const MAX_INSTRUCTIONS = 4000;
@@ -16,6 +17,9 @@ export function templateRoutes(app: FastifyInstance): void {
   app.post('/api/templates', async (req, reply) => {
     const user = await verifyUser(req.headers.authorization);
     if (!user) return reply.code(401).send({ error: 'Log ind først', code: 'unauthenticated' });
+    // Rows in someone else's database are cheap to create and not free to
+    // store. Nobody writes a hundred templates in a day.
+    if (!(await enforce(req, reply, 'templates', user.id, [{ limit: 100, seconds: DAY }]))) return reply;
     const { name, instructions } = req.body as { name?: string; instructions?: string };
     if (!name?.trim() || !instructions?.trim()) {
       return reply.code(400).send({ error: 'En skabelon skal have et navn og sin tekst', code: 'bad_request' });

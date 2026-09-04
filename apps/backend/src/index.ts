@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import { env } from './env.js';
+import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
 import { billingRoutes } from './routes/billing.js';
 import { chatRoutes } from './routes/chat.js';
@@ -14,10 +15,60 @@ import { verifyUser, rpc } from './supabase.js';
 export const app = Fastify({ logger: { level: 'info' } });
 
 await app.register(cors, {
-  // Extension pages have chrome-extension:// origins whose ID changes per
-  // install in dev — reflect the origin rather than pinning one.
-  origin: true,
+  /**
+   * Reflect only origins that could legitimately be this product.
+   *
+   * This used to be `origin: true`, which reflects whatever origin asked —
+   * every website on the internet included. That was not the hole it looks
+   * like, because credentials are off and every route needs a bearer token a
+   * page cannot obtain, but it did mean any site could probe the API and read
+   * the answers. There is no reason to let them.
+   *
+   * chrome-extension:// stays open-ended on purpose: the ID differs per
+   * unpacked install and would otherwise have to be edited for every developer
+   * and every test run. A hostile extension can reach any origin regardless of
+   * CORS, so pinning one buys nothing real.
+   *
+   * A request with no Origin at all — curl, a server, the Stripe webhook — is
+   * allowed through: CORS is a browser rule and refusing here would break the
+   * webhook while stopping nobody.
+   */
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    const ok =
+      origin.startsWith('chrome-extension://') ||
+      origin === env.publicUrl ||
+      /^https:\/\/ai-skriveassistent(-api)?\.vercel\.app$/.test(origin) ||
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    cb(null, ok);
+  },
   credentials: false,
+});
+
+/**
+ * Security headers on everything this server sends.
+ *
+ * Most responses here are JSON to an extension, where these matter little. The
+ * HTML pages are why they exist: /dashboard shows live revenue, and
+ * /billing/success is a page a payment provider redirects to. Neither should be
+ * frameable, sniffable, or able to leak its URL through a referrer.
+ */
+app.addHook('onSend', async (_req, reply, payload) => {
+  reply.header('X-Content-Type-Options', 'nosniff');
+  reply.header('Referrer-Policy', 'no-referrer');
+  reply.header('X-Frame-Options', 'DENY');
+  reply.header('Cross-Origin-Opener-Policy', 'same-origin');
+  if (String(reply.getHeader('content-type') ?? '').startsWith('text/html')) {
+    // The pages are self-contained: no CDN, no external font, no image host.
+    // 'unsafe-inline' covers the one inline script and style each page carries;
+    // there is no user-supplied content on any of them for it to widen.
+    reply.header(
+      'Content-Security-Policy',
+      "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; " +
+        "connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    );
+  }
+  return payload;
 });
 await app.register(multipart);
 // A burst guard for one warm instance, and nothing more than that.
@@ -69,6 +120,7 @@ app.get('/api/usage', async (req, reply) => {
   return { used: usage.used, limit: usage.limit, resetsAt: usage.resets_at };
 });
 
+adminRoutes(app);
 authRoutes(app);
 billingRoutes(app);
 chatRoutes(app);

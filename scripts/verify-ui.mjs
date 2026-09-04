@@ -76,7 +76,7 @@ try {
   await page.waitForTimeout(1200);
 
   // ---- the panel opens ----------------------------------------------------
-  const fab = host.locator('button[title*="Skriveassistent"]');
+  const fab = host.locator('button[title*="ChatBot"]');
   await fab.waitFor({ timeout: 30_000 });
   r.ok('the edge button is present on an ordinary page', await fab.isVisible());
   await fab.click();
@@ -103,11 +103,12 @@ try {
 
   // ---- one way to ask: type and send ---------------------------------------
   r.ok('no operation picker', (await host.locator('select[title*="Hvad assistenten skal"]').count()) === 0);
-  const toneValues = await host
-    .locator('select[title*="Tonefaldet"]')
+  const sizes = await host
+    .locator('select[title*="Svarets længde"]')
     .locator('option')
     .evaluateAll((os) => os.map((o) => o.value));
-  r.ok('tone is settable', toneValues.includes('formal') && toneValues.includes('casual'), toneValues.join(','));
+  r.ok('length offers exactly three definite sizes', sizes.join(',') === 'short,medium,long', sizes.join(','));
+  r.ok('no tone picker to argue with the fixed voice', (await host.locator('select[title*="Tonefaldet"]').count()) === 0);
   const sendBtn = host.locator('button[title="Send"]');
   r.ok('send is disabled while the composer is empty', await sendBtn.isDisabled());
   await composer.fill('Skriv én kort sætning om, hvad en medarbejdersamtale er.');
@@ -250,7 +251,7 @@ try {
   await page.waitForTimeout(500);
   const closed = (await host.locator('textarea').count()) === 0;
   r.ok('Escape closes the panel', closed);
-  await host.locator('button[title*="Skriveassistent"]').click();
+  await host.locator('button[title*="ChatBot"]').click();
   await page.waitForTimeout(700);
   r.ok(
     'what was typed is still there after reopening',
@@ -277,7 +278,7 @@ try {
   await shot('06-resized');
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
-  await host.locator('button[title*="Skriveassistent"]').click();
+  await host.locator('button[title*="ChatBot"]').click();
   await page.waitForTimeout(900);
   const remembered = await host.locator('aside').boundingBox();
   r.ok('the width is remembered after a reload', Math.abs(remembered.width - wider.width) < 12, `${wider.width} -> ${remembered.width}`);
