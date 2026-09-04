@@ -112,6 +112,51 @@ export class ContentEditableAdapter implements InsertionAdapter {
     return { ok: true, verified: true };
   }
 
+  /**
+   * One Backspace per character, through the editor's own pipeline. The
+   * caret form of `delete` is what a Backspace key does; an editor that only
+   * honours a selection gets the one character selected and deleted, the way
+   * undoAll works. `inserted` is measured rather than counted, because the
+   * editor may normalise whitespace as it goes — exactly as insert() does.
+   */
+  deleteBack(count: number): InsertResult {
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet forsvandt midt i indsættelsen.' };
+    const intact = this.verifyIntact();
+    if (!intact.ok) return intact;
+    const n = Math.min(count, this.insertedText.length);
+    if (n === 0 || this.inserted <= 0) return { ok: true, verified: true };
+    if (document.activeElement !== this.el && !this.el.contains(document.activeElement)) {
+      this.el.focus();
+    }
+    this.restoreCursor();
+    const before = this.textLength();
+    for (let i = 0; i < n; i++) {
+      const len = this.textLength();
+      let ok = false;
+      try {
+        ok = document.execCommand('delete');
+      } catch {
+        ok = false;
+      }
+      if (ok && this.textLength() !== len) continue;
+      const end = this.startOffset + this.inserted - (before - len);
+      const range = this.rangeFromOffsets(end - 1, end);
+      const sel = document.getSelection();
+      if (!range || !sel) return { ok: false, verified: true, reason: 'Feltet tillod ikke at slette tegnet igen.' };
+      sel.removeAllRanges();
+      sel.addRange(range);
+      try {
+        document.execCommand('delete');
+      } catch {
+        /* measured below */
+      }
+      if (this.textLength() === len) return { ok: false, verified: true, reason: 'Feltet tillod ikke at slette tegnet igen.' };
+    }
+    this.inserted -= before - this.textLength();
+    this.insertedText = this.insertedText.slice(0, this.insertedText.length - n);
+    return { ok: true, verified: true };
+  }
+
   verifyIntact(): InsertResult {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet findes ikke længere på siden.' };
     if (this.inserted <= 0) return { ok: true, verified: true };

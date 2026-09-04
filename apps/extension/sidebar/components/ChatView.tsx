@@ -175,6 +175,11 @@ export function ChatView() {
  * person reads along, and how fast that is comfortable differs by person and
  * by document. The figure beside it is in words per minute because that is
  * the unit people already have a feel for (a typist does 40 to 60).
+ *
+ * The switch beside it is the one an HR team asked for: with it on, the run
+ * makes the small mistakes a person makes and corrects them, so the document
+ * looks like a colleague working in it. Off by default — a first-time user
+ * who sees a typo appear should have chosen that.
  */
 function PacingRow() {
   const pacing = useStore((st) => st.pacing);
@@ -196,6 +201,18 @@ function PacingRow() {
           className="h-1 min-w-0 flex-1 accent-ink"
         />
         <span className="awa-num w-[76px] shrink-0 text-right">{pacing.wpm} ord/min</span>
+      </label>
+      <label
+        className="flex shrink-0 cursor-pointer items-center gap-1.5"
+        title="Laver små tastefejl og retter dem, og sletter og skriver et ord om igen en gang imellem, så det ligner en kollega, der skriver. Teksten ender altid præcis som udkastet."
+      >
+        <input
+          type="checkbox"
+          checked={pacing.human}
+          onChange={(e) => setPacing({ human: e.target.checked })}
+          className="h-3.5 w-3.5 accent-ink"
+        />
+        <span className={pacing.human ? 'text-ink' : ''}>Skriv som et menneske</span>
       </label>
     </div>
   );

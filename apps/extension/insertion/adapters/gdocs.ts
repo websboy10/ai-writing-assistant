@@ -16,7 +16,14 @@ import { gdocsSelectionTextNow } from '../target';
  *   clipboard fallback, never a silent no-op (INST-13).
  * - insertion is UNVERIFIABLE from outside the canvas — results are reported
  *   as unverified and the UI says so honestly.
- * - undo is best-effort: one synthetic Cmd/Ctrl+Z per paste chunk.
+ * - undo is best-effort: one synthetic Cmd/Ctrl+Z per paste chunk — or, once
+ *   the session has deleted anything itself ("Skriv som et menneske"), one
+ *   synthetic Backspace per character still in the document. Docs' history
+ *   may fold a run of backspaces into one step or into the paste before it,
+ *   and one Cmd+Z too many would take the USER's earlier edit with it;
+ *   counting characters depends on nothing but the caret still standing
+ *   where the session left it, which is the same assumption every write
+ *   already makes.
  */
 export class GDocsAdapter implements InsertionAdapter {
   readonly kind = 'gdocs' as const;
@@ -29,6 +36,9 @@ export class GDocsAdapter implements InsertionAdapter {
    */
   readonly echoesAsync = true;
   private chunksInserted = 0;
+  /** Characters this session has in the document right now: pasted minus deleted. */
+  private netChars = 0;
+  private deletions = 0;
   private lastEl: HTMLElement | null = null;
   private lastIframe: HTMLIFrameElement | null = null;
 
@@ -161,24 +171,15 @@ export class GDocsAdapter implements InsertionAdapter {
     const test = GDocsAdapter.selfTest();
     if (!test.ok) return { ok: false, verified: true, reason: test.reason };
     this.chunksInserted = 0;
+    this.netChars = 0;
+    this.deletions = 0;
     // Make sure the doc has keyboard focus (the user may be in our sidebar).
     this.iframe()?.contentWindow?.focus();
     // A marked selection must not be replaced by the paste — ArrowRight
     // collapses it to its end (same synthetic-keystroke channel as undo).
     if (GDocsAdapter.hasSelection()) {
       const el = this.targetEl();
-      if (el) {
-        const init: KeyboardEventInit = {
-          key: 'ArrowRight',
-          code: 'ArrowRight',
-          keyCode: 39,
-          which: 39,
-          bubbles: true,
-          cancelable: true,
-        };
-        el.dispatchEvent(new KeyboardEvent('keydown', init));
-        el.dispatchEvent(new KeyboardEvent('keyup', init));
-      }
+      if (el) pressKey(el, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 });
     }
     return { ok: true, verified: false };
   }
@@ -239,30 +240,48 @@ export class GDocsAdapter implements InsertionAdapter {
     // Do not reintroduce a success check here from reasoning; only from a
     // signal actually observed against a live document.
     this.chunksInserted += 1;
+    this.netChars += [...chunk].length;
+    return { ok: true, verified: false };
+  }
+
+  /**
+   * Synthetic Backspace, on the same keystroke channel prepare() uses for
+   * ArrowRight and undoAll() for Cmd+Z. Unverifiable for the same reason
+   * every write is: the canvas cannot be read back.
+   */
+  deleteBack(count: number): InsertResult {
+    const el = this.targetEl();
+    if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt forsvandt midt i indsættelsen.' };
+    const n = Math.min(count, this.netChars);
+    for (let i = 0; i < n; i++) pressKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
+    this.netChars -= n;
+    this.deletions += n;
     return { ok: true, verified: false };
   }
 
   undoAll(): InsertResult {
     const el = this.targetEl();
     if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt kan ikke nås længere.' };
-    const platform =
-      (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ??
-      navigator.platform;
-    const isMac = platform.toLowerCase().includes('mac');
-    for (let i = 0; i < this.chunksInserted; i++) {
-      const init: KeyboardEventInit = {
-        key: 'z',
-        code: 'KeyZ',
-        keyCode: 90,
-        which: 90,
-        bubbles: true,
-        cancelable: true,
-        ...(isMac ? { metaKey: true } : { ctrlKey: true }),
-      };
-      el.dispatchEvent(new KeyboardEvent('keydown', init));
-      el.dispatchEvent(new KeyboardEvent('keyup', init));
+    if (this.deletions > 0) {
+      for (let i = 0; i < this.netChars; i++) pressKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
+    } else {
+      const platform =
+        (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+        navigator.platform;
+      const isMac = platform.toLowerCase().includes('mac');
+      for (let i = 0; i < this.chunksInserted; i++) {
+        pressKey(el, { key: 'z', code: 'KeyZ', keyCode: 90, which: 90, ...(isMac ? { metaKey: true } : { ctrlKey: true }) });
+      }
     }
     this.chunksInserted = 0;
+    this.netChars = 0;
+    this.deletions = 0;
     return { ok: true, verified: false };
   }
+}
+
+function pressKey(el: HTMLElement, init: KeyboardEventInit): void {
+  const full: KeyboardEventInit = { bubbles: true, cancelable: true, ...init };
+  el.dispatchEvent(new KeyboardEvent('keydown', full));
+  el.dispatchEvent(new KeyboardEvent('keyup', full));
 }

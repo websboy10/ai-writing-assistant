@@ -175,5 +175,5 @@ export const useStore = create<AwaState>((set, get) => ({
 function sanitizePacing(raw: unknown): PacingConfig {
   const r = (raw ?? {}) as Partial<PacingConfig>;
   const wpm = typeof r.wpm === 'number' && Number.isFinite(r.wpm) ? Math.min(MAX_WPM, Math.max(MIN_WPM, Math.round(r.wpm))) : DEFAULT_PACING.wpm;
-  return { wpm };
+  return { wpm, human: r.human === true };
 }

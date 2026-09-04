@@ -53,13 +53,28 @@ export class PlainAdapter implements InsertionAdapter {
     const v = this.el.value;
     const pos = this.insertPos + this.insertedText.length;
     const next = v.slice(0, pos) + chunk + v.slice(pos);
-    this.setValue(next, pos + chunk.length, chunk);
+    this.setValue(next, pos + chunk.length, 'insertText', chunk);
     // Post-write verification (INST-11): read back what we wrote.
     const readBack = this.el.value.slice(pos, pos + chunk.length);
     if (readBack !== chunk) {
       return { ok: false, verified: true, reason: 'Feltet afviste teksten — den blev rullet tilbage.' };
     }
     this.insertedText += chunk;
+    return { ok: true, verified: true };
+  }
+
+  deleteBack(count: number): InsertResult {
+    if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet forsvandt midt i indsættelsen.' };
+    const loc = this.locateInserted();
+    if (!loc.ok) return { ok: false, verified: true, reason: loc.reason };
+    const n = Math.min(count, this.insertedText.length);
+    if (n === 0) return { ok: true, verified: true };
+    const end = this.insertPos + this.insertedText.length;
+    const v = this.el.value;
+    const next = v.slice(0, end - n) + v.slice(end);
+    this.setValue(next, end - n, 'deleteContentBackward');
+    if (this.el.value !== next) return { ok: false, verified: true, reason: 'Feltet afviste sletningen.' };
+    this.insertedText = this.insertedText.slice(0, this.insertedText.length - n);
     return { ok: true, verified: true };
   }
 
@@ -80,7 +95,7 @@ export class PlainAdapter implements InsertionAdapter {
     }
     const v = this.el.value;
     const next = v.slice(0, this.insertPos) + v.slice(this.insertPos + this.insertedText.length);
-    this.setValue(next, this.insertPos);
+    this.setValue(next, this.insertPos, 'deleteContent');
     const ok = this.el.value === next;
     if (ok) this.insertedText = '';
     return { ok, verified: true, reason: ok ? undefined : 'Feltet tog ikke imod fortrydelsen.' };
@@ -109,7 +124,7 @@ export class PlainAdapter implements InsertionAdapter {
     };
   }
 
-  private setValue(value: string, caret: number, data?: string): void {
+  private setValue(value: string, caret: number, inputType: string, data?: string): void {
     const proto = this.el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
     const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
     if (setter) setter.call(this.el, value);
@@ -119,8 +134,6 @@ export class PlainAdapter implements InsertionAdapter {
     } catch {
       /* some input types disallow selection */
     }
-    this.el.dispatchEvent(
-      new InputEvent('input', { bubbles: true, inputType: data ? 'insertText' : 'deleteContent', data }),
-    );
+    this.el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType, data }));
   }
 }

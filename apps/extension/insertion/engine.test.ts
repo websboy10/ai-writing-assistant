@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { InsertionSession } from './engine.js';
 import type { InsertionAdapter, InsertResult, InsertionState } from './types.js';
+import { GDocsAdapter } from './adapters/gdocs.js';
 
 // The engine schedules its ticks through window.setTimeout (it lives in a
 // content script). Node has no window; this is the whole shim it needs.
@@ -48,6 +49,11 @@ class LateEchoAdapter implements InsertionAdapter {
     return { ok: true, verified: false };
   }
 
+  deleteBack(count: number): InsertResult {
+    this.written = this.written.slice(0, this.written.length - count);
+    return { ok: true, verified: false };
+  }
+
   undoAll(): InsertResult {
     this.written = '';
     return { ok: true, verified: false };
@@ -58,13 +64,30 @@ class LateEchoAdapter implements InsertionAdapter {
   }
 }
 
-function run(adapter: InsertionAdapter, text: string) {
+function run(adapter: InsertionAdapter, text: string, pacing = { wpm: 600, human: false }, opts = {}) {
   const states: { state: InsertionState; detail?: string }[] = [];
-  const session = new InsertionSession(adapter, text, { wpm: 600 }, {
-    onState: (state, detail) => states.push({ state, detail }),
-    onProgress: () => {},
-  });
-  return { session, states };
+  const progress: number[] = [];
+  const session = new InsertionSession(
+    adapter,
+    text,
+    pacing,
+    {
+      onState: (state, detail) => states.push({ state, detail }),
+      onProgress: (n) => progress.push(n),
+    },
+    opts,
+  );
+  return { session, states, progress };
+}
+
+function seeded(seed: number): () => number {
+  let s = seed >>> 0 || 1;
+  return () => {
+    s ^= s << 13;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    return ((s >>> 0) % 100_000) / 100_000;
+  };
 }
 
 const settle = (ms = 400) => new Promise((r) => setTimeout(r, ms));
@@ -114,4 +137,87 @@ test('synchronous editors keep the strict input guard', async () => {
   await settle();
 
   assert.equal(session.getState(), 'paused', 'plain/contenteditable lost their input guard');
+});
+
+test('human mode ends with the text byte for byte, having deleted along the way', async () => {
+  const text = 'Medarbejderen viste tydelig fremgang i salget. Hun lukkede fjorten aftaler, hvilket er over målet.';
+  let deleted = 0;
+  class CountingAdapter extends LateEchoAdapter {
+    deleteBack(count: number): InsertResult {
+      deleted += count;
+      return super.deleteBack(count);
+    }
+  }
+  for (let seed = 1; seed <= 8; seed++) {
+    deleted = 0;
+    const adapter = new CountingAdapter();
+    const { session, progress } = run(adapter, text, { wpm: 20_000, human: true }, { rng: seeded(seed), pauseScale: 0 });
+    session.start();
+    for (let i = 0; i < 100 && session.getState() === 'running'; i++) await settle(50);
+    assert.equal(session.getState(), 'done', `seed ${seed}`);
+    assert.equal(adapter.written, text, `seed ${seed}`);
+    assert.equal(progress[progress.length - 1], text.length, `seed ${seed}: progress did not end at the whole text`);
+  }
+});
+
+test('human mode: a slip is typed and taken back before the real text goes on', async () => {
+  // With the default rates a short text may get no slip at all; run enough
+  // seeds that at least one does, and check that every one ends clean.
+  const text = 'Kundekontakten er blevet bedre og mere direkte gennem hele perioden.';
+  let sawDeletion = false;
+  for (let seed = 1; seed <= 40 && !sawDeletion; seed++) {
+    const adapter = new LateEchoAdapter();
+    const origDelete = adapter.deleteBack.bind(adapter);
+    adapter.deleteBack = (n) => {
+      sawDeletion = true;
+      return origDelete(n);
+    };
+    const { session } = run(adapter, text, { wpm: 20_000, human: true }, { rng: seeded(seed), pauseScale: 0 });
+    session.start();
+    for (let i = 0; i < 100 && session.getState() === 'running'; i++) await settle(50);
+    assert.equal(adapter.written, text, `seed ${seed}`);
+  }
+  assert.ok(sawDeletion, 'forty seeds and never a single slip');
+});
+
+test('plain slow mode is unchanged: one insert per chunk, nothing deleted', async () => {
+  const adapter = new LateEchoAdapter();
+  adapter.deleteBack = () => {
+    throw new Error('deleteBack must never be called outside human mode');
+  };
+  const { session, progress } = run(adapter, 'Hej med dig');
+  session.start();
+  await settle();
+  assert.equal(adapter.written, 'Hej med dig');
+  assert.deepEqual(progress, [1, 2, 3, 5, 6, 7, 9, 10, 11]);
+});
+
+test('on Docs, human mode never hands a paste a space at either edge', async () => {
+  // Docs discards a space sitting at the edge of an individual paste
+  // (adapters/gdocs.ts measured it), which is why GDocsAdapter chunks the way
+  // it does. Human mode adds cuts of its own — a slip, a rewrite — and this
+  // is the check that those cuts inherit the same rule. Without it the words
+  // around every correction would glue together in the user's document, and
+  // nothing on the canvas can be read back to notice.
+  const text = 'Medarbejderen viste tydelig fremgang i salget i år. Hun lukkede mange aftaler, hvilket er pænt over målet.';
+  const docsChunk = GDocsAdapter.prototype.chunkText.bind(new GDocsAdapter());
+  for (let seed = 1; seed <= 12; seed++) {
+    const chunks: string[] = [];
+    class DocsChunkingAdapter extends LateEchoAdapter {
+      chunkText = docsChunk;
+      insert(chunk: string): InsertResult {
+        chunks.push(chunk);
+        return super.insert(chunk);
+      }
+    }
+    const adapter = new DocsChunkingAdapter();
+    const { session } = run(adapter, text, { wpm: 20_000, human: true }, { rng: seeded(seed), pauseScale: 0 });
+    session.start();
+    for (let i = 0; i < 100 && session.getState() === 'running'; i++) await settle(50);
+    assert.equal(adapter.written, text, `seed ${seed}`);
+    for (const c of chunks) {
+      assert.doesNotMatch(c[0], /[ \t]/, `seed ${seed}: chunk starts with a space: ${JSON.stringify(c)}`);
+      assert.doesNotMatch(c[c.length - 1], /[ \t]/, `seed ${seed}: chunk ends with a space: ${JSON.stringify(c)}`);
+    }
+  }
 });

@@ -18,6 +18,13 @@ export interface InsertionAdapter {
   prepare(): InsertResult;
   /** Insert one chunk at the current position. Must verify when possible. */
   insert(chunk: string): InsertResult;
+  /**
+   * Remove the last `count` characters this session wrote, the way Backspace
+   * would. Only "Skriv som et menneske" calls it: a slip is deleted before
+   * the real text resumes, and a rewrite takes back the last word or two.
+   * Never reaches past what the session itself inserted.
+   */
+  deleteBack(count: number): InsertResult;
   /** Undo everything this session inserted, as one user-visible step. */
   undoAll(): InsertResult;
   /**
@@ -58,15 +65,18 @@ export interface InsertionAdapter {
  * How slow mode types. `wpm` is words per minute on the standard
  * five-letters-per-word measure, so 30 is 2.5 letters a second: deliberately
  * unhurried, the user reads along as if a person were typing. The slider in
- * the panel moves it between MIN_WPM and MAX_WPM.
+ * the panel moves it between MIN_WPM and MAX_WPM. `human` adds slips that get
+ * corrected and words that get typed again (see human.ts); the text still
+ * ends up exactly as the draft.
  */
 export interface PacingConfig {
   wpm: number;
+  human: boolean;
 }
 
 export const MIN_WPM = 10;
 export const MAX_WPM = 200;
-export const DEFAULT_PACING: PacingConfig = { wpm: 30 };
+export const DEFAULT_PACING: PacingConfig = { wpm: 30, human: false };
 
 export type InsertionState = 'idle' | 'running' | 'paused' | 'stopped' | 'done' | 'error';
 

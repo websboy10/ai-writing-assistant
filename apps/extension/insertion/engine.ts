@@ -1,5 +1,6 @@
-import type { InsertionAdapter, InsertionCallbacks, InsertionState, PacingConfig } from './types';
+import type { InsertionAdapter, InsertionCallbacks, InsertionState, InsertResult, PacingConfig } from './types';
 import { awaLog } from './debug';
+import { humanScript, type Piece } from './human';
 
 /**
  * The insertion state machine. Lives in the content script (the only context
@@ -9,15 +10,37 @@ import { awaLog } from './debug';
  *
  * States: idle → running ⇄ paused → done | stopped | error
  *
+ * A session runs a list of steps. Plain slow mode is one insert step per
+ * chunk; "Skriv som et menneske" adds slips, deletions and pauses from
+ * human.ts. Either way `committed` on each step is how much of the real text
+ * is correctly in the document once the step has run, which is what the
+ * progress bar shows — it dips during a rewrite and that is the honest figure.
+ *
  * Typing-race guard (INST-12): any trusted input event on the target while a
  * session is running — i.e. keystrokes we didn't synthesize — auto-pauses the
  * session so the user's typing and ours never interleave.
  */
+
+interface Step {
+  insert?: string;
+  /** Always one character, so a deletion looks like a held key, not a cut. */
+  deleteBack?: number;
+  /** Extra wait after this step, on top of the tempo. */
+  pauseMs?: number;
+  committed: number;
+}
+
+export interface SessionOptions {
+  /** Injected for tests; human mode draws every decision from it. */
+  rng?: () => number;
+  /** Scales human-mode pauses. Tests pass 0 so a run takes milliseconds. */
+  pauseScale?: number;
+}
+
 export class InsertionSession {
   private state: InsertionState = 'idle';
-  private queue: string[] = [];
-  private queueIndex = 0;
-  private insertedChars = 0;
+  private steps: Step[] = [];
+  private stepIndex = 0;
   private totalChars: number;
   private timer: number | null = null;
   private inOwnDispatch = false;
@@ -28,9 +51,14 @@ export class InsertionSession {
     private text: string,
     private pacing: PacingConfig,
     private cb: InsertionCallbacks,
+    opts: SessionOptions = {},
   ) {
     this.totalChars = text.length;
-    this.queue = adapter.chunkText?.(text) ?? chunkText(text);
+    const chunk = (t: string) => adapter.chunkText?.(t) ?? chunkText(t);
+    const pieces: Piece[] = pacing.human
+      ? humanScript(text, { rng: opts.rng })
+      : [{ kind: 'type', text, intended: true }];
+    this.steps = planSteps(pieces, chunk, opts.pauseScale ?? 1);
   }
 
   getState(): InsertionState {
@@ -45,8 +73,7 @@ export class InsertionSession {
     const res = this.adapter.insert(this.text);
     this.inOwnDispatch = false;
     if (!res.ok) return this.fail(res.reason);
-    this.insertedChars = this.totalChars;
-    this.cb.onProgress(this.insertedChars, this.totalChars);
+    this.cb.onProgress(this.totalChars, this.totalChars);
     this.setState('done', res.verified ? undefined : 'unverified');
   }
 
@@ -56,7 +83,8 @@ export class InsertionSession {
     awaLog('engine.start', {
       kind: this.adapter.kind,
       echoesAsync: !!this.adapter.echoesAsync,
-      chunks: this.queue.length,
+      steps: this.steps.length,
+      human: !!this.pacing.human,
     });
     this.attachGuard();
     this.setState('running');
@@ -97,10 +125,7 @@ export class InsertionSession {
     this.inOwnDispatch = true;
     const res = this.adapter.undoAll();
     this.inOwnDispatch = false;
-    if (res.ok) {
-      this.insertedChars = 0;
-      this.setState('idle', 'undone');
-    }
+    if (res.ok) this.setState('idle', 'undone');
     return { ok: res.ok, reason: res.reason };
   }
 
@@ -120,40 +145,47 @@ export class InsertionSession {
 
   private tick = (): void => {
     if (this.state !== 'running') return;
-    if (this.queueIndex >= this.queue.length) {
+    if (this.stepIndex >= this.steps.length) {
       this.detachGuard();
       this.setState('done');
       return;
     }
 
-    const chunk = this.queue[this.queueIndex];
+    const step = this.steps[this.stepIndex];
+    let res: InsertResult = { ok: true, verified: true };
     this.inOwnDispatch = true;
-    const res = this.adapter.insert(chunk);
+    if (step.insert !== undefined) res = this.adapter.insert(step.insert);
+    else if (step.deleteBack) res = this.adapter.deleteBack(step.deleteBack);
     this.inOwnDispatch = false;
 
     if (!res.ok) {
-      awaLog('engine.fail', { chunkIndex: this.queueIndex, reason: res.reason });
+      awaLog('engine.fail', { stepIndex: this.stepIndex, reason: res.reason });
       this.detachGuard();
       return this.fail(res.reason);
     }
 
-    this.queueIndex += 1;
-    this.insertedChars += chunk.length;
-    this.cb.onProgress(this.insertedChars, this.totalChars);
+    this.stepIndex += 1;
+    this.cb.onProgress(step.committed, this.totalChars);
 
-    this.timer = window.setTimeout(this.tick, this.delayAfter(chunk, this.queue[this.queueIndex]));
+    this.timer = window.setTimeout(this.tick, this.delayAfter(step, this.steps[this.stepIndex]));
   };
 
-  private delayAfter(chunk: string, next: string | undefined): number {
+  private delayAfter(step: Step, next: Step | undefined): number {
+    const extra = step.pauseMs ?? 0;
+    if (step.deleteBack) {
+      // A held backspace: quick, and never metronome-steady.
+      return 40 + Math.random() * 70 + extra;
+    }
+    if (step.insert === undefined) return extra;
     // Letter-by-letter at wpm words/min (5 chars/word), with human jitter —
     // a metronome-steady 400 ms tick reads as robotic, uneven strokes don't.
     const base = 60_000 / (Math.max(1, this.pacing.wpm) * 5);
     const jittered = base * (0.6 + Math.random() * 0.8);
     // Chunks carry LEADING whitespace, so a paragraph break lives at the start
     // of the next chunk and sentence punctuation at the end of this one.
-    if (next && /^\s*\n\s*\n/.test(next)) return jittered + 700;
-    if (/[.!?]["')\]]?$/.test(chunk)) return jittered + 350;
-    return jittered;
+    if (next?.insert && /^\s*\n\s*\n/.test(next.insert)) return jittered + 700 + extra;
+    if (/[.!?]["')\]]?$/.test(step.insert)) return jittered + 350 + extra;
+    return jittered + extra;
   }
 
   private attachGuard(): void {
@@ -161,8 +193,9 @@ export class InsertionSession {
     // An async-echo editor (Google Docs) reports our own write as a trusted
     // `input` after insert() has returned, so listening for it here pauses the
     // run on its own first letter. `keydown` carries the same signal without
-    // the ambiguity — a person typing always produces one, our synthetic paste
-    // never does. See InsertionAdapter.echoesAsync.
+    // the ambiguity — a person typing always produces one, our synthetic
+    // paste and Backspace never do (both are untrusted events). See
+    // InsertionAdapter.echoesAsync.
     if (!this.adapter.echoesAsync) {
       this.guardTarget?.addEventListener('input', this.onUserInput, true);
     }
@@ -180,7 +213,7 @@ export class InsertionSession {
 
   private onUserInput = (e: Event): void => {
     if (this.inOwnDispatch || !e.isTrusted) return;
-    awaLog('engine.pause.input', { chunkIndex: this.queueIndex });
+    awaLog('engine.pause.input', { stepIndex: this.stepIndex });
     this.pause('user-typing');
   };
 
@@ -188,7 +221,7 @@ export class InsertionSession {
     if (this.inOwnDispatch || !e.isTrusted) return;
     const ke = e as KeyboardEvent;
     if (ke.key.length === 1 || ['Backspace', 'Delete', 'Enter'].includes(ke.key)) {
-      awaLog('engine.pause.keydown', { chunkIndex: this.queueIndex, key: ke.key });
+      awaLog('engine.pause.keydown', { stepIndex: this.stepIndex, key: ke.key });
       this.pause('user-typing');
     }
   };
@@ -201,6 +234,66 @@ export class InsertionSession {
   private fail(reason?: string): void {
     this.setState('error', reason ?? 'Insertion failed.');
   }
+}
+
+/**
+ * Pieces → steps. Consecutive runs of the real text are merged before
+ * chunking, and a pause is attached to the chunk it falls inside, so a pause
+ * never creates a chunk edge of its own — on Docs an edge next to a space
+ * loses the space. A slip or a deletion does cut the text, at a spot human.ts
+ * guarantees is safe.
+ *
+ * `good` is how much of the real text is correctly in the document, `bad`
+ * how many slipped characters sit after it. A deletion eats the slip first,
+ * then the real text (a rewrite).
+ */
+function planSteps(pieces: Piece[], chunk: (t: string) => string[], pauseScale: number): Step[] {
+  const steps: Step[] = [];
+  let good = 0;
+  let bad = 0;
+  let run = '';
+  let runPauses: { offset: number; ms: number }[] = [];
+
+  const flushRun = () => {
+    if (!run) return;
+    let offset = 0;
+    for (const c of chunk(run)) {
+      const start = offset;
+      offset += c.length;
+      good += c.length;
+      const ms = runPauses.filter((p) => p.offset > start && p.offset <= offset).reduce((n, p) => n + p.ms, 0);
+      steps.push({ insert: c, committed: good, ...(ms ? { pauseMs: ms * pauseScale } : {}) });
+    }
+    run = '';
+    runPauses = [];
+  };
+
+  for (const p of pieces) {
+    if (p.kind === 'type' && p.intended) {
+      run += p.text;
+      continue;
+    }
+    if (p.kind === 'pause') {
+      if (run) runPauses.push({ offset: run.length, ms: p.ms });
+      else steps.push({ committed: good, pauseMs: p.ms * pauseScale });
+      continue;
+    }
+    flushRun();
+    if (p.kind === 'type') {
+      for (const c of chunk(p.text)) {
+        bad += c.length;
+        steps.push({ insert: c, committed: good });
+      }
+    } else {
+      for (let i = 0; i < p.count; i++) {
+        if (bad > 0) bad -= 1;
+        else good -= 1;
+        steps.push({ deleteBack: 1, committed: good });
+      }
+    }
+  }
+  flushRun();
+  return steps;
 }
 
 /**
