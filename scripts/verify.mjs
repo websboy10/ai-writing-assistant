@@ -102,8 +102,12 @@ try {
   console.log('\n— Streaming chat (live AI) —');
   await host.locator('textarea[placeholder*="Skriv til"]').fill('Reply with exactly: HELLO FROM THE EXTENSION');
   await host.locator('button', { hasText: '↑' }).click();
-  const insertSlow = host.locator('button[title*="bogstav for bogstav"]').first();
-  const insertNow = host.locator('button[title*="på én gang"]').first();
+  // By label, not by tooltip: "Indsæt straks" carries a DIFFERENT tooltip
+  // depending on whether there is anywhere to insert into ("Indsæt det hele
+  // på én gang" versus "Klik først i det felt…"), and matching the tooltip
+  // made this assertion depend on where the caret happened to be.
+  const insertSlow = host.getByRole('button', { name: 'Indsæt langsomt', exact: true }).first();
+  const insertNow = host.getByRole('button', { name: 'Indsæt straks', exact: true }).first();
   await insertSlow.waitFor({ timeout: 60_000 });
   ok('assistant response streamed and finished', true);
   ok('exactly two insert modes: Straks + Langsomt', (await insertNow.count()) >= 1 && (await insertSlow.count()) >= 1);
@@ -157,6 +161,100 @@ try {
   ok('undo restored the textarea', undoneVal === '', `value="${undoneVal.slice(0, 40)}"`);
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
+  console.log('\n— Tempo: the slider actually changes the speed —');
+  // A paragraph rather than a sentence: the human-mode check below needs
+  // enough words that a slip is near-certain, and this is the same text so
+  // the two timings are comparable.
+  const PARAGRAPH =
+    'Medarbejderen har vist tydelig fremgang inden for salg og kundekontakt. ' +
+    'Hun lukkede flere aftaler end aftalt, og tilbagemeldingerne fra kunderne ' +
+    'har vaeret gode hele perioden. Naeste periode handler om produktkendskab ' +
+    'og om at dele erfaringer med resten af teamet.';
+  async function setDraft(text) {
+    await host.locator('button', { hasText: 'Redigér' }).first().click();
+    await editBox.waitFor({ timeout: 5_000 });
+    await editBox.fill(text);
+    await host.getByRole('button', { name: 'Gem', exact: true }).click();
+    await page.waitForTimeout(200);
+  }
+  const slider = host.locator('input[type="range"]');
+  await slider.waitFor({ timeout: 5_000 });
+  ok('the tempo slider is on screen', await slider.isVisible());
+  const defaultWpm = await slider.inputValue();
+  ok('it starts at the verified 30 words a minute', defaultWpm === '30', `value=${defaultWpm}`);
+
+  await setDraft(PARAGRAPH);
+  await slider.fill('200');
+  await page.waitForTimeout(200);
+  ok('the panel shows the chosen tempo', /200 ord\/min/.test(await shadowText()));
+  await page.locator('#plain').fill('');
+  await page.locator('#plain').click();
+  const fastStart = Date.now();
+  await insertSlow.click();
+  await page.waitForFunction(
+    () => /Indsat ✓/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+    { timeout: 180_000 },
+  );
+  const fastSeconds = (Date.now() - fastStart) / 1000;
+  const fastVal = await page.locator('#plain').inputValue();
+  ok('at 200 wpm the whole paragraph still lands letter-perfect', fastVal === PARAGRAPH, `got ${fastVal.length} of ${PARAGRAPH.length} chars`);
+  // 200 wpm is 1000 characters a minute, so this paragraph is roughly 20s of
+  // typing. At the old fixed 30 wpm it would be over two minutes: the check
+  // is that the slider reaches the engine at all, not that the clock is exact.
+  ok('and it is genuinely faster than the old fixed tempo', fastSeconds < 60, `took ${fastSeconds.toFixed(1)}s`);
+  await host.locator('button', { hasText: 'Fortryd indsættelse' }).click();
+  await page.waitForTimeout(400);
+  ok('undo clears it again', (await page.locator('#plain').inputValue()) === '');
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+
+  console.log('\n— Skriv som et menneske —');
+  const humanToggle = host.locator('input[type="checkbox"]').first();
+  ok('the human-typing switch is on screen', await humanToggle.isVisible());
+  ok('and it is off until the user asks for it', !(await humanToggle.isChecked()));
+  await humanToggle.check();
+  await page.waitForTimeout(200);
+
+  // The claim is that it types something WRONG and then fixes it, so watching
+  // the finished text proves nothing — the field has to be sampled while the
+  // run is going. A sample that is not a prefix of the draft is a character
+  // the user would have seen and that is not in the answer: a slip, or a word
+  // being taken back. Two attempts, because at the shipped rates a run can
+  // legitimately produce none.
+  let deviations = 0;
+  let humanVal = '';
+  for (let attempt = 1; attempt <= 2 && deviations === 0; attempt++) {
+    await page.locator('#plain').fill('');
+    await page.locator('#plain').click();
+    await insertSlow.click();
+    const samples = [];
+    const done = page.waitForFunction(
+      () => /Indsat ✓/.test(document.querySelector('awa-sidebar')?.shadowRoot?.textContent ?? ''),
+      { timeout: 180_000 },
+    );
+    let running = true;
+    void done.then(() => (running = false)).catch(() => (running = false));
+    while (running) {
+      samples.push(await page.locator('#plain').inputValue());
+      await page.waitForTimeout(60);
+    }
+    await done;
+    humanVal = await page.locator('#plain').inputValue();
+    deviations = samples.filter((v) => v && !PARAGRAPH.startsWith(v)).length;
+    console.log(`  (attempt ${attempt}: ${samples.length} samples, ${deviations} of them not a prefix of the draft)`);
+    if (deviations === 0 && attempt < 2) {
+      await host.locator('button', { hasText: 'Fortryd indsættelse' }).click();
+      await page.waitForTimeout(400);
+      await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+    }
+  }
+  ok('the run really typed something that is not in the answer, and took it back', deviations > 0, `${deviations} deviating samples`);
+  ok('and the document still ends up exactly as the draft', humanVal === PARAGRAPH, `got ${JSON.stringify(humanVal.slice(-60))}`);
+  await page.screenshot({ path: `${shotsDir}/08-human-typing.png` });
+  await host.locator('button', { hasText: 'Fortryd indsættelse' }).click();
+  await page.waitForTimeout(500);
+  ok('undo after a human-mode run leaves the field empty', (await page.locator('#plain').inputValue()) === '', `value=${JSON.stringify((await page.locator('#plain').inputValue()).slice(0, 40))}`);
+  await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
+
   console.log('\n— Marked text —');
   await page.locator('#plain').fill('Hvad er status på projektet?');
   await page.locator('#plain').click();
@@ -173,7 +271,7 @@ try {
   const belowVal = await page.locator('#plain').inputValue();
   ok(
     'marked text kept, answer on the line below',
-    belowVal === `Hvad er status på projektet?\n${LONG_TEXT}`,
+    belowVal === `Hvad er status på projektet?\n${PARAGRAPH}`,
     `value="${belowVal.slice(0, 80)}"`,
   );
   await host.locator('button', { hasText: 'Fortryd indsættelse' }).click();
@@ -190,9 +288,15 @@ try {
   ok('text survives framework re-render', controlledVal.length > 10 && controlledVal === controlledState, `dom="${controlledVal.slice(0, 40)}" state="${String(controlledState).slice(0, 40)}"`);
   await page.screenshot({ path: `${shotsDir}/05-controlled-input.png` });
 
-  console.log('\n— Insertion: contenteditable, below a marked paragraph —');
+  console.log('\n— Insertion: contenteditable, below a marked paragraph (still in human mode) —');
+  // Human mode is deliberately still switched on from the section above. A
+  // rich-text editor is where taking characters back is hardest — the editor
+  // owns its own document model and renormalises whitespace under us — so
+  // this is the one place a wrong deleteBack would show up as mangled text
+  // rather than as an error. The sentence is long enough, with long enough
+  // words, that slips and rewrites actually occur.
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
-  const shortText = 'Ord et to.';
+  const shortText = 'Kundekontakten er blevet tydeligt bedre gennem hele perioden, og aftalerne lukkes hurtigere.';
   await host.locator('button', { hasText: 'Redigér' }).first().click();
   await editBox.waitFor({ timeout: 5_000 });
   await editBox.fill(shortText);
@@ -205,7 +309,12 @@ try {
   );
   const editorText = (await page.locator('#editor').textContent()) ?? '';
   ok('marked paragraph survived', editorText.includes('Existing paragraph.'), `text="${editorText.slice(0, 80)}"`);
-  ok('answer landed below it, letters spaced correctly', editorText.includes(shortText), `text="${editorText.slice(0, 80)}"`);
+  ok('answer landed below it, letters spaced correctly', editorText.includes(shortText), `text="${editorText.slice(0, 120)}"`);
+  ok(
+    'human mode left no slipped characters behind in the rich-text editor',
+    editorText.trim() === `Existing paragraph.\n${shortText}`.trim() || editorText.replace(/\s+/g, ' ').trim() === `Existing paragraph. ${shortText}`.trim(),
+    `text="${editorText.replace(/\s+/g, ' ').slice(0, 160)}"`,
+  );
   await page.screenshot({ path: `${shotsDir}/06-contenteditable.png` });
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});
 
@@ -240,6 +349,18 @@ try {
   ok('length is settable', (await lengthSelect.inputValue()) === 'shorter');
   ok('tone is settable', (await host.locator('select[title*="Tonefaldet"]').count()) === 1);
   ok('no operation picker: chat is the only way to ask', (await host.locator('select[title*="Hvad assistenten skal"]').count()) === 0);
+
+  console.log('\n— The tempo and the switch survive a restart —');
+  // A reload is the only honest way to check this: chrome.storage lives in the
+  // content script's world, and page.evaluate runs in the page's own, where
+  // `chrome` is undefined. It costs the conversation in the panel, so it runs
+  // here — after everything that needs a draft to insert.
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1500);
+  await host.locator('button[title*="Skriveassistent"]').click();
+  await page.waitForTimeout(1200);
+  ok('the chosen tempo is remembered', (await host.locator('input[type="range"]').inputValue()) === '200', `slider=${await host.locator('input[type="range"]').inputValue()}`);
+  ok('the human-typing switch is remembered', await host.locator('input[type="checkbox"]').first().isChecked());
 
   console.log('\n— Usage counter —');
   ok('real usage numbers visible in header', /\d+ \/ \d+/.test(await shadowText()));
