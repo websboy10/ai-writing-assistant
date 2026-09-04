@@ -1,5 +1,12 @@
 # Chrome Web Store — færdig tekst til alle felter
 
+> **OPDATERET 2026-09-04, anden runde.** Produktet hedder nu **ChatBot Skriv**,
+> prisen er **100 kr./md.**, og der er en anden måde at betale på: et månedspas
+> til 100 kr. med MobilePay. Navnet, prisen og MobilePay står i alle felterne
+> herunder. Skærmbillederne i `store-assets/` viser stadig det gamle navn i
+> panelets hoved og skal tages om — `node scripts/store-shots.mjs`, med en
+> Google-indlogget testprofil.
+>
 > **OPDATERET 2026-09-04.** Produktet er skåret ind til én ting: spørg, få et
 > udkast, sæt det ind — straks eller langsomt, i det tempo du vælger. "Besvar
 > alle spørgsmål" og "Besvar markeringen" er fjernet, og med dem Google
@@ -37,7 +44,7 @@ der kan begrundes i et review. Den nuværende pakke er kontrolleret: kun
 ### Navn (max 75 tegn)
 
 ```
-AI Skriveassistent
+ChatBot Skriv
 ```
 
 ### Kort beskrivelse / "Summary" (max 132 tegn)
@@ -53,9 +60,9 @@ Chat med en AI-assistent i kanten af enhver side — og få svaret skrevet direk
 ```
 Ikke endnu en chatboks. En assistent, der skriver dér, hvor du skriver.
 
-De fleste AI-værktøjer giver dig et svar, du selv skal kopiere videre. AI
-Skriveassistent afleverer teksten direkte i det tekstfelt eller dokument, du
-allerede arbejder i — og du bestemmer hvordan.
+De fleste AI-værktøjer giver dig et svar, du selv skal kopiere videre. ChatBot
+Skriv afleverer teksten direkte i det tekstfelt eller dokument, du allerede
+arbejder i — og du bestemmer hvordan.
 
 SÅDAN VIRKER DET
 
@@ -99,14 +106,18 @@ Du kan altid vende tilbage til en tidligere samtale, søge i dem og slette dem.
 
 PRIS
 
-7 dage gratis. Du skal ikke oplyse kort for at prøve. Derefter 50 kr. om
-måneden, ingen binding, opsig når som helst. Betaling håndteres af Stripe.
+7 dage gratis. Du skal ikke oplyse kort for at prøve. Derefter 100 kr. om
+måneden, ingen binding, opsig når som helst. Foretrækker du MobilePay, kan du i
+stedet købe et månedspas til 100 kr., der giver adgang i 30 dage og ikke fornyes
+automatisk. Betaling håndteres af Stripe.
 
 DINE DATA
 
 Konto og samtalehistorik opbevares hos Supabase i EU (Stockholm). Vedhæftede
 filer behandles kun midlertidigt for at udtrække tekst — selve filerne gemmes
-ikke. Vi bruger ingen sporingscookies og sælger ikke data.
+ikke. Vi bruger ingen sporingscookies og sælger ikke data. Vi måler, om
+produktet virker — antal svar, svartider og fejl — på vores egen server, aldrig
+i din browser og aldrig med dit indhold.
 Privatlivspolitik: https://ai-skriveassistent.vercel.app/privatliv.html
 
 Bygget i Danmark. Spørgsmål: sehit@degirmenci.dk
@@ -117,8 +128,8 @@ Bygget i Danmark. Spørgsmål: sehit@degirmenci.dk
 ```
 Not another chat box. An assistant that writes where you write.
 
-Most AI tools hand you an answer you then have to copy somewhere else. AI
-Skriveassistent delivers the text straight into the field or document you are
+Most AI tools hand you an answer you then have to copy somewhere else. ChatBot
+Skriv delivers the text straight into the field or document you are
 already working in — and you decide how.
 
 HOW IT WORKS
@@ -166,7 +177,7 @@ else.
 
 PRICING
 
-7 days free, no card required. Then DKK 50 per month, no lock-in, cancel any
+7 days free, no card required. Then DKK 100 per month, no lock-in, cancel any
 time. Payment is handled by Stripe.
 
 YOUR DATA
@@ -237,7 +248,7 @@ har et navn, skriptet bruger.
 ### Single purpose (én erklæring — dette felt afviser Google flest på)
 
 ```
-AI Skriveassistent har ét formål: at hjælpe brugeren med at skrive tekst og
+ChatBot Skriv har ét formål: at hjælpe brugeren med at skrive tekst og
 indsætte den i det tekstfelt eller dokument, brugeren selv har valgt på den
 side, de arbejder på. Alle udvidelsens funktioner — chatpanelet, vedhæftning af
 filer, arbejde med markeret tekst og selve indsættelsen — tjener dette ene

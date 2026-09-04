@@ -9,6 +9,12 @@
 -- Migration 0001 was applied through the dashboard and is not in this repo at
 -- all, so its policies have never been read by anyone auditing this code.
 --
+-- RUN AGAINST THE LIVE DATABASE 2026-09-04, after migrations 0011 and 0012:
+-- every check came back clean. All eight tables have RLS on, every policy
+-- compares against auth.uid(), every SECURITY DEFINER function pins its
+-- search_path, none is reachable by anon or PUBLIC, and anon holds no table
+-- privilege at all.
+--
 -- WHAT "BAD" LOOKS LIKE is written above each query. Anything a query returns
 -- under a heading that says rows are bad needs fixing; an empty result is a
 -- pass.
@@ -45,7 +51,15 @@ join pg_class c on c.oid = p.polrelid
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public'
   and (
-    coalesce(pg_get_expr(p.polqual, p.polrelid), 'true') = 'true'
+    -- An INSERT policy has no USING clause at all — it is checked by WITH
+    -- CHECK. Reading its NULL qual as "true" reported every correctly scoped
+    -- insert policy in this database as a hole on the first run (2026-09-04),
+    -- which is how an audit trains you to ignore it.
+    coalesce(
+      case when p.polcmd = 'a' then pg_get_expr(p.polwithcheck, p.polrelid)
+           else pg_get_expr(p.polqual, p.polrelid) end,
+      'true'
+    ) = 'true'
     or 'anon' = any (select rolname from pg_roles where oid = any (p.polroles))
   )
 order by c.relname, p.polname;

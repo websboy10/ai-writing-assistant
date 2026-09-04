@@ -52,6 +52,25 @@ editor: through the document you already have open, at the cursor you placed.
 - **What is never touched:** sharing settings, permissions, comments, version
   history, other documents, and Drive itself. Nothing can list your files.
 
+## Analytics
+
+We measure whether the product works, and nothing about what you write.
+
+Measurement happens **on our own server**, not in your browser. The extension
+sends nothing to an analytics host from the pages you visit — every event is
+recorded by the backend, which was already handling the request.
+
+What is recorded: that a reply completed, which model answered it, how long it
+took, how many tokens it used, which error code a failure produced, that a file
+was parsed and how many characters it held, and the points where someone hits
+the paywall or starts a checkout.
+
+What is **never** recorded: your prompt, the reply, file names, file contents,
+page contents, or your e-mail address. The only identifier attached is your
+account id, which is a random number.
+
+The processor is PostHog, in the EU region.
+
 ## Deletion
 
 Deleting a conversation removes its stored content immediately. Deleting your
