@@ -193,7 +193,7 @@ export async function applySubscription(sub: Stripe.Subscription): Promise<void>
   // Counted here rather than at the checkout route, because this is the only
   // point that runs for every path a subscription can change by: the success
   // redirect, the webhook, a card failing, a cancellation in the portal.
-  capture(userId, 'subscription_state', { state: mapStatus(sub.status), stripe_status: sub.status });
+  await capture(userId, 'subscription_state', { state: mapStatus(sub.status), stripe_status: sub.status });
   await anonRpc('billing_set_subscription', {
     p_user_id: userId,
     p_customer_id: customerId,

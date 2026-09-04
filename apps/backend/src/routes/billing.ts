@@ -71,7 +71,7 @@ export function billingRoutes(app: FastifyInstance): void {
       // Dashboard analytics tag (2026-03-25.dahlia+); harmless when older.
       ...({ integration_identifier: 'awa-extension-kqzvbnwt' } as Record<string, string>),
     });
-    capture(user.id, 'checkout_started', { kind: 'subscription' });
+    await capture(user.id, 'checkout_started', { kind: 'subscription' });
     return { url: session.url };
   });
 
@@ -121,7 +121,7 @@ export function billingRoutes(app: FastifyInstance): void {
         ? { automatic_tax: { enabled: true }, customer_update: { address: 'auto' as const } }
         : {}),
     });
-    capture(user.id, 'checkout_started', { kind: 'month_pass' });
+    await capture(user.id, 'checkout_started', { kind: 'month_pass' });
     return { url: session.url };
   });
 
@@ -291,7 +291,7 @@ async function applyCheckout(session: Stripe.Checkout.Session): Promise<void> {
     // that is granting it for free.
     if (session.payment_status !== 'paid' || !userId) return;
     const days = Number(session.metadata?.days ?? 30);
-    capture(userId, 'pass_granted', {
+    await capture(userId, 'pass_granted', {
       days: Number.isFinite(days) && days > 0 ? Math.min(400, Math.round(days)) : 30,
       amount_dkk: session.amount_total != null ? Math.round(session.amount_total / 100) : null,
     });

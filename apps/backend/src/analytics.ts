@@ -24,15 +24,27 @@ export interface CaptureProps {
 }
 
 /**
- * Fire and forget, and it means it.
+ * Records one event. Await it — do not fire and forget.
  *
- * A failed analytics call must never turn a delivered answer into an error, and
- * must never add latency to a stream the user is watching. So: no await at the
- * call sites, a short timeout, and every failure swallowed after no log line at
- * all. This is the one place in this codebase where swallowing an error is
- * correct, because the alternative is analytics taking the product down.
+ * FIRE AND FORGET DOES NOT WORK HERE, and it looks like it does. This function
+ * started as `void fetch(...)` with no await anywhere, on the reasoning that
+ * analytics must never add latency. Measured against production 2026-09-04:
+ * three generations were run back to back and only two events arrived. The
+ * missing one was the slowest request, but the pattern is a race, not a
+ * length: the backend is a Vercel Function, and once the response is finished
+ * the platform is free to freeze the invocation immediately, which kills any
+ * fetch still in flight. So the events that go missing are arbitrary, and a
+ * dashboard that silently under-counts is worse than no dashboard — it is a
+ * number somebody will make a decision on.
+ *
+ * THE COST IS BOUNDED ON PURPOSE. Awaiting an HTTPS POST to an EU host from an
+ * EU function is tens of milliseconds, against a chat request that has already
+ * streamed for seconds. The 2s cap is what stops a PostHog outage from becoming
+ * our outage: the timeout fires, the error is swallowed, and the user's request
+ * finishes as if nothing happened. It never rejects, so no call site needs a
+ * catch and no failure here can turn a delivered answer into an error.
  */
-export function capture(userId: string, event: string, props: CaptureProps = {}): void {
+export async function capture(userId: string, event: string, props: CaptureProps = {}): Promise<void> {
   if (!env.posthogKey) return;
   const body = JSON.stringify({
     api_key: env.posthogKey,
@@ -41,11 +53,11 @@ export function capture(userId: string, event: string, props: CaptureProps = {})
     properties: { ...props, $lib: 'awa-backend' },
     timestamp: new Date().toISOString(),
   });
-  void fetch(`${env.posthogHost}/i/v0/e/`, {
+  await fetch(`${env.posthogHost}/i/v0/e/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body,
-    signal: AbortSignal.timeout(3_000),
+    signal: AbortSignal.timeout(2_000),
   }).catch(() => {
     /* analytics is never allowed to be the reason a request failed */
   });

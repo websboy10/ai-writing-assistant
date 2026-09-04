@@ -39,7 +39,7 @@ export function chatRoutes(app: FastifyInstance): void {
       const install = typeof installRaw === 'string' && installRaw.length >= 8 ? installRaw.slice(0, 128) : 'unknown-device';
       const ent = await getEntitlement(user, install);
       if (!ent.allowed) {
-        capture(user.id, 'paywall_hit', { route: 'chat', status: ent.status });
+        await capture(user.id, 'paywall_hit', { route: 'chat', status: ent.status });
         return reply.code(402).send({
           error: 'Din gratis prøveperiode er udløbet. Opgrader for 100 kr. om måneden for at skrive videre.',
           code: 'payment_required',
@@ -65,7 +65,7 @@ export function chatRoutes(app: FastifyInstance): void {
       });
     }
     if (!quota.ok) {
-      capture(user.id, 'quota_exceeded', { limit: quota.limit });
+      await capture(user.id, 'quota_exceeded', { limit: quota.limit });
       return reply.code(429).send({
         error: `Du har brugt alle ${quota.limit} forespørgsler for i dag. Grænsen nulstilles ${danishTime(quota.resets_at)}.`,
         code: 'quota_exceeded',
@@ -124,7 +124,12 @@ export function chatRoutes(app: FastifyInstance): void {
           // Counted, not just logged: a chain whose first entry is permanently
           // broken looks like a working product with a latency problem, and the
           // logs are the one place nobody looks until someone complains.
-          capture(user.id, 'model_fallback', { model, reason: reason.slice(0, 120) });
+          //
+          // The one capture deliberately NOT awaited. It fires mid-stream while
+          // the next model is being reached for, and blocking there would make
+          // recovering from a failure slower than the failure itself. This one
+          // may be lost to a frozen invocation; a completion may not.
+          void capture(user.id, 'model_fallback', { model, reason: reason.slice(0, 120) });
         },
       },
       // Smart routing (openrouter.ts → pickChain): a short answer with nothing
@@ -155,7 +160,7 @@ export function chatRoutes(app: FastifyInstance): void {
         type: 'done',
         usage: usage ? { used: usage.used, limit: usage.limit, resetsAt: usage.resets_at } : null,
       });
-      capture(user.id, 'chat_completed', {
+      await capture(user.id, 'chat_completed', {
         model: servedBy,
         length: body.prefs?.length ?? 'medium',
         tokens_in: tokensIn,
@@ -174,7 +179,7 @@ export function chatRoutes(app: FastifyInstance): void {
           req.log.error(refundErr, 'refund_quota failed after zero-token generation failure'),
         );
       }
-      capture(user.id, 'chat_failed', {
+      await capture(user.id, 'chat_failed', {
         code:
           err instanceof PolicyError
             ? 'policy_no_paid_models'

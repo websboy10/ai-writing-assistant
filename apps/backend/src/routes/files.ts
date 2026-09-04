@@ -64,7 +64,7 @@ export function fileRoutes(app: FastifyInstance): void {
       const install = typeof installRaw === 'string' && installRaw.length >= 8 ? installRaw.slice(0, 128) : 'unknown-device';
       const ent = await getEntitlement(user, install);
       if (!ent.allowed) {
-        capture(user.id, 'paywall_hit', { route: 'files', status: ent.status });
+        await capture(user.id, 'paywall_hit', { route: 'files', status: ent.status });
         return reply.code(402).send({
           error: 'Din gratis prøveperiode er udløbet. Opgrader for at vedhæfte filer.',
           code: 'payment_required',
@@ -115,7 +115,7 @@ export function fileRoutes(app: FastifyInstance): void {
           code: 'no_text',
         });
       }
-      capture(user.id, 'file_parsed', { kind: parsed.kind, chars: parsed.chars, truncated: parsed.truncated });
+      await capture(user.id, 'file_parsed', { kind: parsed.kind, chars: parsed.chars, truncated: parsed.truncated });
       return finalize(parsed);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'unknown error';

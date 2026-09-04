@@ -114,7 +114,7 @@ export function authRoutes(app: FastifyInstance): void {
     // The uuid, never the address. GoTrue returns the new user on success; on
     // failure there is nobody to attribute the event to and nothing is sent.
     const newId = (body as { id?: string; user?: { id?: string } }).id ?? (body as { user?: { id?: string } }).user?.id;
-    if (res.ok && newId) capture(newId, 'signed_up', {});
+    if (res.ok && newId) await capture(newId, 'signed_up', {});
     return reply.code(res.status).send(body);
   });
 
@@ -131,7 +131,7 @@ export function authRoutes(app: FastifyInstance): void {
     });
     const body = await res.json().catch(() => ({ error: `Auth service returned ${res.status}` }));
     const who = (body as { user?: { id?: string } }).user?.id;
-    if (res.ok && who) capture(who, 'signed_in', {});
+    if (res.ok && who) await capture(who, 'signed_in', {});
     return reply.code(res.status).send(body);
   });
 
