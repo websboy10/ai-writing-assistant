@@ -30,9 +30,10 @@ in, arriving at a pace they can read along with and stop mid-flow.
 answers into it — the right box, real formatting, typed slowly — with no API
 and no permission.** 11/11 on a worksheet carrying every shape at once, three
 regressions green. Still flagged OUT of the store build; that is the operator's
-switch (wxt.config.ts, answerAllEnabled). Backend half deployed with the
-chain/search/spelling work earlier the same day is live; the extension half
-ships with the next store build.
+switch (wxt.config.ts, answerAllEnabled). NOT deployed: the backend's
+autonomous prompt (structure tags, markdown format rules, per-run web search)
+is on master only, and the extension half ships with the next store build.
+Nothing a store user can reach changes until both happen.
 
 ### Where this stood (2026-09-04)
 
