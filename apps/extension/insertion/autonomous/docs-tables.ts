@@ -80,7 +80,7 @@ export type BoxBelowVerdict =
   /** No box under this line of text. */
   | { kind: 'none' }
   /** The paragraph right after the question is the empty first cell of a table: End, ArrowDown, and the caret is in it. */
-  | { kind: 'empty-box-below' }
+  | { kind: 'empty-box-below'; via?: string }
   /** There is a box below, and the user has already written in it. */
   | { kind: 'occupied-box-below'; text: string }
   /**
@@ -88,7 +88,7 @@ export type BoxBelowVerdict =
    * "1." or "•" and left it blank. Same keys as the box, and the answer then
    * continues that list instead of starting a second one beside it.
    */
-  | { kind: 'empty-list-item-below'; list: 'bullet' | 'numbered' };
+  | { kind: 'empty-list-item-below'; list: 'bullet' | 'numbered'; via?: string };
 
 /**
  * The worksheet shape: a question as ORDINARY TEXT with a box drawn under it.
@@ -118,11 +118,24 @@ export function boxBelowFor(
       : paragraphs.find((p) => p.kind !== 'cell' && p.text.toLowerCase().includes(wanted));
   if (!question || question.kind === 'cell') return { kind: 'none' };
 
-  const next = paragraphs[question.index + 1];
+  // Guidance between the question and its box — "Tænk på både faglige og
+  // personlige resultater", as bullet points — is skipped, and the caret is
+  // taken to the box FROM THE LAST GUIDANCE LINE (`via`), not from the
+  // question: ArrowDown moves one visual line and a hint may wrap, so counting
+  // lines from the question is a guess, and Find on the last hint is not.
+  // Measured 2026-09-08 on a real form: without this the answer went between
+  // the question and its hints and the box below stayed empty.
+  let i = question.index + 1;
+  let via: string | undefined;
+  while (paragraphs[i] && (paragraphs[i].kind === 'bullet' || paragraphs[i].kind === 'numbered') && paragraphs[i].text) {
+    via = paragraphs[i].text;
+    i += 1;
+  }
+  const next = paragraphs[i];
   if (!next) return { kind: 'none' };
   if ((next.kind === 'bullet' || next.kind === 'numbered') && !next.text) {
-    return { kind: 'empty-list-item-below', list: next.kind };
+    return { kind: 'empty-list-item-below', list: next.kind, ...(via ? { via } : {}) };
   }
   if (next.kind !== 'cell' || !next.cell || next.cell.row !== 0 || next.cell.col !== 0) return { kind: 'none' };
-  return next.text ? { kind: 'occupied-box-below', text: next.text } : { kind: 'empty-box-below' };
+  return next.text ? { kind: 'occupied-box-below', text: next.text } : { kind: 'empty-box-below', ...(via ? { via } : {}) };
 }

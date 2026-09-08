@@ -59,6 +59,13 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
         'imperative prompts ("Beskriv dine tre vigtigste resultater i år"), and headings with blank space ' +
         'left beneath them all count as things a person is expected to answer. A plain statement of fact ' +
         'is NOT a question and must not be included.',
+      // Measured 2026-09-08 on a demo form: "Udfyld skemaet nedenfor. Svar så
+      // konkret som muligt" — the form's own instruction to whoever fills it
+      // in — was answered with a paragraph about the writer's year.
+      'An instruction about HOW to fill in the form is not a question either: "Udfyld skemaet nedenfor", ' +
+        '"Svar så konkret som muligt", "Brug gerne eksempler", "Sæt kryds", "Skriv med blokbogstaver". ' +
+        'It addresses the reader about the form itself and asks for nothing that could be written under it. ' +
+        'A line in bold at the top of a form or a section is usually such an instruction or a label.',
       'Each line is prefixed with what kind of line it is. A line marked (tabelcelle, TOM svarboks) is an ' +
         'empty answer box: it is never a question itself, and it belongs to the question in the cell before ' +
         'it or on the line above its table — that question IS one to answer. A heading is a section title, not ' +

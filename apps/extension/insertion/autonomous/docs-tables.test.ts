@@ -194,3 +194,38 @@ test('a FILLED list item under the question is guidance, not a slot', () => {
   const sheet = [P(0, { text: 'Nævn tre byer.', kind: 'text' }), P(1, { text: 'fx i Jylland', kind: 'bullet', level: 1 })];
   assert.deepEqual(boxBelowFor(sheet, { paragraphIndex: 0, questionText: 'Nævn tre byer.' }), { kind: 'none' });
 });
+
+test('guidance bullets between the question and its box are skipped, and the box is reached from the last hint', () => {
+  const form = [
+    P(0, { text: '1. Hvad er du mest stolt af i år?', kind: 'text' }),
+    P(1, { text: 'Tænk på både faglige og personlige resultater', kind: 'bullet', level: 1 }),
+    P(2, { text: 'Nævn gerne et konkret eksempel', kind: 'bullet', level: 1 }),
+    cell(3, '', 0, 0, 0),
+  ];
+  assert.deepEqual(boxBelowFor(form, { paragraphIndex: 0, questionText: '1. Hvad er du mest stolt af i år?' }), {
+    kind: 'empty-box-below',
+    via: 'Nævn gerne et konkret eksempel',
+  });
+});
+
+test('guidance bullets, then an empty numbered item: the slot is the item, reached from the last hint', () => {
+  const form = [
+    P(0, { text: 'Nævn tre mål:', kind: 'text' }),
+    P(1, { text: 'Gerne målbare', kind: 'bullet', level: 1 }),
+    P(2, { text: '', kind: 'numbered', level: 1 }),
+  ];
+  assert.deepEqual(boxBelowFor(form, { paragraphIndex: 0, questionText: 'Nævn tre mål:' }), {
+    kind: 'empty-list-item-below',
+    list: 'numbered',
+    via: 'Gerne målbare',
+  });
+});
+
+test('guidance bullets followed by ordinary text is not a box — the hints were the whole of it', () => {
+  const form = [
+    P(0, { text: 'Spørgsmål?', kind: 'text' }),
+    P(1, { text: 'et hint', kind: 'bullet', level: 1 }),
+    P(2, { text: 'Næste spørgsmål?', kind: 'text' }),
+  ];
+  assert.deepEqual(boxBelowFor(form, { paragraphIndex: 0, questionText: 'Spørgsmål?' }), { kind: 'none' });
+});

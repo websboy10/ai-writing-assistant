@@ -160,6 +160,29 @@ test('human mode ends with the text byte for byte, having deleted along the way'
   }
 });
 
+test('human mode: a deletion reaches the adapter as one call for the whole slip, never one per letter', async () => {
+  // adapters/gdocs.ts turns each call into one verified selection; split
+  // into single characters it would be one unverifiable keystroke each.
+  const text = 'Medarbejderen viste tydelig fremgang i salget. Hun lukkede fjorten aftaler, hvilket er over målet.';
+  let calls = 0;
+  let deleted = 0;
+  class CountingAdapter extends LateEchoAdapter {
+    deleteBack(count: number): InsertResult {
+      calls += 1;
+      deleted += count;
+      return super.deleteBack(count);
+    }
+  }
+  for (let seed = 1; seed <= 8; seed++) {
+    const adapter = new CountingAdapter();
+    const { session } = run(adapter, text, { wpm: 20_000, human: true }, { rng: seeded(seed), pauseScale: 0 });
+    session.start();
+    for (let i = 0; i < 100 && session.getState() === 'running'; i++) await settle(50);
+    assert.equal(adapter.written, text, `seed ${seed}`);
+  }
+  assert.ok(deleted > calls, `every deletion was a single character (${deleted} characters in ${calls} calls)`);
+});
+
 test('human mode: a slip is typed and taken back before the real text goes on', async () => {
   // With the default rates a short text may get no slip at all; run enough
   // seeds that at least one does, and check that every one ends clean.

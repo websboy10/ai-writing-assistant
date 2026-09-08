@@ -137,6 +137,38 @@ against a broken connection.
 
 ---
 
+## F-5 — Docs drops a synthetic Backspace one time in fifty under load (MEASURED, FIXED 2026-09-08)
+
+Seen on a real MUS form typed with "Skriv som et menneske": "derude" arrived as
+"drerude" (one of two Backspaces never happened) and "Søren" as "Sren" (a
+Backspace applied after the next letter had landed).
+
+Measured with `scripts/probe-docs-backspace-race.mjs`, `probe-docs-delete-channel.mjs`
+and `probe-docs-select-read.mjs`, all on live Docs, no model quota:
+
+| what was sent | idle page | main thread ~50% busy |
+|---|---|---|
+| Backspace keydown, 40–250 ms apart | 143/144 | loses ~1 in 50 at EVERY spacing |
+| keydown only / keydown + beforeinput | — | same rate |
+| `beforeinput deleteContentBackward` alone | — | ignored outright, 0/10 |
+| `execCommand('delete')` | — | ignored, 0/10 |
+| paste, Enter | never lost | never lost (600+ each) |
+| Shift+ArrowLeft × N, then paste over the selection | — | 10/10 |
+| synthetic copy read of that selection | — | exact 101/101 whole selections, different 7/7 short ones |
+
+The busy thread is not hypothetical: the sidebar is a content script in Docs'
+own page, so its progress rendering and Docs' key handling share one thread.
+Spacing is therefore not a fix; the channel is.
+
+**Fix (adapters/gdocs.ts deleteBack):** a deletion is a verified selection.
+Shift+ArrowLeft per character, read what is marked, compare with what the
+session typed last; a dropped arrow gets one more arrow and another read,
+twice at most; only an exact match is left for the next paste to replace,
+anything else is collapsed and deleted the old way. engine.ts sends the whole
+deletion as one step so the selection is one gesture. The read is untrimmed
+(`gdocsMarkedTextNow`) so a selection that reached into the space before a
+word cannot pass as a match.
+
 ## Diagnostics available
 
 `insertion/debug.ts` — off unless the page's localStorage has `awa-debug=1`.

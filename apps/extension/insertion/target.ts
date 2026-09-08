@@ -120,6 +120,23 @@ export interface GDocsRead {
  * request, no Google account, only the document the user is looking at.
  */
 export function gdocsSelectionNow(): GDocsRead {
+  const raw = copyNow();
+  return { text: raw.text.trim(), html: raw.html };
+}
+
+/**
+ * The marked text EXACTLY, edge whitespace included.
+ *
+ * For the adapter's own deletions (adapters/gdocs.ts deleteBack): a selection
+ * meant to cover "re" that reached one character too far reads " re", and
+ * trimming would make that look like the match it is not — then the paste
+ * would eat the space before the word.
+ */
+export function gdocsMarkedTextNow(): string {
+  return copyNow().text;
+}
+
+function copyNow(): GDocsRead {
   const el = gdocsEventTarget();
   if (!el) return { text: '', html: '' };
   try {
@@ -127,7 +144,7 @@ export function gdocsSelectionNow(): GDocsRead {
     dt.setData('text/plain', '');
     el.dispatchEvent(new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }));
     return {
-      text: dt.getData('text/plain').replace(ZERO_WIDTH, '').trim(),
+      text: dt.getData('text/plain').replace(ZERO_WIDTH, ''),
       html: dt.getData('text/html'),
     };
   } catch {

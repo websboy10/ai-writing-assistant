@@ -28,12 +28,18 @@ in, arriving at a pace they can read along with and stop mid-flow.
 
 **Phase 8 complete: "Besvar alle spørgsmål" reads a Google Doc's structure and
 answers into it — the right box, real formatting, typed slowly — with no API
-and no permission.** 11/11 on a worksheet carrying every shape at once, three
-regressions green. Still flagged OUT of the store build; that is the operator's
-switch (wxt.config.ts, answerAllEnabled). NOT deployed: the backend's
-autonomous prompt (structure tags, markdown format rules, per-run web search)
-is on master only, and the extension half ships with the next store build.
-Nothing a store user can reach changes until both happen.
+and no permission.** 14/14 on a worksheet carrying every shape at once, and
+the answers read back letter for letter. The first run on a REAL form (a MUS
+worksheet, 2026-09-08 evening) found three defects — an instruction line
+answered, an answer placed above its hints, and letters lost to Docs dropping
+synthetic Backspaces under load — all three measured, fixed and re-verified
+the same evening (08-SUMMARY.md, 07-FINDINGS-docs.md F-5).
+
+**Backend deployed 2026-09-08 evening** (the autonomous prompt with structure
+tags, markdown rules, the instruction-line rule, per-run web search). The
+extension half is still flagged OUT of the store build; that is the operator's
+switch (wxt.config.ts, answerAllEnabled), so nothing a store user can reach
+changes until a new package ships with it on.
 
 ### Where this stood (2026-09-04)
 

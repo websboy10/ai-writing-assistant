@@ -128,8 +128,12 @@ class GDocsFindSource implements QuestionSource {
     }
 
     // D-03: re-run Find for THIS question right now — the document grows as
-    // answers land, so a position measured earlier would be stale.
-    const found = await findAndPlaceCursor(q.questionText, occurrence);
+    // answers land, so a position measured earlier would be stale. When the
+    // box sits past a run of guidance lines, Find lands on the LAST of those
+    // instead (docs-tables.ts `via`), so ArrowDown walks into the box from
+    // the line directly above it.
+    const via = 'via' in below ? below.via : undefined;
+    const found = await findAndPlaceCursor(via ?? q.questionText, via ? 1 : occurrence);
     if (!found.ok) {
       this.reason = found.reason ?? `Spørgsmålet "${q.questionText}" kunne ikke findes i dokumentet.`;
       return null; // never a bare cursor target on a find failure

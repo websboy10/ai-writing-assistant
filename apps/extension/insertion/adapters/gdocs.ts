@@ -1,6 +1,6 @@
 import type { FormatKey, InsertionAdapter, InsertResult } from '../types';
 import { awaLog, describeNode } from '../debug';
-import { gdocsCommandKey, gdocsSelectionTextNow, pressGdocsKey } from '../target';
+import { gdocsCommandKey, gdocsMarkedTextNow, gdocsSelectionTextNow, pressGdocsKey } from '../target';
 
 /**
  * Google Docs adapter — the fragile one, by design kept fully isolated.
@@ -41,6 +41,10 @@ export class GDocsAdapter implements InsertionAdapter {
   private deletions = 0;
   /** Any formatting or Enter/space key pressed this session — decides how undo works. */
   private usedKeys = false;
+  /** The last characters this session put in the document, newest last — what a deletion must find marked before anything is replaced. */
+  private tail = '';
+  /** Characters deleteBack() has left marked for the next write to replace. */
+  private marked = 0;
   private lastEl: HTMLElement | null = null;
   private lastIframe: HTMLIFrameElement | null = null;
 
@@ -176,6 +180,8 @@ export class GDocsAdapter implements InsertionAdapter {
     this.netChars = 0;
     this.deletions = 0;
     this.usedKeys = false;
+    this.tail = '';
+    this.marked = 0;
     // Make sure the doc has keyboard focus (the user may be in our sidebar).
     this.iframe()?.contentWindow?.focus();
     // A marked selection must not be replaced by the paste — ArrowRight
@@ -244,7 +250,14 @@ export class GDocsAdapter implements InsertionAdapter {
     // signal actually observed against a live document.
     this.chunksInserted += 1;
     this.netChars += [...chunk].length;
+    this.wrote(chunk);
     return { ok: true, verified: false };
+  }
+
+  /** Every write replaces whatever deleteBack() left marked, and extends the remembered tail. */
+  private wrote(text: string): void {
+    this.marked = 0;
+    this.tail = (this.tail + text).slice(-TAIL_CHARS);
   }
 
   /**
@@ -275,6 +288,7 @@ export class GDocsAdapter implements InsertionAdapter {
     awaLog('gdocs.insertRich', { htmlLength: html.length, plainLength: plain.length });
     this.chunksInserted += 1;
     this.netChars += [...plain].length;
+    this.wrote(plain);
     return { ok: true, verified: false };
   }
 
@@ -305,6 +319,7 @@ export class GDocsAdapter implements InsertionAdapter {
     if (key === 'space') {
       el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: ' ', bubbles: true, cancelable: true }));
       this.netChars += 1;
+      this.wrote(' ');
       return { ok: true, verified: false };
     }
     const cmd = gdocsCommandKey();
@@ -320,7 +335,10 @@ export class GDocsAdapter implements InsertionAdapter {
       enter: { key: 'Enter', code: 'Enter', keyCode: 13, which: 13 },
     };
     pressGdocsKey(el, CHORDS[key]);
-    if (key === 'enter') this.netChars += 1;
+    if (key === 'enter') {
+      this.netChars += 1;
+      this.wrote('\n');
+    }
     // The one write here that cannot be inferred from the text afterwards: a
     // toggle that Docs ignored leaves no trace but missing bold.
     awaLog('gdocs.pressKey', { key, el: describeNode(el), docHasFocus: this.targetDoc()?.hasFocus() ?? null });
@@ -328,17 +346,60 @@ export class GDocsAdapter implements InsertionAdapter {
   }
 
   /**
-   * Synthetic Backspace, on the same keystroke channel prepare() uses for
-   * ArrowRight and undoAll() for Cmd+Z. Unverifiable for the same reason
-   * every write is: the canvas cannot be read back.
+   * A deletion is a SELECTION here — verified — that the next write replaces.
+   *
+   * A synthetic Backspace keydown is the one thing Docs drops: about one in
+   * fifty while the page's main thread is busy, and during a run the
+   * sidebar's own progress rendering is that load. Measured 2026-09-08
+   * (scripts/probe-docs-backspace-race.mjs, probe-docs-delete-channel.mjs):
+   * at every spacing from 40 to 200 ms, on keydown alone and on keydown with
+   * beforeinput, while a beforeinput deleteContentBackward on its own is
+   * ignored outright. On a real form that read "drerude" and "Sren". In the
+   * same runs not one paste and not one Enter was lost, and a paste replaces
+   * whatever is marked.
+   *
+   * So: Shift+ArrowLeft once per character, then ask Docs what is marked (the
+   * same synthetic copy target.ts reads with) and compare it with what this
+   * session typed last. An arrow can drop like any keydown (7 of 396 did), but
+   * the read told the truth 108 times of 108 — exact on every whole selection,
+   * different on every short one (scripts/probe-docs-select-read.mjs). A short
+   * selection gets one more arrow and another read, twice at most. Only a
+   * selection that reads back as exactly the text to delete is left standing
+   * for the next write; anything else is collapsed and deleted the old way,
+   * which is still right 49 times in 50.
+   *
+   * target.ts's rule of no selection polling while Docs is being written to
+   * holds: at most three reads here, each after a keystroke of our own and
+   * before the next write, and 148 such reads in the probes changed nothing.
    */
   deleteBack(count: number): InsertResult {
     const el = this.targetEl();
     if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt forsvandt midt i indsættelsen.' };
     const n = Math.min(count, this.netChars);
-    for (let i = 0; i < n; i++) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
+    if (n <= 0) return { ok: true, verified: false };
+    const tail = [...this.tail];
+    const expected = tail.slice(-n).join('');
+    this.iframe()?.contentWindow?.focus();
+    const SHIFT_LEFT: KeyboardEventInit = { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37, which: 37, shiftKey: true };
+    for (let i = 0; i < n; i++) pressGdocsKey(el, SHIFT_LEFT);
+    let read = gdocsMarkedTextNow();
+    let retries = 0;
+    while (read !== expected && retries < 2 && tail.length > n + retries) {
+      pressGdocsKey(el, SHIFT_LEFT);
+      read = gdocsMarkedTextNow();
+      retries += 1;
+    }
+    const ok = read === expected;
+    awaLog('gdocs.deleteBack', { count: n, expected, read, retries, ok });
+    if (ok) {
+      this.marked = n;
+    } else {
+      pressGdocsKey(el, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 });
+      for (let i = 0; i < n; i++) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
+    }
     this.netChars -= n;
     this.deletions += n;
+    this.tail = tail.slice(0, tail.length - n).join('');
     return { ok: true, verified: false };
   }
 
@@ -346,6 +407,9 @@ export class GDocsAdapter implements InsertionAdapter {
     const el = this.targetEl();
     if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt kan ikke nås længere.' };
     if (this.deletions > 0 || this.usedKeys) {
+      // A selection deleteBack() left standing goes with the first Backspace;
+      // it is already off netChars.
+      if (this.marked > 0) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
       for (let i = 0; i < this.netChars; i++) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
       // A list or heading style can outlive its text on the now-empty line.
       if (this.usedKeys) pressGdocsKey(el, { key: '0', code: 'Digit0', keyCode: 48, which: 48, ...gdocsCommandKey(), altKey: true });
@@ -358,6 +422,11 @@ export class GDocsAdapter implements InsertionAdapter {
     this.netChars = 0;
     this.deletions = 0;
     this.usedKeys = false;
+    this.tail = '';
+    this.marked = 0;
     return { ok: true, verified: false };
   }
 }
+
+/** How much of what was typed is remembered for deleteBack() to check against — far more than any slip or rewrite (human.ts MAX_REWRITE_CHARS). */
+const TAIL_CHARS = 64;

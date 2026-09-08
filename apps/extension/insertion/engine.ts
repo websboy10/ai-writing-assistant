@@ -215,8 +215,9 @@ export class InsertionSession {
   private delayAfter(step: Step, next: Step | undefined): number {
     const extra = step.pauseMs ?? 0;
     if (step.deleteBack) {
-      // A held backspace: quick, and never metronome-steady.
-      return 40 + Math.random() * 70 + extra;
+      // A held backspace: quick, never metronome-steady, a beat longer for
+      // each extra character it takes.
+      return 40 + Math.random() * 70 + 25 * (step.deleteBack - 1) + extra;
     }
     if (step.key) {
       // A shortcut is a chord, not a thought: quick. Enter is a line and gets
@@ -342,11 +343,15 @@ function planSteps(pieces: RichPiece[], chunk: (t: string) => string[], pauseSca
         steps.push({ insert: c, committed: good });
       }
     } else {
+      // The whole deletion as ONE step. On Docs a deletion is a selection the
+      // next paste replaces (adapters/gdocs.ts deleteBack), and marking three
+      // letters is one gesture; one Backspace per step, 40 ms apart, was how a
+      // dropped keystroke left "drerude" in a real form (2026-09-08).
       for (let i = 0; i < p.count; i++) {
         if (bad > 0) bad -= 1;
         else good -= 1;
-        steps.push({ deleteBack: 1, committed: good });
       }
+      steps.push({ deleteBack: p.count, committed: good });
     }
   }
   flushRun();
