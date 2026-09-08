@@ -67,6 +67,19 @@ export const PROSE_RULES = [
   // through. Loosened to the thing that actually reads as human: don't reuse
   // the same slip two sentences running, and never stack two in one sentence.
   '- Do not use the same slip two sentences in a row, and never put two slips in the same sentence.',
+  // The defect this kills, measured 2026-09-08 in a live run that went into a
+  // real document: "Blaa og gul give groen faktisk nej det er blaa og gul der
+  // bliver groen", and "det giver groen er forkert, man faa faktisk groen nej
+  // vent, det bliver groen". The model called its own correct answer wrong and
+  // then repeated it. That is not a person typing fast, it is nonsense.
+  //
+  // Note what is NOT asked for here: a written self-correction. "naeh vent" in
+  // the text would be permanent in the user's document. Typing a mistake and
+  // taking it back is the ENGINE's job, where it stays transient and the
+  // finished text is clean (apps/extension/insertion/human.ts).
+  '- Never argue with yourself in the text. Do not call your own answer wrong, do not say something is not the ' +
+    'case and then say it is, and do not correct a figure, a name or a date after writing it. Say the thing once ' +
+    'and let it stand.',
   '- Never type a dash as punctuation. Not the long dash, not the short one, and never a hyphen standing alone between two words. A hyphen is only allowed inside a single word.',
   '- Simple is about which words you pick, never about spelling them wrong. Spell every word correctly and keep ' +
     'its apostrophes.',

@@ -41,7 +41,23 @@ export interface HumanOptions {
   pauseRate?: number;
 }
 
-const DEFAULT_RATES = { typoRate: 0.045, rewriteRate: 0.03, pauseRate: 0.06 };
+/**
+ * Raised hard on 2026-09-08, at the operator's request: a mistake or a rewrite
+ * on roughly every third word, where it used to be closer to every fourteenth.
+ *
+ * The two rates do not simply add up, and the difference matters when tuning
+ * them: `typoRate` is rolled only for words of four or more letters
+ * (SLIP_WORD), which is around two thirds of ordinary Danish prose, while
+ * `rewriteRate` is rolled for every word. So 0.35 and 0.12 land near one mark
+ * in three overall — measured in human.test.ts rather than left to arithmetic.
+ *
+ * None of this reaches the finished document. Every slip is deleted before the
+ * real text resumes (promise 1 above), so this is entirely about what the
+ * typing LOOKS like while it happens. That is also why the rate can be this
+ * high without being a correctness risk: the test that replays the pieces and
+ * compares byte for byte already runs at typoRate 1.
+ */
+const DEFAULT_RATES = { typoRate: 0.35, rewriteRate: 0.12, pauseRate: 0.06 };
 
 /** Danish QWERTY: what a finger lands on when it misses. */
 const NEIGHBOURS: Record<string, string> = {

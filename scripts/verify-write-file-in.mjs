@@ -152,6 +152,23 @@ try {
   if (!(a < b && b < c)) throw new Error(`lines are out of order: ${a}, ${b}, ${c}`);
   r.ok("the lines are in the file's own order", true);
 
+  // The byte-for-byte promise, on the real adapter rather than in a unit test.
+  //
+  // "Skriv som et menneske" types deliberate mistakes and deletes them again,
+  // and on 2026-09-08 its rate was raised from a mark every fourteenth word to
+  // every third. Each of those is a synthetic Backspace into Google Docs — the
+  // least verifiable write path in the product, since Docs paints to canvas and
+  // cannot be read back from inside the page. human.test.ts proves the SCRIPT
+  // is correct; only a read-back proves Docs actually applied it. One backspace
+  // too many here would eat the user's own text.
+  const norm = (s) => s.replace(/\r\n/g, '\n').replace(/\s+$/g, '').trim();
+  if (!norm(text).includes(norm(FIXTURE))) {
+    throw new Error(
+      `the typed text does not match the file exactly.\n  wanted: ${JSON.stringify(norm(FIXTURE))}\n  got:    ${JSON.stringify(norm(text))}`,
+    );
+  }
+  r.ok('the document holds the file exactly, after all the typed-and-deleted mistakes', true);
+
   console.log(`\n  document read back:\n${text.trim().split('\n').map((l) => `    | ${l}`).join('\n')}`);
 
   const expected = new URL(process.env.AWA_BACKEND ?? 'https://ai-skriveassistent-api.vercel.app').host;

@@ -112,3 +112,36 @@ test('a rewrite never crosses a line break', () => {
     }
   }
 });
+
+// ---------------------------------------------------------------------------
+// Density, at the DEFAULT rates. Raised 2026-09-08 at the operator's request
+// from roughly a mark every fourteenth word to one every third, and pinned
+// here because the two rates interact in a way arithmetic alone gets wrong:
+// typoRate is rolled only for words of four or more letters, rewriteRate for
+// every word. If someone retunes them, this is the thing that must stay true.
+// ---------------------------------------------------------------------------
+
+test('at the default rates, roughly every third word carries a mistake or a rewrite', () => {
+  let words = 0;
+  let marks = 0;
+  for (let seed = 1; seed <= 200; seed++) {
+    const pieces = humanScript(TEXT, { rng: seeded(seed) });
+    words += TEXT.split(/\s+/).filter(Boolean).length;
+    // A delete is the signature of both kinds of event: a slip is typed then
+    // removed, a rewrite removes the words before retyping them. Counting
+    // deletes counts exactly the moments the reader SEES something happen.
+    marks += pieces.filter((p) => p.kind === 'delete').length;
+  }
+  const perWord = marks / words;
+  assert.ok(
+    perWord > 0.2 && perWord < 0.5,
+    `expected roughly one mark every third word, got one every ${(1 / perWord).toFixed(1)} words`,
+  );
+});
+
+test('the document is still the draft byte for byte at the default rates', () => {
+  for (let seed = 1; seed <= 120; seed++) {
+    const pieces = humanScript(TEXT, { rng: seeded(seed) });
+    assert.equal(replay(pieces), TEXT, `seed ${seed}`);
+  }
+});
