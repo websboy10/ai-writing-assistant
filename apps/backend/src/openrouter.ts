@@ -216,6 +216,33 @@ async function streamOne(
         // "unlimited", it is "the model's maximum", and OpenRouter reserves
         // credit for all of it before answering.
         max_tokens: env.maxTokens,
+        /**
+         * The single biggest thing wrong with this product's speed, measured
+         * 2026-09-08 against the live API with the real prompt.
+         *
+         * These models think before they write, and the thinking is neither
+         * free nor hidden from the budget. Asked for a short plan, four runs
+         * in four burned 3.5k-5.1k characters of reasoning and then hit the
+         * max_tokens ceiling — so every answer came back TRUNCATED mid
+         * sentence, 359 to 595 characters of actual text, finish_reason
+         * "length". That is the whole of "it is slow and sometimes it does not
+         * answer": the wait was the model thinking, and the missing answer was
+         * the ceiling being spent on thought instead of words.
+         *
+         *   as today          first token 8.1s, 4 of 4 truncated
+         *   effort: minimal   first token 0.7s, 0 of 4 truncated, answers
+         *                     1335-1572 characters and finish_reason "stop"
+         *
+         * `exclude: true` is NOT the fix and was measured too: it only hides
+         * the reasoning from the response, and still costs 7.9s. The thinking
+         * has to be turned down, not turned invisible. It cannot be turned off
+         * either — some endpoints answer HTTP 400 "Reasoning is mandatory for
+         * this endpoint and cannot be disabled" — so minimal is the floor.
+         *
+         * Nothing here needs a model that reasons: the product writes a first
+         * draft in a plain voice for a person to edit.
+         */
+        reasoning: { effort: 'minimal' },
         usage: { include: true },
         // For real content, refuse providers that collect/train on prompts.
         ...(isSynthetic ? {} : { provider: { data_collection: 'deny' } }),
