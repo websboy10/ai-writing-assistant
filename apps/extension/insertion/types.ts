@@ -19,6 +19,20 @@ export interface InsertionAdapter {
   /** Insert one chunk at the current position. Must verify when possible. */
   insert(chunk: string): InsertResult;
   /**
+   * Insert the whole text as REAL formatting — headings, bold, actual list
+   * items — instead of characters that merely look like them.
+   *
+   * Present only on adapters whose editor can hold structure at all. A
+   * <textarea> physically cannot, so PlainAdapter omits it and nothing
+   * changes there.
+   *
+   * Only "Indsæt straks" uses it, and that is not a temporary limitation:
+   * paced mode types one code point at a time, and half a bold sentence is
+   * not a thing that can be inserted. `plain` is carried alongside so the
+   * adapter can hand the editor both flavours in one paste and let it choose.
+   */
+  insertRich?(html: string, plain: string): InsertResult;
+  /**
    * Remove the last `count` characters this session wrote, the way Backspace
    * would. Only "Skriv som et menneske" calls it: a slip is deleted before
    * the real text resumes, and a rewrite takes back the last word or two.

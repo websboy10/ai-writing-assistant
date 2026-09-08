@@ -673,16 +673,20 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
               clicking a field and pressing Insert is still the better path when
               it is available, and the button explains that itself. */}
           <button
-            onClick={() => inserter.start(m.content, 'instant')}
+            onClick={() => inserter.start(m.content, 'instant', m.markdown)}
             className={`rounded-full px-3 py-1 ${canInsert ? 'bg-ink text-paper hover:opacity-85' : 'border border-hairline hover:border-ink'}`}
-            title={canInsert ? 'Indsæt det hele på én gang' : 'Klik først i det felt eller dokument, teksten skal ind i'}
+            title={
+              canInsert
+                ? 'Indsæt det hele på én gang — overskrifter, fed skrift og punkttegn kommer med i Google Docs'
+                : 'Klik først i det felt eller dokument, teksten skal ind i'
+            }
           >
             Indsæt straks
           </button>
           <button
             onClick={() => inserter.start(m.content, 'progressive')}
             className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
-            title={`Skriver bogstav for bogstav, ${wpm} ord i minuttet (tempoet vælges nederst), og kan sættes på pause eller stoppes når som helst`}
+            title={`Skriver bogstav for bogstav, ${wpm} ord i minuttet (tempoet vælges nederst), og kan sættes på pause eller stoppes når som helst. Teksten kommer ind uden formatering — vælg Indsæt straks, hvis den skal beholde overskrifter og punkttegn`}
           >
             Indsæt langsomt
           </button>

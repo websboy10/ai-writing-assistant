@@ -245,6 +245,37 @@ export class GDocsAdapter implements InsertionAdapter {
   }
 
   /**
+   * The same synthetic paste as insert(), carrying `text/html` as well.
+   *
+   * Docs reads the HTML flavour and builds real structure from it — measured
+   * against a live document 2026-09-08, where a pasted <h1>/<b>/<ul>/<ol> came
+   * back out of Docs' own HTML export as a genuine heading, genuine bold and
+   * genuine lists rather than as characters.
+   *
+   * `text/plain` is set too and is not redundant: it is what Docs falls back to
+   * if it ever stops honouring the HTML flavour, which would otherwise turn
+   * this into a silent no-op — the one failure mode this adapter's whole
+   * design exists to avoid.
+   *
+   * Counted as ONE chunk, which is what makes undo correct: undoAll() sends one
+   * Cmd+Z per chunk, and Docs treats a paste as a single history step.
+   */
+  insertRich(html: string, plain: string): InsertResult {
+    const el = this.targetEl();
+    if (!el) {
+      return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt forsvandt midt i indsættelsen.' };
+    }
+    const dt = new DataTransfer();
+    dt.setData('text/plain', plain);
+    dt.setData('text/html', html);
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    awaLog('gdocs.insertRich', { htmlLength: html.length, plainLength: plain.length });
+    this.chunksInserted += 1;
+    this.netChars += [...plain].length;
+    return { ok: true, verified: false };
+  }
+
+  /**
    * Synthetic Backspace, on the same keystroke channel prepare() uses for
    * ArrowRight and undoAll() for Cmd+Z. Unverifiable for the same reason
    * every write is: the canvas cannot be read back.

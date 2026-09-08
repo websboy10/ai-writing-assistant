@@ -90,7 +90,7 @@ export function sendChat(userText: string): void {
     const msgs = [...st.messages];
     const last = msgs[msgs.length - 1];
     if (last?.streaming) {
-      msgs[msgs.length - 1] = { ...last, content: stripMarkdown(rawText) };
+      msgs[msgs.length - 1] = { ...last, content: stripMarkdown(rawText), markdown: rawText };
       st.set({ messages: msgs });
     }
   };

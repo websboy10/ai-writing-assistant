@@ -11,6 +11,15 @@ export interface UiMessage extends ChatMessage {
   id: string;
   /** true while tokens are still arriving */
   streaming?: boolean;
+  /**
+   * The model's reply before stripMarkdown() flattened it.
+   *
+   * `content` stays flat, because everything already depends on it — the
+   * panel, Kopiér, the history, and every paced insertion. This is carried
+   * beside it for the one caller that can use structure: "Indsæt straks" into
+   * an editor that can hold real headings, bold and lists.
+   */
+  markdown?: string;
 }
 
 interface InsertStatus {

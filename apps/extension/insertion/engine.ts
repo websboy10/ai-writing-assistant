@@ -35,6 +35,15 @@ export interface SessionOptions {
   rng?: () => number;
   /** Scales human-mode pauses. Tests pass 0 so a run takes milliseconds. */
   pauseScale?: number;
+  /**
+   * The same text as real formatting, for editors that can hold it.
+   *
+   * Used by "Indsæt straks" alone. Paced mode ignores it and always types the
+   * plain text — a bold sentence cannot be delivered one code point at a time,
+   * and the alternative (type it flat, then re-paste it formatted at the end)
+   * would make the finished text visibly jump.
+   */
+  html?: string;
 }
 
 export class InsertionSession {
@@ -45,6 +54,7 @@ export class InsertionSession {
   private timer: number | null = null;
   private inOwnDispatch = false;
   private guardTarget: EventTarget | null = null;
+  private html: string | undefined;
 
   constructor(
     private adapter: InsertionAdapter,
@@ -54,6 +64,7 @@ export class InsertionSession {
     opts: SessionOptions = {},
   ) {
     this.totalChars = text.length;
+    this.html = opts.html;
     const chunk = (t: string) => adapter.chunkText?.(t) ?? chunkText(t);
     const pieces: Piece[] = pacing.human
       ? humanScript(text, { rng: opts.rng })
@@ -70,7 +81,13 @@ export class InsertionSession {
     const prep = this.adapter.prepare();
     if (!prep.ok) return this.fail(prep.reason);
     this.inOwnDispatch = true;
-    const res = this.adapter.insert(this.text);
+    // Real formatting when the editor can hold it and there is any to give;
+    // otherwise exactly what this always did. Both paths are one write, so
+    // undo stays one user-visible step either way.
+    const res =
+      this.html && this.adapter.insertRich
+        ? this.adapter.insertRich(this.html, this.text)
+        : this.adapter.insert(this.text);
     this.inOwnDispatch = false;
     if (!res.ok) return this.fail(res.reason);
     this.cb.onProgress(this.totalChars, this.totalChars);

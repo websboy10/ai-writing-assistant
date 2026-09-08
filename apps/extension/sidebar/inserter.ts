@@ -3,6 +3,7 @@ import {
   GDocsAdapter,
   InsertionSession,
   isGoogleDocs,
+  markdownToHtml,
   TargetTracker,
   type SavedTarget,
 } from '@/insertion';
@@ -39,7 +40,12 @@ class Inserter {
     return { label: t.label, ok: true };
   }
 
-  start(text: string, mode: 'instant' | 'progressive'): void {
+  /**
+   * `markdown` is the model's untouched reply, kept alongside the flat text it
+   * was reduced to. Only "Indsæt straks" into an editor that can hold
+   * structure ever uses it; everything else writes `text`, exactly as before.
+   */
+  start(text: string, mode: 'instant' | 'progressive', markdown?: string): void {
     const store = useStore.getState();
     const target = this.target();
     if (!target) {
@@ -63,6 +69,13 @@ class Inserter {
           ? (target.selEnd ?? 0) > (target.selStart ?? 0)
           : !!target.range && !target.range.collapsed;
     const finalText = hasSelection ? `\n${text}` : text;
+
+    // Only for Straks, and only when there is structure worth carrying: a
+    // reply with no headings, bold or lists converts to plain paragraphs, and
+    // pasting HTML for that would risk Docs' own paste normalisation for no
+    // gain at all.
+    const html = mode === 'instant' && markdown && adapter.insertRich ? markdownToHtml(markdown) : undefined;
+    const worthIt = html && /<(h[1-6]|strong|ul|ol)[\s>]/.test(html);
 
     this.session = new InsertionSession(adapter, finalText, store.pacing, {
       onState: (state, detail) => {
@@ -105,7 +118,7 @@ class Inserter {
           },
         });
       },
-    });
+    }, { html: worthIt ? html : undefined });
 
     if (mode === 'instant') this.session.insertInstant();
     else this.session.start();
