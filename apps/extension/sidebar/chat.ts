@@ -20,7 +20,7 @@ export function stopGeneration(): void {
   const s = useStore.getState();
   s.set({
     streaming: false,
-    messages: s.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
+    messages: s.messages.map((m) => (m.streaming ? { ...m, streaming: false, status: undefined } : m)),
   });
 }
 
@@ -90,7 +90,9 @@ export function sendChat(userText: string): void {
     const msgs = [...st.messages];
     const last = msgs[msgs.length - 1];
     if (last?.streaming) {
-      msgs[msgs.length - 1] = { ...last, content: stripMarkdown(rawText), markdown: rawText };
+      // The words ARE the status once they start, so it goes here rather than
+      // on a timer — the label and the first word can never both be on screen.
+      msgs[msgs.length - 1] = { ...last, content: stripMarkdown(rawText), markdown: rawText, status: undefined };
       st.set({ messages: msgs });
     }
   };
@@ -114,7 +116,7 @@ export function sendChat(userText: string): void {
         state.set({
           streaming: false,
           error: 'Svaret blev afbrudt, før det var færdigt. Prøv igen.',
-          messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
+          messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false, status: undefined } : m)),
         });
       }
       activePort = null;
@@ -124,6 +126,11 @@ export function sendChat(userText: string): void {
     switch (ev.type) {
       case 'meta':
         if (!state.conversationId) state.set({ conversationId: ev.conversationId });
+        break;
+      case 'status':
+        state.set({
+          messages: state.messages.map((m) => (m.streaming && !m.content ? { ...m, status: ev.state } : m)),
+        });
         break;
       case 'sources':
         // Onto the message being written, not into it: `content` is what gets
@@ -138,7 +145,7 @@ export function sendChat(userText: string): void {
           streaming: false,
           // null usage = the server's usage lookup failed; keep the last known value.
           usage: ev.usage ? { used: ev.usage.used, limit: ev.usage.limit, resetsAt: ev.usage.resetsAt } : state.usage,
-          messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
+          messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false, status: undefined } : m)),
         });
         break;
       }
@@ -152,7 +159,7 @@ export function sendChat(userText: string): void {
               ? { ...state.billing, active: false }
               : { status: 'expired', active: false, subscribed: false, trialEndsAt: new Date(0).toISOString(), trialDaysLeft: 0, passEndsAt: null, passDaysLeft: 0 },
             messages: state.messages
-              .map((m) => (m.streaming ? { ...m, streaming: false } : m))
+              .map((m) => (m.streaming ? { ...m, streaming: false, status: undefined } : m))
               .filter((m) => m.content.length > 0 || m.role === 'user'),
           });
           void state.loadBilling();
@@ -167,7 +174,7 @@ export function sendChat(userText: string): void {
             view: 'auth',
             error: 'Din session er udløbet — log ind igen.',
             messages: state.messages
-              .map((m) => (m.streaming ? { ...m, streaming: false } : m))
+              .map((m) => (m.streaming ? { ...m, streaming: false, status: undefined } : m))
               .filter((m) => m.content.length > 0 || m.role === 'user'),
           });
           break;
@@ -179,7 +186,7 @@ export function sendChat(userText: string): void {
           error: ev.message,
           notice: kept ? 'Det delvise svar ovenfor er beholdt.' : null,
           messages: state.messages
-            .map((m) => (m.streaming ? { ...m, streaming: false } : m))
+            .map((m) => (m.streaming ? { ...m, streaming: false, status: undefined } : m))
             .filter((m) => m.content.length > 0 || m.role === 'user'),
         });
         break;
@@ -195,7 +202,7 @@ export function sendChat(userText: string): void {
         streaming: false,
         error:
           'Forbindelsen til assistenten røg midt i svaret (browseren satte udvidelsen i dvale). Den delvise tekst er beholdt — tryk send for at fortsætte.',
-        messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
+        messages: state.messages.map((m) => (m.streaming ? { ...m, streaming: false, status: undefined } : m)),
       });
     }
   });

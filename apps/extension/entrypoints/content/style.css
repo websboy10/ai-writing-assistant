@@ -83,6 +83,37 @@
 }
 
 /*
+ * Waiting, before the first word. Two parts: a dot that breathes so the panel
+ * looks alive rather than stuck, and three dots that fill in one at a time.
+ *
+ * The ellipsis is drawn in CSS rather than typed into the label so the label
+ * stays a plain translatable string, and so its width does not jump the text
+ * around as the dots appear. Reduced motion gets the full "..." and no
+ * movement — the information is the word, never the animation.
+ */
+@keyframes awa-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+.awa-pulse {
+  display: inline-block;
+  animation: awa-pulse 1.4s ease-in-out infinite;
+}
+@keyframes awa-ellipsis {
+  0% { content: '.'; }
+  33% { content: '..'; }
+  66%, 100% { content: '...'; }
+}
+.awa-ellipsis::after {
+  content: '...';
+  animation: awa-ellipsis 1.5s steps(1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .awa-pulse { animation: none; opacity: 0.6; }
+  .awa-ellipsis::after { animation: none; content: '...'; }
+}
+
+/*
  * The machine voice — and ONLY the machine. Reserved for things the software
  * reports about itself: a state word, a counter, a field label. It had spread
  * to whole Danish sentences ("Du har markeret tekst · 163 tegn"), where

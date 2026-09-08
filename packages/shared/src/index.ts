@@ -94,11 +94,31 @@ export interface WebSource {
 export type ChatStreamEvent =
   | { type: 'meta'; conversationId: string; model: string }
   | { type: 'token'; text: string }
+  /**
+   * What the assistant is doing before the first word arrives.
+   *
+   * The wait used to be one undifferentiated pause. It is now made of parts
+   * the user cannot see: deciding whether to look something up (~0.8s), and
+   * then possibly searching (2-4s). Silence for five seconds reads as broken,
+   * and the honest fix is to say which of the two is happening rather than to
+   * show a spinner that means nothing.
+   *
+   * Superseded by the first token — once words appear, they are the status.
+   */
+  | { type: 'status'; state: ChatStatus }
   | { type: 'sources'; sources: WebSource[] }
   // usage is null when the post-stream usage lookup failed — the response
   // itself still succeeded and clients must treat it as such.
   | { type: 'done'; usage: { used: number; limit: number; resetsAt: string } | null }
   | { type: 'error'; code: ChatErrorCode; message: string };
+
+export type ChatStatus = 'thinking' | 'searching';
+
+/** Shown while waiting. Danish, and specific about which wait it is. */
+export const CHAT_STATUS_LABELS: Record<ChatStatus, string> = {
+  thinking: 'Tænker',
+  searching: 'Søger på internettet',
+};
 
 export type ChatErrorCode =
   | 'unauthenticated'

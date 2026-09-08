@@ -75,17 +75,23 @@ async function ask(token, install, prompt, operation, extras) {
   const raw = await res.text();
   let text = '';
   let sources = null;
+  // Order matters as much as presence: a status that arrives after the first
+  // word is worse than none, because it would overwrite the answer.
+  const order = [];
   for (const line of raw.split('\n')) {
     if (!line.startsWith('data: ')) continue;
     const d = line.slice(6);
     if (d === '[DONE]') break;
     let p;
     try { p = JSON.parse(d); } catch { continue; }
-    if (p.type === 'token') text += p.text;
-    else if (p.type === 'sources') sources = p.sources;
+    if (p.type === 'token') {
+      if (!text) order.push('token');
+      text += p.text;
+    } else if (p.type === 'status') order.push(`status:${p.state}`);
+    else if (p.type === 'sources') { sources = p.sources; order.push('sources'); }
     else if (p.type === 'error') throw new Error(`${p.code}: ${p.message}`);
   }
-  return { text: text.trim(), sources, ms: Date.now() - t0 };
+  return { text: text.trim(), sources, order, ms: Date.now() - t0 };
 }
 
 /** Everything that would arrive in a document as a visible web address. */
@@ -102,8 +108,24 @@ const install = `verify-web-${Date.now()}`;
 
 for (const [prompt, wantSearch, operation, extras] of CASES) {
   console.log(`\n— ${prompt}`);
-  const { text, sources, ms } = await ask(token, install, prompt, operation, extras);
+  const { text, sources, order, ms } = await ask(token, install, prompt, operation, extras);
   const searched = Array.isArray(sources) && sources.length > 0;
+
+  // The panel must say what it is doing during the wait, and must stop saying
+  // it the moment there are words to show instead.
+  const firstToken = order.indexOf('token');
+  const statuses = order.filter((o) => o.startsWith('status:'));
+  ok('said "Tænker" before any word arrived', order[0] === 'status:thinking', JSON.stringify(order.slice(0, 3)));
+  ok(
+    'said "Søger på internettet" only when it searched',
+    statuses.includes('status:searching') === wantSearch,
+    JSON.stringify(statuses),
+  );
+  ok(
+    'no status arrived after the first word',
+    statuses.every((s) => order.indexOf(s) < firstToken),
+    JSON.stringify(order.slice(0, 6)),
+  );
 
   ok(
     wantSearch ? 'searched the web, as it should have' : 'answered from memory, no search paid for',

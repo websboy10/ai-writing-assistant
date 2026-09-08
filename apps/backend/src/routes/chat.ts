@@ -105,12 +105,17 @@ export function chatRoutes(app: FastifyInstance): void {
     try {
       const conversationId = await ensureConversation(user, body);
       send({ type: 'meta', conversationId, model: 'pending' });
+      send({ type: 'status', state: 'thinking' });
 
       // Decided here, never by the client: the user cannot tell which of their
       // own questions the model is shaky on — that is why they are asking it.
       // Costs nothing on the operations that act on the user's own text, which
       // are most of them; see websearch.ts.
       const webSearch = await needsWebSearch(body, abort.signal);
+      // Said before the search starts, not after: this is the longest silence
+      // in the whole request (2-4s) and the only one the user would otherwise
+      // have no explanation for.
+      if (webSearch) send({ type: 'status', state: 'searching' });
 
       await streamChat(assembleMessages(body), body.contentClass, abort.signal, {
         onMeta: (model) => {

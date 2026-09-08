@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BillingInfo, ChatMessage, ContextItem, ConversationSummary, OutputLength, OutputPrefs, UsageInfo, WebSource } from '@awa/shared';
+import type { BillingInfo, ChatMessage, ChatStatus, ContextItem, ConversationSummary, OutputLength, OutputPrefs, UsageInfo, WebSource } from '@awa/shared';
 import { DEFAULT_PACING, MAX_WPM, MIN_WPM, type InsertionState, type PacingConfig, type RunState } from '@/insertion';
 import { call } from './api';
 import { stopGeneration } from './chat';
@@ -28,6 +28,11 @@ export interface UiMessage extends ChatMessage {
    * the whole reason search can exist here (see openrouter.ts).
    */
   sources?: WebSource[];
+  /**
+   * What is happening while nothing has arrived yet, or undefined once the
+   * first word has. Never part of `content` — nothing here is ever insertable.
+   */
+  status?: ChatStatus;
 }
 
 interface InsertStatus {

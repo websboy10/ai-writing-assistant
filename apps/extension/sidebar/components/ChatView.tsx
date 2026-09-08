@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { LENGTH_HINTS, LENGTH_LABELS, type OutputLength, type PromptTemplate, type WebSource } from '@awa/shared';
+import { CHAT_STATUS_LABELS, LENGTH_HINTS, LENGTH_LABELS, type ChatStatus, type OutputLength, type PromptTemplate, type WebSource } from '@awa/shared';
 import { call } from '../api';
 import { sendChat, stopGeneration } from '../chat';
 import { MAX_WPM, MIN_WPM, type RunState } from '@/insertion';
@@ -204,6 +204,30 @@ function PacingRow() {
         <span className={pacing.human ? 'text-ink' : ''}>Skriv som et menneske</span>
       </label>
     </div>
+  );
+}
+
+/**
+ * What is happening during the silence before the first word.
+ *
+ * That silence grew on 2026-09-08 and the user was told nothing about it:
+ * deciding whether to look something up takes about 0.8s, and a search adds
+ * two to four more. Five seconds of a blank panel reads as broken.
+ *
+ * It says WHICH wait it is rather than showing a spinner, because the two are
+ * genuinely different — "Søger på internettet" also explains why this answer
+ * will carry sources when the last one did not. Sans, not the draft serif: this
+ * is the panel talking, not the draft, and it must never be mistaken for text
+ * that is about to be inserted.
+ */
+function Waiting({ status }: { status: ChatStatus }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 font-sans text-ui text-graphite" style={{ fontStyle: 'normal' }}>
+      <span className="awa-pulse h-1.5 w-1.5 shrink-0 rounded-full bg-graphite" />
+      {/* Label and dots in ONE child: as two, the flex gap opened a space
+          between them and it read as "Søger på internettet  ..." */}
+      <span className="awa-ellipsis">{CHAT_STATUS_LABELS[status]}</span>
+    </span>
   );
 }
 
@@ -696,8 +720,8 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
         </div>
       ) : (
         <div className="whitespace-pre-wrap border-l-2 border-hairline pl-3 text-draft leading-relaxed" style={SERIF}>
-          {m.content}
-          {m.streaming && <span className="awa-caret ml-0.5" />}
+          {m.content || (m.status ? <Waiting status={m.status} /> : null)}
+          {m.streaming && m.content && <span className="awa-caret ml-0.5" />}
         </div>
       )}
       {m.sources?.length && !editing ? <Sources sources={m.sources} /> : null}
