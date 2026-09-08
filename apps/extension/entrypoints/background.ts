@@ -212,6 +212,13 @@ export default defineBackground(() => {
         return { ok: true, status: 200, data };
       }
       case 'docs-export-html': {
+        // Compiled out of the store build along with the feature that uses it
+        // (see answerAllEnabled in wxt.config.ts). This is the one handler that
+        // reaches out to Google on the user's behalf, and shipping a dormant
+        // Google-shaped capability in a package under review is exactly the
+        // kind of thing that cost this project weeks of OAuth verification
+        // once already. If the feature is not in the build, neither is this.
+        if (!__AWA_ANSWER_ALL__) return { ok: false, status: 0, error: UNEXPECTED };
         // Cookies are the entire authorisation here, so `credentials` must say
         // so explicitly: this is a cross-origin request from the extension
         // origin, where fetch's default ('same-origin') sends none and Google

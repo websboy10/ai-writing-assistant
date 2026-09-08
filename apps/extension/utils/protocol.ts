@@ -49,3 +49,12 @@ export interface StoredSession {
   expires_at: number; // epoch seconds
   email: string;
 }
+
+/**
+ * Build-time flag for "Besvar alle spørgsmål", defined in wxt.config.ts. False
+ * in the store build, true everywhere else — see the comment there for why the
+ * feature is held back with a flag rather than reverted.
+ */
+declare global {
+  const __AWA_ANSWER_ALL__: boolean;
+}

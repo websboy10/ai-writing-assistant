@@ -13,10 +13,31 @@ const isLocalBackend = /localhost|127\.0\.0\.1/.test(backendUrl);
 // below, which the Chrome Web Store rejects outright.
 const isStoreBuild = process.env.AWA_STORE_BUILD === '1';
 
+/**
+ * "Besvar alle spørgsmål" is finished and proven against real documents, and it
+ * is deliberately NOT in the store build yet (operator's call, 2026-09-08): it
+ * is the least settled of the three features and is still being improved, so it
+ * should not be what a reviewer or a new user meets first.
+ *
+ * Held back with a flag rather than by reverting the code, because reverting
+ * would throw away work that is measured and working, and re-applying it later
+ * is where the mistakes get made. `pnpm zip:store` sets AWA_STORE_BUILD, so the
+ * package that goes to the store has no entry point to the feature; every other
+ * build keeps it, which is what development and the verify scripts run against.
+ *
+ * The trade is stated plainly: the shipped package is therefore NOT byte-identical
+ * to the one the verify scripts drove. Everything else in it is, and the
+ * difference is exactly one hidden button.
+ */
+const answerAllEnabled = !isStoreBuild;
+
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   vite: () => ({
     plugins: [tailwindcss()],
+    define: {
+      __AWA_ANSWER_ALL__: JSON.stringify(answerAllEnabled),
+    },
   }),
   manifest: {
     name: 'ChatBot Skriv',

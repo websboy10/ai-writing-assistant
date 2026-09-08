@@ -336,6 +336,17 @@ function TemplateBar() {
 const isRunActive = (state?: RunState): boolean => state === 'writing' || state === 'paused';
 
 /**
+ * Whether "Besvar alle spørgsmål" is reachable at all. False in the store
+ * build — see the comment on answerAllEnabled in wxt.config.ts for why the
+ * feature is held back with a flag instead of being reverted.
+ *
+ * Gating the ENTRY POINT rather than the machinery is deliberate: with no way
+ * to start a run, `autoRun` is never set, so AutoRunBar never renders either
+ * and the whole path is unreachable through the UI.
+ */
+const ANSWER_ALL_ENABLED = __AWA_ANSWER_ALL__;
+
+/**
  * "Besvar alle spørgsmål" — find every question in the document the user last
  * clicked in, and write an answer under each one, without stopping to ask.
  *
@@ -345,6 +356,8 @@ const isRunActive = (state?: RunState): boolean => state === 'writing' || state 
 function AutonomousBar() {
   const s = useStore();
   const [expanded, setExpanded] = useState(false);
+
+  if (!ANSWER_ALL_ENABLED) return null;
 
   // Hidden only while a run is genuinely in flight. Once it has finished it
   // must come back: hiding it until "Skjul" is pressed made the panel's
