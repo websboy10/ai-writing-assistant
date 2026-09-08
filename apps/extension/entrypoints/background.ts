@@ -120,6 +120,10 @@ export default defineBackground(() => {
   // honest thing to say is "not you, try again".
   const OFFLINE = 'Der er ingen forbindelse til assistenten lige nu. Tjek din internetforbindelse, og prøv igen.';
   const UNEXPECTED = 'Serveren svarede uventet. Prøv igen om et øjeblik.';
+  // Reading the document's table structure is an EXTRA, never a prerequisite:
+  // the caller falls back to placing the answer exactly as it does today, so
+  // this string is a diagnostic and must not be worded as a run failure.
+  const DOCS_EXPORT_FAILED = 'Dokumentets tabelstruktur kunne ikke læses fra Google Docs.';
 
   chrome.runtime.onMessage.addListener((msg: OneShotRequest, _sender, sendResponse) => {
     handleOneShot(msg)
@@ -206,6 +210,21 @@ export default defineBackground(() => {
           return { ok: false, status: res.status, error: (data as { error?: string })?.error ?? UNEXPECTED };
         }
         return { ok: true, status: 200, data };
+      }
+      case 'docs-export-html': {
+        // Cookies are the entire authorisation here, so `credentials` must say
+        // so explicitly: this is a cross-origin request from the extension
+        // origin, where fetch's default ('same-origin') sends none and Google
+        // answers with a sign-in page instead of the document.
+        const res = await fetch(
+          `https://docs.google.com/document/d/${encodeURIComponent(msg.documentId)}/export?format=html`,
+          { credentials: 'include' },
+        ).catch(() => null);
+        if (!res) return { ok: false, status: 0, error: DOCS_EXPORT_FAILED };
+        if (!res.ok) return { ok: false, status: res.status, error: DOCS_EXPORT_FAILED };
+        const html = await res.text().catch(() => '');
+        if (!html) return { ok: false, status: res.status, error: DOCS_EXPORT_FAILED };
+        return { ok: true, status: 200, data: { html } };
       }
       case 'screenshot': {
         const dataUrl = await chrome.tabs.captureVisibleTab({ format: 'png' });

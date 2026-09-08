@@ -1,9 +1,10 @@
 import type { AutonomousParagraph } from '@awa/shared';
 import type { EditorKind } from '../types';
 import type { SavedTarget } from '../target';
-import { gdocsEventTarget, gdocsSelectionTextNow, gdocsWholeDocumentText } from '../target';
+import { gdocsEventTarget, gdocsSelectionTextNow, gdocsWholeDocumentText, pressGdocsKey } from '../target';
 import { GDocsAdapter } from '../adapters/gdocs';
 import { findAndPlaceCursor } from './docs-find';
+import { answerCellFor, readDocTableCells } from './docs-tables';
 import type { QuestionSource } from './locator';
 import { awaLog } from '../debug';
 
@@ -43,6 +44,9 @@ function linesToParagraphs(text: string): AutonomousParagraph[] {
   return out;
 }
 
+/** How long Docs is given to act on the synthetic Tab before the first letter is typed — matches docs-find.ts' own OCCURRENCE_ADVANCE_DELAY_MS. */
+const TAB_SETTLE_MS = 150;
+
 // ---- GDocsFindSource — the primary path (D-16 steps 2-3): zero writes ----
 
 /**
@@ -60,7 +64,11 @@ class GDocsFindSource implements QuestionSource {
   // on its SECOND locate() call, not the first again (07-05-PLAN.md task 2).
   private occurrenceSeen = new Map<string, number>();
 
-  constructor(private paragraphs: AutonomousParagraph[]) {}
+  /** `tableCells` is empty for every document without tables, and for every failed read — both mean "place the answer exactly as before". */
+  constructor(
+    private paragraphs: AutonomousParagraph[],
+    private tableCells: string[] = [],
+  ) {}
 
   async read(): Promise<AutonomousParagraph[]> {
     return this.paragraphs;
@@ -74,6 +82,23 @@ class GDocsFindSource implements QuestionSource {
     this.reason = '';
     const occurrence = (this.occurrenceSeen.get(q.questionText) ?? 0) + 1;
     this.occurrenceSeen.set(q.questionText, occurrence);
+
+    // Decided BEFORE Find, so a question whose answer cell is occupied costs
+    // nothing at all: no search, no cursor moved, no keystroke sent into the
+    // user's document. Refusing after the fact would leave the caret parked in
+    // their text with nothing to show for it.
+    const verdict = answerCellFor(this.tableCells, q.questionText, occurrence);
+    if (verdict.kind === 'occupied-next-cell') {
+      this.reason =
+        `Svarfeltet ved siden af "${q.questionText}" er ikke tomt — der står "${verdict.text}" i det. ` +
+        'Svaret blev ikke skrevet, for det ville have overskrevet din egen tekst.';
+      return null;
+    }
+    if (verdict.kind === 'last-cell') {
+      this.reason = `"${q.questionText}" står i tabellens sidste celle, så der er ingen celle at skrive svaret i.`;
+      return null;
+    }
+
     // D-03: re-run Find for THIS question right now — the document grows as
     // answers land, so a position measured earlier would be stale.
     const found = await findAndPlaceCursor(q.questionText, occurrence);
@@ -86,6 +111,22 @@ class GDocsFindSource implements QuestionSource {
       this.reason = 'Google Docs-inputmålet blev ikke fundet efter positionering.';
       return null;
     }
+
+    if (verdict.kind === 'empty-next-cell') {
+      // Find leaves the caret at the end of the question, inside the question's
+      // OWN cell (docs-find.ts collapses the match there). One Tab is what
+      // moves it on to the next cell in document order — Docs' own behaviour,
+      // measured 2026-09-08, and the same order a person tabbing through the
+      // form would follow. No heuristic decides which cell belongs to which
+      // question, because Tab already answers that.
+      pressGdocsKey(el, { key: 'Tab', code: 'Tab', keyCode: 9, which: 9 });
+      // A fixed wait, unlike every other settle in this path, because there is
+      // nothing to observe: the selection mirror is empty on both sides of the
+      // Tab, so it cannot say whether the caret moved. It is the same interval
+      // Find already allows Docs between its own keystrokes.
+      await new Promise((resolve) => setTimeout(resolve, TAB_SETTLE_MS));
+    }
+
     return { kind: 'gdocs', element: el, label: this.label };
   }
 }
@@ -192,9 +233,9 @@ async function pickDocsSource(scope: 'document' | 'selection'): Promise<Question
   // which read as "empty document" and sent the whole run down the
   // nothing-found path.
   const probeText = paragraphs.find((p) => p.text.trim())?.text;
-  if (!probeText) return new GDocsFindSource(paragraphs);
+  if (!probeText) return new GDocsFindSource(paragraphs, await readDocTableCells());
 
   const probe = await findAndPlaceCursor(probeText);
-  if (probe.ok) return new GDocsFindSource(paragraphs);
+  if (probe.ok) return new GDocsFindSource(paragraphs, await readDocTableCells());
   return new GDocsPasteSource(paragraphs, pasteReasonForFindFailure(probe.reason));
 }
