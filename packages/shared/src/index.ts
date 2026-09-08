@@ -73,10 +73,28 @@ export interface ChatRequest {
   contentClass: ContentClass;
 }
 
+/**
+ * One page the answer was based on.
+ *
+ * These never reach the document. OpenRouter returns them as structured data
+ * alongside the reply, so the sidebar can show where an answer came from while
+ * the text stays clean prose — which is the whole reason search is safe to
+ * ship here at all. See PROSE_RULES and docs/WEB-SEARCH.md.
+ *
+ * They are also the only way the user learns a search happened at all: the
+ * decision is the server's (backend/websearch.ts), so sources appearing under
+ * an answer is what says "this one was looked up".
+ */
+export interface WebSource {
+  title: string;
+  url: string;
+}
+
 /** SSE events emitted by POST /api/chat */
 export type ChatStreamEvent =
   | { type: 'meta'; conversationId: string; model: string }
   | { type: 'token'; text: string }
+  | { type: 'sources'; sources: WebSource[] }
   // usage is null when the post-stream usage lookup failed — the response
   // itself still succeeded and clients must treat it as such.
   | { type: 'done'; usage: { used: number; limit: number; resetsAt: string } | null }

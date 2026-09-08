@@ -125,6 +125,13 @@ export function sendChat(userText: string): void {
       case 'meta':
         if (!state.conversationId) state.set({ conversationId: ev.conversationId });
         break;
+      case 'sources':
+        // Onto the message being written, not into it: `content` is what gets
+        // typed into the document and must stay free of any address.
+        state.set({
+          messages: state.messages.map((m) => (m.streaming ? { ...m, sources: ev.sources } : m)),
+        });
+        break;
       case 'done': {
         sawTerminal = true;
         state.set({

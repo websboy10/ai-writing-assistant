@@ -49,9 +49,30 @@ const HEADING = /^\s*(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/;
  * These are the same shapes plaintext.ts's stripInline() requires.
  */
 function inline(escaped: string): string {
-  return escaped
+  return link(escaped)
     .replace(/(\*{2})(?=\S)([\s\S]*?\S)\1/g, '<strong>$2</strong>')
     .replace(/(?<![\w\\])(_{2})(?=\S)([^\n]*?\S)\1(?!\w)/g, '<strong>$2</strong>');
+}
+
+/**
+ * `[tekst](url)` → a real hyperlink.
+ *
+ * Without this the brackets and the address arrived in the document verbatim,
+ * because this path never touched links at all while plaintext.ts always has.
+ * The two now agree: the address is kept (dropping it silently would lose
+ * something the user asked for), it just stops being punctuation — plain text
+ * gets `tekst (url)`, a document that can hold a link gets the link.
+ *
+ * Only http and https become anchors. Anything else — `javascript:` above all
+ * — is left exactly as the model wrote it, as inert text: this HTML is built
+ * from model output and pasted into a document the user is working in, so an
+ * unrecognised scheme must never become something clickable.
+ */
+function link(escaped: string): string {
+  return escaped.replace(/\[([^\]\n]+)\]\((\S+?)(?:\s+"[^"]*")?\)/g, (whole, label: string, url: string) => {
+    if (!/^https?:\/\//i.test(url)) return whole;
+    return `<a href="${url.replace(/"/g, '%22')}">${label}</a>`;
+  });
 }
 
 export function markdownToHtml(text: string): string {

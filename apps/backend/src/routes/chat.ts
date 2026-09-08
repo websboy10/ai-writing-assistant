@@ -1,10 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import type { ChatRequest, ChatStreamEvent } from '@awa/shared';
+import type { ChatRequest, ChatStreamEvent, WebSource } from '@awa/shared';
 import { verifyUser, rpc, rest, isUuid, type AuthedUser, danishTime, anonRpc } from '../supabase.js';
 import { assembleMessages } from '../prompt.js';
 import { streamChat, NoModelsError, PolicyError } from '../openrouter.js';
 import { getEntitlement } from '../billing.js';
 import { capture } from '../analytics.js';
+import { needsWebSearch } from '../websearch.js';
 
 interface QuotaResult {
   ok: boolean;
@@ -98,11 +99,18 @@ export function chatRoutes(app: FastifyInstance): void {
     let tokensOut = 0;
     let costCredits: number | null = null;
     let servedBy = '';
+    let sources: WebSource[] = [];
     const startedAt = Date.now();
 
     try {
       const conversationId = await ensureConversation(user, body);
       send({ type: 'meta', conversationId, model: 'pending' });
+
+      // Decided here, never by the client: the user cannot tell which of their
+      // own questions the model is shaky on — that is why they are asking it.
+      // Costs nothing on the operations that act on the user's own text, which
+      // are most of them; see websearch.ts.
+      const webSearch = await needsWebSearch(body, abort.signal);
 
       await streamChat(assembleMessages(body), body.contentClass, abort.signal, {
         onMeta: (model) => {
@@ -117,6 +125,13 @@ export function chatRoutes(app: FastifyInstance): void {
           tokensIn = i;
           tokensOut = o;
           costCredits = cost;
+        },
+        // Straight through to the sidebar and nowhere near the document — the
+        // whole point of searching without citations is that the user can
+        // still see where an answer came from.
+        onSources: (list) => {
+          sources = list;
+          send({ type: 'sources', sources: list });
         },
         // A fallback that nobody can see is a fallback nobody fixes: the chain
         // silently served every request from its last model for an unknown
@@ -136,7 +151,7 @@ export function chatRoutes(app: FastifyInstance): void {
       },
       // Smart routing (openrouter.ts → pickChain): a short answer with nothing
       // attached does not need the most expensive model in the chain.
-      { length: body.prefs?.length });
+      { length: body.prefs?.length, webSearch });
 
       // Persist the exchange under the user's own JWT (RLS-scoped). A persist
       // failure must not fail a generation the user already received — log it
@@ -169,6 +184,11 @@ export function chatRoutes(app: FastifyInstance): void {
         tokens_out: tokensOut,
         chars_out: assistantText.length,
         context_items: body.context?.length ?? 0,
+        // Search is billed per search on top of the generation, so the two
+        // have to be separable on the dashboard: "answers cost X" stops being
+        // one number the day some of them search and some do not.
+        web_search: webSearch,
+        sources: sources.length,
         ms: Date.now() - startedAt,
         // What this answer cost, in OpenRouter credits. Summed over a window
         // this is real spend, and divided into the remaining balance it is a

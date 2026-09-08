@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BillingInfo, ChatMessage, ContextItem, ConversationSummary, OutputLength, OutputPrefs, UsageInfo } from '@awa/shared';
+import type { BillingInfo, ChatMessage, ContextItem, ConversationSummary, OutputLength, OutputPrefs, UsageInfo, WebSource } from '@awa/shared';
 import { DEFAULT_PACING, MAX_WPM, MIN_WPM, type InsertionState, type PacingConfig, type RunState } from '@/insertion';
 import { call } from './api';
 import { stopGeneration } from './chat';
@@ -20,6 +20,14 @@ export interface UiMessage extends ChatMessage {
    * an editor that can hold real headings, bold and lists.
    */
   markdown?: string;
+  /**
+   * Where a web-searched answer came from.
+   *
+   * Shown beside the answer and deliberately absent from `content`, so no
+   * address can ever be typed into the user's document — that separation is
+   * the whole reason search can exist here (see openrouter.ts).
+   */
+  sources?: WebSource[];
 }
 
 interface InsertStatus {

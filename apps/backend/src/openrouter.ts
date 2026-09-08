@@ -1,4 +1,4 @@
-import type { ChatMessage, ContentClass, OutputLength } from '@awa/shared';
+import type { ChatMessage, ContentClass, OutputLength, WebSource } from '@awa/shared';
 import { env } from './env.js';
 
 export interface StreamHandlers {
@@ -34,6 +34,13 @@ export interface StreamHandlers {
    * so.
    */
   onModelFailed?: (model: string, reason: string) => void;
+  /**
+   * Pages a web-searched answer was based on.
+   *
+   * Fires only when the request asked for search. These are for the sidebar,
+   * never for the document — see NO_CITATIONS_PROMPT.
+   */
+  onSources?: (sources: WebSource[]) => void;
 }
 
 export class NoModelsError extends Error {
@@ -87,10 +94,52 @@ function isCreditRefusal(reason: string): boolean {
   return reason.includes('402') || /requires more credits/i.test(reason);
 }
 
-/** What the request is asking for, as far as it affects which model runs it. */
+/** What the request is asking for, as far as it changes the upstream call. */
 export interface RouteHint {
   length?: OutputLength;
+  /** Attach the web plugin. Costs a search on every request that sets it. */
+  webSearch?: boolean;
 }
+
+/**
+ * The instruction that replaces OpenRouter's own, and the only reason web
+ * search can ship in this product at all.
+ *
+ * The stock `search_prompt` tells the model to cite its sources AS MARKDOWN
+ * LINKS. Every insertion path here writes into a document the user is editing,
+ * so `[Titel](https://…)` arrives with the brackets and the address in it —
+ * the exact failure PROSE_RULES was written to stop. Appending ':online' to a
+ * model slug is shorthand for the stock config, INCLUDING that prompt, which
+ * is why this file never does that and passes the plugin explicitly instead.
+ *
+ * Measured 2026-09-08 against the live API on two engines: with this wording,
+ * zero markdown links, zero bare URLs and zero bare domains reached the text,
+ * while the sources still arrived as annotations for the sidebar to show.
+ */
+const NO_CITATIONS_PROMPT = [
+  'A web search was run for this request. Use the results below as facts you already know.',
+  'Write the answer as ordinary prose in the language of the request.',
+  'Do NOT cite anything. Do not name your sources, do not write any URL or web address,',
+  'do not write square brackets or parentheses containing a link, and do not add a list of',
+  'sources at the end. The reader is looking at a document, not a web page.',
+].join(' ');
+
+/**
+ * Parallel in turbo mode: $1 per 1,000 searches, against $7 for Exa, the
+ * engine OpenRouter falls back to when none is named. One answer costs about
+ * $0.010, so this is a tenth of an answer rather than most of one.
+ *
+ * Three results, not ten. The model is writing a paragraph of Danish prose,
+ * not a literature review, and every result is prompt tokens paid for twice —
+ * once in money and once in the latency before the first word appears.
+ */
+const WEB_PLUGIN = {
+  id: 'web',
+  engine: 'parallel',
+  mode: 'turbo',
+  max_results: 3,
+  search_prompt: NO_CITATIONS_PROMPT,
+};
 
 /**
  * The point at which a prompt is carrying a document rather than a question.
@@ -160,7 +209,7 @@ export async function streamChat(
   for (const model of order) {
     let emitted = false;
     try {
-      await streamOne(model, messages, isSynthetic, signal, {
+      await streamOne(model, messages, isSynthetic, hint.webSearch === true, signal, {
         ...handlers,
         onToken: (t) => {
           emitted = true;
@@ -187,6 +236,7 @@ async function streamOne(
   model: string,
   messages: ChatMessage[],
   isSynthetic: boolean,
+  webSearch: boolean,
   signal: AbortSignal,
   handlers: StreamHandlers,
 ): Promise<void> {
@@ -244,6 +294,7 @@ async function streamOne(
          */
         reasoning: { effort: 'minimal' },
         usage: { include: true },
+        ...(webSearch ? { plugins: [WEB_PLUGIN] } : {}),
         // For real content, refuse providers that collect/train on prompts.
         ...(isSynthetic ? {} : { provider: { data_collection: 'deny' } }),
       }),
@@ -287,6 +338,21 @@ async function streamOne(
         const parsed = JSON.parse(data);
         const delta = parsed.choices?.[0]?.delta?.content;
         if (typeof delta === 'string' && delta.length) handlers.onToken(delta);
+        // Sources ride the stream as `delta.annotations`, observed 2026-09-08
+        // — not on a final message object, which is where the non-streaming
+        // docs put them. They arrive in one chunk, so this replaces rather
+        // than accumulates.
+        const annotations = parsed.choices?.[0]?.delta?.annotations;
+        if (Array.isArray(annotations) && annotations.length) {
+          const sources = annotations
+            .filter((a: { type?: string }) => a?.type === 'url_citation')
+            .map((a: { url_citation?: { url?: string; title?: string } }) => ({
+              url: a.url_citation?.url ?? '',
+              title: a.url_citation?.title ?? a.url_citation?.url ?? '',
+            }))
+            .filter((s: WebSource) => s.url);
+          if (sources.length) handlers.onSources?.(sources);
+        }
         const finish = parsed.choices?.[0]?.finish_reason;
         if (typeof finish === 'string' && finish) handlers.onFinish?.(finish);
         if (parsed.usage) {

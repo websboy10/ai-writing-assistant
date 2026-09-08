@@ -93,3 +93,35 @@ test('empty input produces empty output', () => {
 test('plain prose with no markdown at all still becomes valid paragraphs', () => {
   assert.equal(markdownToHtml('Bare en sætning.'), '<p>Bare en sætning.</p>');
 });
+
+// ---------------------------------------------------------------------------
+// Links. This path had no link handling at all until 2026-09-08, so a markdown
+// link arrived in the document with its brackets and address showing. Web
+// search is what would have hit it first, but the hole was there regardless.
+// ---------------------------------------------------------------------------
+
+test('a markdown link becomes a real hyperlink, not brackets in the document', () => {
+  const html = markdownToHtml('Læs mere hos [Nationalbanken](https://nationalbanken.dk/renter).');
+  assert.match(html, /<a href="https:\/\/nationalbanken\.dk\/renter">Nationalbanken<\/a>/);
+  assert.doesNotMatch(html, /\[|\]/);
+});
+
+test('a link with a title attribute keeps only the address', () => {
+  const html = markdownToHtml('Se [DST](https://dst.dk "Danmarks Statistik") her.');
+  assert.match(html, /<a href="https:\/\/dst\.dk">DST<\/a>/);
+});
+
+test('a non-http scheme never becomes clickable', () => {
+  const html = markdownToHtml('Klik [her](javascript:alert(1)) nu.');
+  assert.doesNotMatch(html, /<a /);
+  assert.match(html, /javascript/);
+});
+
+test('a bracket that is not a link is left alone', () => {
+  assert.match(markdownToHtml('Han sagde [sic] noget.'), /\[sic\]/);
+});
+
+test('bold still works inside a link label', () => {
+  const html = markdownToHtml('[**Vigtigt**](https://example.com)');
+  assert.match(html, /<a href="https:\/\/example\.com"><strong>Vigtigt<\/strong><\/a>/);
+});

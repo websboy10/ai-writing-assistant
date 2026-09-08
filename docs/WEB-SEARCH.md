@@ -42,19 +42,45 @@ searched answer.
 settings, and the default settings include that prompt. Pass the plugin
 explicitly with a `search_prompt` that forbids markdown, links and citations.
 
-## The shape to build
+## What was built (2026-09-08)
 
-A **"Søg på nettet" toggle** in the composer, beside the tempo slider, **off by
-default** — the same shape as "Skriv som et menneske", for the same reason: a
-first-time user who sees web phrasing appear in their document should have asked
-for it.
+**The model decides. There is no toggle.** A toggle was built first and thrown
+away the same hour, on the operator's call: a person cannot tell which of their
+own questions the model is shaky on — that is the reason they are asking it —
+so an off-by-default switch means the answers that most needed the web are
+exactly the ones that silently don't get it.
 
-Off by default is also the honest default for the work this product does. A
-performance review, an email to a colleague, a rewrite of text the user pasted:
-none of it has anything to search for, and searching anyway spends money and
-drags borrowed web phrasing into a document that is supposed to sound like the
-person writing it.
+`apps/backend/src/websearch.ts` decides, in two stages:
 
-The per-answer cost is already recorded on every `chat_completed` event, so the
-dashboard will show what search actually costs the day it ships, rather than
-what this file estimated.
+1. **Free, no call at all.** `summarize`, `rewrite`, `expand`, `simplify`,
+   `translate` and `continue` never search — they work on text the user already
+   handed over. Neither does anything with an attached file or a page selection:
+   that material *is* the grounding, and going to the web instead would answer
+   from a stranger's page. This covers most real use and adds zero latency.
+2. **A cheap classifier** for what's left (a typed question). One
+   `gemini-3.5-flash` call, `max_tokens: 16`, ~690 ms and ~$0.0005. Fails to NO,
+   so a bad minute at OpenRouter can never turn into spending.
+
+The user's request is quoted to the classifier as DATA inside triple quotes. Sent
+plainly, the model *obeys* it instead of classifying it: 7 of 14 cases came back
+as an actual email or an actual translation. That one framing change took the
+score from 7/14 to 13/14, and naming literary analysis explicitly took it to
+14/14.
+
+The rule, in the operator's own words: *"a mathematics problem, it knows, easy.
+But analyzing a specific novel — do a web search there."* Recalling a real named
+work from memory is where a confident wrong detail does the most damage, so any
+named real thing is a JA.
+
+**Sources appear under the answer, never in it.** With no toggle, that line is
+the only signal a search happened. Titles only — a full URL wraps over three
+lines in a 360 px panel and says less than the page's own name.
+
+Measured end to end (`scripts/verify-web-search.mjs`, 42/42): the three
+memory questions searched nothing, the three fact questions all searched, and
+no answer carried a link in either destination. The decider costs about 0.7 s
+on a typed question and nothing at all on the insertion operations.
+
+The per-answer cost is recorded on every `chat_completed` event, now with
+`web_search` beside it, so the dashboard can separate a searched answer from an
+ordinary one rather than averaging the two into one misleading number.

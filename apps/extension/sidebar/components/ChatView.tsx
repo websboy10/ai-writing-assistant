@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { LENGTH_HINTS, LENGTH_LABELS, type OutputLength, type PromptTemplate } from '@awa/shared';
+import { LENGTH_HINTS, LENGTH_LABELS, type OutputLength, type PromptTemplate, type WebSource } from '@awa/shared';
 import { call } from '../api';
 import { sendChat, stopGeneration } from '../chat';
 import { MAX_WPM, MIN_WPM, type RunState } from '@/insertion';
@@ -203,6 +203,33 @@ function PacingRow() {
         />
         <span className={pacing.human ? 'text-ink' : ''}>Skriv som et menneske</span>
       </label>
+    </div>
+  );
+}
+
+/**
+ * Where a searched answer came from, under the answer and never in it.
+ *
+ * There is no "search the web" switch to go with this, deliberately. The
+ * decision is the server's, because a person cannot tell which of their own
+ * questions the model is unsure about — that is the reason they asked it. So
+ * this line is also the only signal that a search happened at all.
+ *
+ * Titles only, not addresses: this sits in a 360px panel and a full URL wraps
+ * over three lines and tells the reader less than the page's own name does.
+ */
+function Sources({ sources }: { sources: WebSource[] }) {
+  return (
+    <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-aside text-graphite">
+      <span className="awa-eyebrow shrink-0">Kilder</span>
+      {sources.map((s, i) => (
+        <span key={s.url}>
+          <a href={s.url} target="_blank" rel="noreferrer noopener" className="underline hover:text-ink" title={s.url}>
+            {s.title || s.url}
+          </a>
+          {i < sources.length - 1 ? ' ·' : ''}
+        </span>
+      ))}
     </div>
   );
 }
@@ -673,6 +700,7 @@ const MessageBubble = memo(function MessageBubble({ m }: { m: UiMessage }) {
           {m.streaming && <span className="awa-caret ml-0.5" />}
         </div>
       )}
+      {m.sources?.length && !editing ? <Sources sources={m.sources} /> : null}
       {!m.streaming && m.content && !editing && (
         <div className="flex flex-wrap gap-1.5 pl-3 text-ui">
           {/* Which of these is the primary action depends on whether there is
