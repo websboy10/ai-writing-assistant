@@ -55,8 +55,15 @@ const RULE = [
  */
 const DECIDE_TIMEOUT_MS = 2_500;
 
-/** ~$0.0005 a call. Only reached by requests that are actually questions. */
-const DECIDER_MODEL = 'google/gemini-3.5-flash';
+/**
+ * ~$0.00018 a call, and only reached by requests that are actually questions.
+ *
+ * The cheapest model in the chain cannot do this job: gemini-2.5-flash-lite
+ * scored 2 of 14 on the same fourteen Danish requests, against 14 of 14 here.
+ * Judging a question turns out to be harder than answering one, so the decider
+ * is chosen on accuracy first and price second.
+ */
+const DECIDER_MODEL = 'google/gemini-3-flash-preview';
 
 /**
  * The last user message — what the decision is actually about.

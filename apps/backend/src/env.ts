@@ -38,9 +38,22 @@ export const env = {
   /**
    * The strong chain. Used when the request actually needs it: a long answer,
    * or an attached document to reason over.
+   *
+   * Sonnet led this chain until 2026-09-08 and now sits last, as the thing
+   * that catches a bad day rather than the thing that answers. Bake-off across
+   * fifteen models on five real Danish tasks plus an 8,845-character attached
+   * document (scripts/bake-off-models.mjs):
+   *
+   *   sonnet-5              $0.0158 on the document, 9.2s   5/5 facts
+   *   gemini-3.5-flash      $0.0079                 2.6s   5/5
+   *   gemini-3-flash-prev   $0.0027                 3.1s   5/5
+   *
+   * Six times cheaper for the same five facts and the better Danish of the
+   * three. Nothing here is a quality trade that was accepted — it is one that
+   * was looked for and not found.
    */
   paidChain: (process.env.PAID_MODEL_CHAIN ??
-    'anthropic/claude-sonnet-5,google/gemini-3.5-flash,deepseek/deepseek-v4-flash'
+    'google/gemini-3-flash-preview,google/gemini-3.5-flash,anthropic/claude-sonnet-5'
   ).split(',').map((s) => s.trim()).filter(Boolean),
   /**
    * The same models, cheapest and fastest first, for the requests that are the
@@ -50,9 +63,26 @@ export const env = {
    * between them cannot weaken the privacy boundary — see openrouter.ts. The
    * only thing that changes is which model is tried first, and a short Danish
    * paragraph does not need the most expensive model in the list to write it.
+   *
+   * Rebuilt 2026-09-08 from measurement, not from list prices. Per answer,
+   * with the real prompt, in Danish (first token / cost):
+   *
+   *   gemini-3-flash-preview   853ms   $0.00053   best voice of any tried
+   *   gemini-2.5-flash-lite   2390ms   $0.00016   good Danish, slower to start
+   *   gemini-3.5-flash         940ms   $0.00171   the previous head
+   *
+   * deepseek-v4-flash left this chain despite being the cheapest thing that
+   * writes decent Danish ($0.00009): across four runs it took 3.8s, 10.3s, and
+   * once returned NO TOKENS AT ALL, served by three different providers.
+   * Cheap is not cheap if the answer does not arrive.
+   *
+   * The head is a PREVIEW model, deliberately and with the risk named: a
+   * preview can change or be withdrawn. If it goes, this chain does what it is
+   * for — falls through to the next model, logs `model_fallback`, and the user
+   * gets a slightly dearer answer rather than an error.
    */
   paidChainFast: (process.env.PAID_MODEL_CHAIN_FAST ??
-    'google/gemini-3.5-flash,deepseek/deepseek-v4-flash,anthropic/claude-sonnet-5'
+    'google/gemini-3-flash-preview,google/gemini-2.5-flash-lite,google/gemini-3.5-flash'
   ).split(',').map((s) => s.trim()).filter(Boolean),
   /**
    * Ceiling on a single reply, and the reason the good models were unreachable.

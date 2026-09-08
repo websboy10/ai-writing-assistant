@@ -58,8 +58,11 @@ exactly the ones that silently don't get it.
    that material *is* the grounding, and going to the web instead would answer
    from a stranger's page. This covers most real use and adds zero latency.
 2. **A cheap classifier** for what's left (a typed question). One
-   `gemini-3.5-flash` call, `max_tokens: 16`, ~690 ms and ~$0.0005. Fails to NO,
-   so a bad minute at OpenRouter can never turn into spending.
+   `gemini-3-flash-preview` call, `max_tokens: 16`, ~780 ms and ~$0.00018. Fails
+   to NO, so a bad minute at OpenRouter can never turn into spending. Note the
+   cheapest model in the chain cannot do this job — `gemini-2.5-flash-lite`
+   scored 2/14 on the same requests against 14/14 here. Judging a question is
+   harder than answering one.
 
 The user's request is quoted to the classifier as DATA inside triple quotes. Sent
 plainly, the model *obeys* it instead of classifying it: 7 of 14 cases came back
