@@ -175,3 +175,52 @@ export const OPERATION_LABELS: Record<PromptOperation, string> = {
 // many, but a shared runtime constant cannot cross into the Vercel bundle.
 export const PRICE_DKK = 100;
 export const PASS_DAYS = 30;
+
+// ---- "Besvar alle spørgsmål": POST /api/autonomous/answer ----
+// The extension hands over an ordered list of paragraphs (whichever editor it
+// came from); the backend decides what counts as a question (D-10) and
+// answers every one it finds, grounded in the paragraphs plus any attached
+// context. Model-returned indices are always positions into THIS list, never
+// offsets into a live document — see apps/backend/src/autonomous/parse.ts.
+//
+// Restored 2026-09-08. It was cut on 2026-09-03 (63aedf5) only because the
+// mechanism that PLACED the answers used the Google Docs API, whose
+// `auth/documents` scope meant OAuth verification and blocked publishing. The
+// answering half below never knew about Google at all, so it comes back
+// unchanged; placement now goes through Docs' own Find bar instead, which
+// needs no permission.
+//
+// What did NOT come back: `AutonomousParagraph.images`. Reading an inline
+// image out of a document was a Docs API read, and nothing in the no-permission
+// path can see one — so a question that IS a picture cannot be answered this
+// way any more. "+ Skærmbillede" remains the honest route for those.
+
+export interface AutonomousParagraph {
+  index: number;
+  text: string;
+}
+
+export interface AutonomousRequest {
+  scope: 'document' | 'selection';
+  paragraphs: AutonomousParagraph[];
+  documentTitle?: string;
+  context?: ContextItem[];
+  prefs?: OutputPrefs;
+}
+
+export interface AutonomousAnswer {
+  paragraphIndex: number;
+  questionText: string;
+  answer: string;
+  /** false = nothing in the document or attached context grounded this answer (D-12). */
+  grounded: boolean;
+}
+
+export interface AutonomousResponse {
+  answers: AutonomousAnswer[];
+  detected: number;
+}
+
+export const MAX_AUTONOMOUS_QUESTIONS = 40;
+export const MAX_AUTONOMOUS_DOC_CHARS = 60_000;
+export const ANSWER_BATCH_SIZE = 5;

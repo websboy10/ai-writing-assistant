@@ -5,6 +5,7 @@ import rateLimit from '@fastify/rate-limit';
 import { env } from './env.js';
 import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
+import { autonomousRoutes } from './routes/autonomous.js';
 import { billingRoutes } from './routes/billing.js';
 import { chatRoutes } from './routes/chat.js';
 import { conversationRoutes } from './routes/conversations.js';
@@ -122,6 +123,7 @@ app.get('/api/usage', async (req, reply) => {
 
 adminRoutes(app);
 authRoutes(app);
+autonomousRoutes(app);
 billingRoutes(app);
 chatRoutes(app);
 conversationRoutes(app);

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BillingInfo, ChatMessage, ContextItem, ConversationSummary, OutputLength, OutputPrefs, UsageInfo } from '@awa/shared';
-import { DEFAULT_PACING, MAX_WPM, MIN_WPM, type InsertionState, type PacingConfig } from '@/insertion';
+import { DEFAULT_PACING, MAX_WPM, MIN_WPM, type InsertionState, type PacingConfig, type RunState } from '@/insertion';
 import { call } from './api';
 import { stopGeneration } from './chat';
 
@@ -19,6 +19,34 @@ interface InsertStatus {
   progress: number; // 0..1
   targetLabel?: string;
   unverified?: boolean;
+}
+
+/**
+ * One "Besvar alle spørgsmål" run — many InsertionSessions, one per answer.
+ *
+ * `unplaced` is the field that matters most, and it matters more now than when
+ * this was first written. Placement used to have a fallback: when Docs' own
+ * Find could not locate a question, the run wrote the answer through the Google
+ * Docs API instead. That API is gone (it forced OAuth verification and blocked
+ * the store release), so a question Find cannot reach is simply not answered in
+ * the document — it lands here, and the panel has to say so out loud. The
+ * alternative is guessing at a position, and a wrong guess writes into the
+ * middle of somebody's real document.
+ *
+ * `ungrounded` is the other honesty channel: an answer the model produced
+ * without support from the document or the attached files (D-12).
+ */
+interface AutoRunStatus {
+  state: RunState;
+  detail?: string;
+  answersDone: number;
+  answersTotal: number;
+  progress: number; // 0..1
+  targetLabel?: string;
+  placement: 'in-place' | 'block';
+  degradedReason?: string;
+  unplaced: { questionText: string; reason: string }[];
+  ungrounded: string[];
 }
 
 interface AwaState {
@@ -56,6 +84,8 @@ interface AwaState {
    * message bubble does not re-render on every streamed token (WR-14).
    */
   hasInsertTarget: boolean;
+  /** A "Besvar alle spørgsmål" run in flight, or null when none is. */
+  autoRun: AutoRunStatus | null;
   /**
    * How "Indsæt langsomt" types. Persisted in chrome.storage.local, so the
    * tempo a person settled on holds across every tab and every restart.
@@ -101,6 +131,7 @@ export const useStore = create<AwaState>((set, get) => ({
   contextBusy: null,
   insertStatus: null,
   hasInsertTarget: false,
+  autoRun: null,
   pacing: DEFAULT_PACING,
   usage: null,
   history: [],
@@ -180,6 +211,7 @@ export const useStore = create<AwaState>((set, get) => ({
       error: null,
       notice: null,
       insertStatus: null,
+      autoRun: null,
     });
   },
 }));

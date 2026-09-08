@@ -15,6 +15,15 @@ export { stripMarkdown } from './plaintext';
 export type { PacingConfig, InsertionState } from './types';
 export type { SavedTarget } from './target';
 
+// "Besvar alle spørgsmål": one run, many InsertionSessions, driven over
+// whatever QuestionSource the caller builds — plain, contenteditable, or
+// Google Docs through Docs' own Find bar. Restored 2026-09-08 without the
+// Docs API path that blocked publishing (see autonomous/docs-source.ts).
+export { AutonomousRun } from './autonomous/orchestrator';
+export type { RunState, RunProgress, RunCallbacks } from './autonomous/orchestrator';
+export { sourceFor } from './autonomous/locator';
+export type { QuestionSource } from './autonomous/locator';
+
 /** INST-04: pick the right adapter for the detected editor automatically. */
 export function adapterFor(target: SavedTarget): InsertionAdapter {
   switch (target.kind) {

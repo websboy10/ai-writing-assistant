@@ -2,7 +2,8 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { LENGTH_HINTS, LENGTH_LABELS, type OutputLength, type PromptTemplate } from '@awa/shared';
 import { call } from '../api';
 import { sendChat, stopGeneration } from '../chat';
-import { MAX_WPM, MIN_WPM } from '@/insertion';
+import { MAX_WPM, MIN_WPM, type RunState } from '@/insertion';
+import { autonomous } from '../autonomous';
 import { inserter } from '../inserter';
 import { useStore, type UiMessage } from '../store';
 import { Banner } from './AuthView';
@@ -74,18 +75,21 @@ export function ChatView() {
         {/* Not while the transport bar is up: it is `sticky bottom-0` in this
             same scroller, and a finished run's bar floating over "En blank
             side" reads as two panels arguing. */}
-        {s.messages.length === 0 && !s.insertStatus && <EmptyState />}
+        {s.messages.length === 0 && !s.insertStatus && !s.autoRun && <EmptyState />}
         {s.messages.map((m) => (
           <MessageBubble key={m.id} m={m} />
         ))}
         {s.error && <Banner kind="error" text={s.error} onDismiss={() => s.set({ error: null })} />}
         {s.notice && <Banner kind="info" text={s.notice} onDismiss={() => s.set({ notice: null })} />}
         {s.insertStatus && <InsertBar />}
+        {s.autoRun && <AutoRunBar />}
       </div>
 
       {/* composer */}
       <div className="space-y-2 border-t border-hairline p-3">
         <ContextChips />
+
+        <AutonomousBar />
 
         <TemplateBar />
 
@@ -323,6 +327,162 @@ function TemplateBar() {
         >
           Gem som skabelon
         </button>
+      )}
+    </div>
+  );
+}
+
+/** A run that is genuinely in flight, so a second one cannot start on top of it. */
+const isRunActive = (state?: RunState): boolean => state === 'writing' || state === 'paused';
+
+/**
+ * "Besvar alle spørgsmål" — find every question in the document the user last
+ * clicked in, and write an answer under each one, without stopping to ask.
+ *
+ * No review step and no approval gate: pressing Straks or Langsomt writes
+ * directly (D-04). The transport in AutoRunBar is what a person stops it with.
+ */
+function AutonomousBar() {
+  const s = useStore();
+  const [expanded, setExpanded] = useState(false);
+
+  // Hidden only while a run is genuinely in flight. Once it has finished it
+  // must come back: hiding it until "Skjul" is pressed made the panel's
+  // primary action vanish after every successful run, with nothing on screen
+  // saying why or how to get it back.
+  if (isRunActive(s.autoRun?.state)) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        onClick={() => setExpanded((e) => !e)}
+        className="rounded-full border border-hairline px-3 py-1 text-ui hover:border-ink"
+        title="Finder hvert spørgsmål i det felt eller dokument, du sidst klikkede i, og skriver et svar under hvert af dem"
+      >
+        Besvar alle spørgsmål
+      </button>
+      {expanded && (
+        <>
+          <button
+            onClick={() => {
+              setExpanded(false);
+              void autonomous.run('document', 'instant');
+            }}
+            className="rounded-full bg-ink px-3 py-1 text-ui text-paper hover:opacity-85"
+            title="Skriver alle svar på én gang"
+          >
+            Straks
+          </button>
+          <button
+            onClick={() => {
+              setExpanded(false);
+              void autonomous.run('document', 'progressive');
+            }}
+            className="rounded-full border border-hairline px-3 py-1 text-ui hover:border-ink"
+            title="Skriver bogstav for bogstav, ét spørgsmål ad gangen, fra toppen af dokumentet"
+          >
+            Langsomt
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Stop and undo act on the WHOLE run, one user-visible step (D-15); there is no
+ * per-answer control anywhere here. Collapsing the panel unmounts this
+ * component, but the run lives outside the React tree (D-14) and keeps going.
+ */
+function AutoRunBar() {
+  const s = useStore();
+  const st = s.autoRun;
+  if (!st) return null;
+  const pct = Math.round(st.progress * 100);
+  // Between pressing the button and the first character there is one network
+  // call that finds the questions — measured against production 2026-08-25 at
+  // 9.7s, 14.0s and 29.4s. For all of it the run said "Skriver · 0 / 0 · 0%":
+  // claiming to write before it has anything to write, beside a counter that
+  // reads as "nothing to do". Both are knowable from what is already here — a
+  // run that is writing always has at least one answer to write.
+  const finding = st.state === 'writing' && st.answersTotal === 0;
+  return (
+    <div className="sticky bottom-0 space-y-2 rounded-2xl border border-hairline bg-paper p-3 shadow-lg">
+      <div className="flex items-baseline justify-between">
+        <span className="awa-eyebrow !text-ink">
+          {st.state === 'writing' && (finding ? 'Finder spørgsmål' : 'Skriver')}
+          {st.state === 'paused' && 'På pause'}
+          {st.state === 'done' && 'Færdig ✓'}
+          {st.state === 'stopped' && 'Stoppet'}
+          {st.state === 'idle' && 'Fortrudt'}
+          {st.state === 'error' && 'Fejl'}
+        </span>
+        <span className="awa-eyebrow">
+          {finding ? 'Et øjeblik' : `${st.answersDone} / ${st.answersTotal} · ${pct}%`}
+        </span>
+      </div>
+      {st.detail === 'user-typing' && (
+        <div className="text-ui text-graphite">På pause — du begyndte at skrive. Fortsæt når du er klar.</div>
+      )}
+      {st.placement === 'block' && st.degradedReason && <div className="text-ui text-graphite">{st.degradedReason}</div>}
+      {/* The galley line: ink advancing across paper. No countdown, no ETA — a
+          backgrounded tab throttles Langsomt's timers, so any estimate here
+          would just be a lie (D-14). Before the questions are known there is no
+          fraction to draw either, so it travels instead of filling. */}
+      <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-wash">
+        {finding ? (
+          <div className="awa-galley absolute left-0 top-0 h-full rounded-full bg-ink" />
+        ) : (
+          <div
+            className="absolute left-0 top-0 h-full rounded-full bg-ink transition-all duration-200"
+            style={{ width: `${pct}%` }}
+          />
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap text-ui">
+        {st.state === 'writing' && (
+          <button onClick={() => autonomous.pause()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
+            ⏸ Pause
+          </button>
+        )}
+        {st.state === 'paused' && (
+          <button onClick={() => autonomous.resume()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
+            ▶ Fortsæt
+          </button>
+        )}
+        {(st.state === 'writing' || st.state === 'paused') && (
+          <button onClick={() => autonomous.stop()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
+            ■ Stop
+          </button>
+        )}
+        {(st.state === 'done' || st.state === 'stopped' || st.state === 'paused' || st.state === 'error') && (
+          <button onClick={() => void autonomous.undo()} className="rounded-full border border-hairline px-2.5 py-1 hover:border-ink">
+            ↩ Fortryd alle svar
+          </button>
+        )}
+        <button onClick={() => autonomous.dismiss()} className="ml-auto px-2 py-1 text-graphite hover:text-ink">
+          Skjul
+        </button>
+      </div>
+      <div className="truncate text-aside text-graphite">{st.targetLabel}</div>
+      {/* This list carries more weight than it used to. Placement had a
+          fallback — when Docs' Find could not reach a question, the answer went
+          in through the Google Docs API instead. That API is gone (it forced
+          OAuth verification and blocked the store release), so a question Find
+          cannot reach is simply not answered in the document. Saying so is the
+          whole of the replacement: the alternative is guessing a position, and
+          a wrong guess writes into the middle of somebody's real document. */}
+      {st.unplaced.length > 0 && (
+        <div className="space-y-1 border-t border-hairline pt-2 text-aside">
+          <p className="awa-eyebrow !text-ink">Kunne ikke placeres · {st.unplaced.length}</p>
+          <ul className="list-disc space-y-0.5 pl-4 text-graphite">
+            {st.unplaced.map((u, i) => (
+              <li key={i}>
+                {u.questionText} — {u.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

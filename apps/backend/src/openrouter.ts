@@ -15,6 +15,15 @@ export interface StreamHandlers {
    */
   onUsage: (tokensIn: number, tokensOut: number, cost: number | null) => void;
   /**
+   * Why the model stopped. 'length' means the reply was CUT OFF at the token
+   * ceiling — the text is a fragment, not an answer. Callers that parse the
+   * reply as a whole ("Besvar alle spørgsmål" parses it as JSON) must be able
+   * to tell that apart from a model that legitimately returned nothing,
+   * because the two need opposite responses: retry smaller vs. report "no
+   * questions".
+   */
+  onFinish?: (reason: string) => void;
+  /**
    * A model in the chain failed and the next one is being tried.
    *
    * Without this the fallback is completely silent: `attempts` is collected but
@@ -251,6 +260,8 @@ async function streamOne(
         const parsed = JSON.parse(data);
         const delta = parsed.choices?.[0]?.delta?.content;
         if (typeof delta === 'string' && delta.length) handlers.onToken(delta);
+        const finish = parsed.choices?.[0]?.finish_reason;
+        if (typeof finish === 'string' && finish) handlers.onFinish?.(finish);
         if (parsed.usage) {
           const cost = typeof parsed.usage.cost === 'number' ? parsed.usage.cost : null;
           handlers.onUsage(parsed.usage.prompt_tokens ?? 0, parsed.usage.completion_tokens ?? 0, cost);
