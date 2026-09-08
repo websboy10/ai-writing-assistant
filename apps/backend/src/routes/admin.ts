@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type Stripe from 'stripe';
 import { env } from '../env.js';
-import { verifyUser, anonRpc, type AuthedUser } from '../supabase.js';
+import { verifyUser, anonRpc, isUuid, type AuthedUser } from '../supabase.js';
 import { capture } from '../analytics.js';
 import { stripe } from '../billing.js';
 import { hogql } from '../analytics.js';
@@ -22,6 +22,16 @@ import { DASHBOARD_HTML } from './dashboard-page.js';
  * key and the OpenRouter key all stay in the function; the browser receives
  * finished figures. A dashboard that shipped any of those to the page would
  * hand the whole account to anyone who opened it.
+ *
+ * IT COUNTS EVERYONE EXCEPT US. The operator's own accounts and the test
+ * mailbox are listed in public.internal_accounts (migration 0015) and removed
+ * from every source: from the database by admin_stats, from PostHog by
+ * distinct_id, from Stripe by customer. Before that they were most of the data
+ * — 107 of 182 generations on 2026-09-08 — so conversion, cost per answer and
+ * runway were all measurements of ourselves. If the list cannot be read, the
+ * section that needed it reports an error rather than showing unfiltered
+ * numbers: a dashboard quietly counting its own operator is the failure this
+ * is fixing.
  */
 export function adminRoutes(app: FastifyInstance): void {
   async function requireAdmin(req: FastifyRequest, reply: FastifyReply): Promise<AuthedUser | null> {
@@ -54,11 +64,17 @@ export function adminRoutes(app: FastifyInstance): void {
     if (!user) return reply;
     if (!(await enforce(req, reply, 'admin', user.id, [{ limit: 240, seconds: HOUR }]))) return reply;
 
-    const [money, cost, product, usage] = await Promise.allSettled([
-      stripeSection(),
-      openrouterSection(),
+    // One read of the exclusion list, shared by the three sections that need
+    // it. Each awaits the same promise, so a failure surfaces as that section's
+    // own error and never as unfiltered figures.
+    const internal = anonRpc<Internal>('admin_internal');
+
+    const [money, cost, product, usage, excluded] = await Promise.allSettled([
+      internal.then((i) => stripeSection(i.emails)),
+      internal.then((i) => openrouterSection(i.ids)),
       productSection(),
-      posthogSection(),
+      internal.then((i) => posthogSection(i.ids)),
+      internal,
     ]);
 
     const unwrap = <T>(r: PromiseSettledResult<T>) =>
@@ -70,6 +86,7 @@ export function adminRoutes(app: FastifyInstance): void {
       cost: unwrap(cost),
       product: unwrap(product),
       usage: unwrap(usage),
+      excluded: unwrap(excluded),
     };
   });
 
@@ -103,6 +120,27 @@ export function adminRoutes(app: FastifyInstance): void {
   });
 }
 
+/** The accounts that are us, not customers. */
+interface Internal {
+  ids: string[];
+  emails: string[];
+}
+
+/**
+ * `AND distinct_id NOT IN (...)` for a HogQL literal.
+ *
+ * The ids come from auth.users, never from the request, but they are still
+ * interpolated into a query — so a value that is not a uuid is a bug loud
+ * enough to stop the section, not something to drop quietly and report a number
+ * that includes us after all.
+ */
+function excludeInternal(ids: string[]): string {
+  if (!ids.length) return '';
+  const bad = ids.find((id) => !isUuid(id));
+  if (bad) throw new Error('Intern konto-id er ikke en uuid');
+  return ` AND distinct_id NOT IN (${ids.map((id) => `'${id}'`).join(',')})`;
+}
+
 /** Never leak a stack or a provider's raw object to the page. */
 function reasonOf(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
@@ -111,16 +149,40 @@ function reasonOf(err: unknown): string {
 
 // ---- money -----------------------------------------------------------------
 
-async function stripeSection() {
+async function stripeSection(internalEmails: string[]) {
   const now = Math.floor(Date.now() / 1000);
   const day = 86_400;
 
-  const [subs, charges, customers, sessions] = await Promise.all([
+  const mine = new Set(internalEmails.map((e) => e.toLowerCase()));
+  const mineCustomers = await internalCustomerIds(internalEmails);
+  // A Stripe object is ours if it belongs to one of our customer records, or —
+  // for a guest checkout that never became one — if it carries our address.
+  const isMine = (customer: unknown, ...emails: (string | null | undefined)[]) =>
+    (typeof customer === 'string' && mineCustomers.has(customer)) ||
+    (customer !== null && typeof customer === 'object' && 'id' in (customer as object) &&
+      mineCustomers.has((customer as { id: string }).id)) ||
+    emails.some((e) => e && mine.has(e.toLowerCase()));
+
+  const [allSubs, allCharges, allCustomers, allSessions] = await Promise.all([
     stripe.subscriptions.list({ status: 'all', limit: 100, expand: ['data.items'] }),
     stripe.charges.list({ limit: 100, created: { gte: now - 90 * day } }),
     stripe.customers.list({ limit: 100, created: { gte: now - 90 * day } }),
     stripe.checkout.sessions.list({ limit: 100, created: { gte: now - 90 * day } }),
   ]);
+
+  const subs = { ...allSubs, data: allSubs.data.filter((x) => !isMine(x.customer)) };
+  const charges = {
+    ...allCharges,
+    data: allCharges.data.filter((x) => !isMine(x.customer, x.billing_details?.email, x.receipt_email)),
+  };
+  const customers = {
+    ...allCustomers,
+    data: allCustomers.data.filter((x) => !isMine(x.id, x.email)),
+  };
+  const sessions = {
+    ...allSessions,
+    data: allSessions.data.filter((x) => !isMine(x.customer, x.customer_details?.email, x.customer_email)),
+  };
 
   const byStatus: Record<string, number> = {};
   let mrrOre = 0;
@@ -185,6 +247,25 @@ async function stripeSection() {
   };
 }
 
+/**
+ * Our own Stripe customer records, found by address.
+ *
+ * One search rather than one list call per address: Stripe has no multi-email
+ * filter on list, and a request inside a loop over a growing list is the kind
+ * of thing that is fine at five addresses and a bill at fifty. The search index
+ * can lag a new customer by up to a minute, which for excluding our own test
+ * purchases from a 90-day window is not a difference anybody can see.
+ */
+async function internalCustomerIds(emails: string[]): Promise<Set<string>> {
+  const usable = emails.filter((e) => e && !/["\\]/.test(e));
+  if (!usable.length) return new Set();
+  const res = await stripe.customers.search({
+    query: usable.map((e) => `email:"${e.toLowerCase()}"`).join(' OR '),
+    limit: 100,
+  });
+  return new Set(res.data.map((c) => c.id));
+}
+
 // ---- cost ------------------------------------------------------------------
 
 /**
@@ -197,7 +278,7 @@ async function stripeSection() {
  * real charges and the runway is that rate divided into what is left. No cron,
  * no snapshot table, and the figure is exact rather than extrapolated.
  */
-async function openrouterSection() {
+async function openrouterSection(internalIds: string[]) {
   const res = await fetch('https://openrouter.ai/api/v1/credits', {
     headers: { Authorization: `Bearer ${env.openrouterKey}` },
     signal: AbortSignal.timeout(10_000),
@@ -208,12 +289,14 @@ async function openrouterSection() {
   const used = body.data?.total_usage ?? 0;
   const left = total - used;
 
+  const mineOut = excludeInternal(internalIds);
   let spend30: number | null = null;
   let answers30: number | null = null;
   try {
     const rows = await hogql<[number, number]>(
       `SELECT round(sum(toFloat(properties.cost)), 4) AS spend, count() AS answers
-       FROM events WHERE event = 'chat_completed' AND timestamp > now() - INTERVAL 30 DAY`,
+       FROM events WHERE event = 'chat_completed' AND timestamp > now() - INTERVAL 30 DAY
+       ${mineOut}`,
     );
     spend30 = rows[0]?.[0] ?? 0;
     answers30 = rows[0]?.[1] ?? 0;
@@ -252,39 +335,43 @@ async function productSection() {
 
 // ---- behaviour -------------------------------------------------------------
 
-/** Every query here is a literal. Nothing from the request reaches HogQL. */
-async function posthogSection() {
+/**
+ * Every query here is a literal. Nothing from the request reaches HogQL — the
+ * only interpolated values are our own account ids, checked as uuids first.
+ */
+async function posthogSection(internalIds: string[]) {
   if (!env.posthogApiKey || !env.posthogProjectId) {
     throw new Error('PostHog er ikke sat op (POSTHOG_API_KEY / POSTHOG_PROJECT_ID)');
   }
+  const mineOut = excludeInternal(internalIds);
   const [daily, byEvent, actives, models, lengths, failures, funnel, speed] = await Promise.all([
     hogql<[string, number, number]>(
       `SELECT toDate(timestamp) AS d, count() AS events, uniq(distinct_id) AS people
-       FROM events WHERE timestamp > now() - INTERVAL 30 DAY GROUP BY d ORDER BY d`,
+       FROM events WHERE timestamp > now() - INTERVAL 30 DAY ${mineOut} GROUP BY d ORDER BY d`,
     ),
     hogql<[string, number]>(
-      `SELECT event, count() AS n FROM events WHERE timestamp > now() - INTERVAL 30 DAY
+      `SELECT event, count() AS n FROM events WHERE timestamp > now() - INTERVAL 30 DAY ${mineOut}
        GROUP BY event ORDER BY n DESC LIMIT 20`,
     ),
     hogql<[number, number, number]>(
       `SELECT uniqIf(distinct_id, timestamp > now() - INTERVAL 1 DAY) AS dau,
               uniqIf(distinct_id, timestamp > now() - INTERVAL 7 DAY) AS wau,
               uniq(distinct_id) AS mau
-       FROM events WHERE timestamp > now() - INTERVAL 30 DAY`,
+       FROM events WHERE timestamp > now() - INTERVAL 30 DAY ${mineOut}`,
     ),
     hogql<[string, number, number]>(
       `SELECT properties.model AS model, count() AS n, round(avg(toFloat(properties.ms))) AS avg_ms
-       FROM events WHERE event = 'chat_completed' AND timestamp > now() - INTERVAL 30 DAY
+       FROM events WHERE event = 'chat_completed' AND timestamp > now() - INTERVAL 30 DAY ${mineOut}
        GROUP BY model ORDER BY n DESC LIMIT 8`,
     ),
     hogql<[string, number]>(
       `SELECT properties.length AS len, count() AS n
-       FROM events WHERE event = 'chat_completed' AND timestamp > now() - INTERVAL 30 DAY
+       FROM events WHERE event = 'chat_completed' AND timestamp > now() - INTERVAL 30 DAY ${mineOut}
        GROUP BY len ORDER BY n DESC`,
     ),
     hogql<[string, number]>(
       `SELECT properties.code AS code, count() AS n
-       FROM events WHERE event = 'chat_failed' AND timestamp > now() - INTERVAL 30 DAY
+       FROM events WHERE event = 'chat_failed' AND timestamp > now() - INTERVAL 30 DAY ${mineOut}
        GROUP BY code ORDER BY n DESC LIMIT 8`,
     ),
     // The whole business in six numbers: signed up, wrote something, hit the
@@ -293,13 +380,14 @@ async function posthogSection() {
       `SELECT event, uniq(distinct_id) AS people FROM events
        WHERE timestamp > now() - INTERVAL 90 DAY
          AND event IN ('signed_up','chat_completed','paywall_hit','checkout_started','pass_granted','subscription_state')
+         ${mineOut}
        GROUP BY event`,
     ),
     hogql<[number, number, number]>(
       `SELECT round(quantile(0.5)(toFloat(properties.ms))) AS p50,
               round(quantile(0.95)(toFloat(properties.ms))) AS p95,
               round(avg(toFloat(properties.chars_out))) AS avg_chars
-       FROM events WHERE event = 'chat_completed' AND timestamp > now() - INTERVAL 30 DAY`,
+       FROM events WHERE event = 'chat_completed' AND timestamp > now() - INTERVAL 30 DAY ${mineOut}`,
     ),
   ]);
   return {

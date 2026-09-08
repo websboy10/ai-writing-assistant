@@ -103,6 +103,7 @@ form .btn{padding:11px;background:var(--ink);color:#fff;border-color:var(--ink)}
       <button class="btn" id="refresh">Opdatér</button></div>
   </div>
   <div class="health" id="health"></div>
+  <p class="muted" id="scope">Alle tal er uden operatørens egne konti og testkontoen.</p>
 
   <h2>Penge</h2>
   <div class="grid" id="money"></div>
@@ -150,7 +151,8 @@ const nf = (n) => (n === null || n === undefined || Number.isNaN(n)) ? '–' : N
 const kr = (n) => nf(Math.round(n)) + ' kr.';
 const card = (k, v, n) => '<div class="card"><div class="k">' + esc(k) + '</div><div class="v">' + v +
   '</div>' + (n ? '<div class="n">' + n + '</div>' : '') + '</div>';
-const pill = (state, text) => '<span class="pill"><span class="dot ' + state + '"></span>' + esc(text) + '</span>';
+const pill = (state, text, title) => '<span class="pill"' + (title ? ' title="' + esc(title) + '"' : '') +
+  '><span class="dot ' + state + '"></span>' + esc(text) + '</span>';
 
 function table(cols, rows, empty) {
   if (!rows.length) return '<p class="muted">' + esc(empty) + '</p>';
@@ -264,10 +266,17 @@ async function load() {
   }
   $('stamp').textContent = 'Hentet ' + new Date(d.generatedAt).toLocaleString('da-DK');
 
-  const m = d.money, c = d.cost, p = d.product, u = d.usage;
+  const m = d.money, c = d.cost, p = d.product, u = d.usage, x = d.excluded;
 
   // ---- health strip: the three things worth being told without asking ----
   const health = [];
+  // Said first, because every other number below depends on it being true.
+  if (x && !x.error) {
+    health.push(pill('idle', 'Uden ' + nf(x.emails.length) + ' interne konti',
+                     'Ekskluderet fra alle tal: ' + x.emails.join(', ')));
+  } else if (x && x.error) {
+    health.push(pill('bad', 'Interne konti tælles muligvis med'));
+  }
   if (c && !c.error) {
     const days = c.runway_days;
     health.push(days === null
