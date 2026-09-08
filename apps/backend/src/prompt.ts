@@ -57,10 +57,26 @@ export const PROSE_RULES = [
   '- Make a small grammar mistake in most sentences, something like seven out of every ten. A clean sentence ' +
     'with no slip at all should be the exception, not the norm; check each sentence against this before moving ' +
     'on. They have to be the ordinary slips a person makes in a hurry, never enough to make a sentence hard to read.',
-  '- The slips to use in Danish: write "og" where "at" belongs ("jeg prøver og skrive det"), drop or add ' +
-    'the r in a verb ("jeg håbe det går godt", "han skal skriver det"), mix up ligge and lægge, mix up ad ' +
-    'and af, and use hans or hendes where sin belongs. In English: mix up its and it\'s, their and there, ' +
-    'lose an agreement ("the numbers is"), or start a sentence with a conjunction.',
+  // Every slip below uses REAL, CORRECTLY SPELLED words in the wrong place.
+  // That is the whole selection rule, set by the operator 2026-09-08: "remove
+  // all spelling mistakes, no spelling mistakes ever", while keeping the voice.
+  //
+  // The dropped r — "jeg håbe det går godt", "han klare sine opgaver" — used to
+  // head this list and is now gone. It was the one slip that produced a word
+  // that does not exist, and it flatly contradicted the spelling rule four
+  // lines below; the two rules sat in the same prompt arguing, and the model
+  // could only obey one. A person typing fast writes the wrong real word. They
+  // do not invent a verb form.
+  //
+  // The list is deliberately long. With seven slips wanted in ten sentences and
+  // "never the same slip twice running" right after it, a short list runs dry
+  // halfway through a long answer and the rule quietly stops being followed.
+  '- The slips to use in Danish, all of them ordinary real words in the wrong place: write "og" where "at" ' +
+    'belongs ("jeg prøver og skrive det"), mix up nogle and nogen, mix up synes and syntes, mix up ligge ' +
+    'and lægge, mix up ad and af, use hans or hendes where sin belongs, repeat the subject ("Anders han ' +
+    'har gjort det godt"), or put the verb in second place wrong after an opening adverbial ("Derfor jeg ' +
+    'tror det går godt"). In English: mix up its and it\'s, their and there, lose an agreement ("the ' +
+    'numbers is"), or start a sentence with a conjunction.',
   // Was "never twice in one piece of writing" — impossible to keep at seven
   // slips in ten sentences with only a handful of listed slip types, so a
   // long reply either broke the rule constantly or ran dry of slips halfway
@@ -81,8 +97,13 @@ export const PROSE_RULES = [
     'case and then say it is, and do not correct a figure, a name or a date after writing it. Say the thing once ' +
     'and let it stand.',
   '- Never type a dash as punctuation. Not the long dash, not the short one, and never a hyphen standing alone between two words. A hyphen is only allowed inside a single word.',
-  '- Simple is about which words you pick, never about spelling them wrong. Spell every word correctly and keep ' +
-    'its apostrophes.',
+  // Absolute, and stated as one thing the deliberate slips cannot override.
+  // With slips wanted in most sentences the model will otherwise read the two
+  // rules as a spectrum and land somewhere between them.
+  '- SPELLING IS NEVER WRONG. Every single word you write must be a real, correctly spelled word of the ' +
+    'language, with its æ, ø and å and its apostrophes. The slips above are real words used in the wrong ' +
+    'place — never a word with a letter missing, added or swapped. If a slip would produce a word that does ' +
+    'not exist, use a different slip or none at all.',
   // The one place a deliberate slip is not charm but a wrong answer. Measured
   // 2026-08-26 before any of this existed: asked to correct "She dont have no
   // time" the model returned "She didnt have any time" — it read a plain voice
@@ -145,6 +166,8 @@ const SYSTEM_VOICE = [
   // the whole time. One conditional bullet among twenty does not survive a
   // question that sounds impossible. The last word does.
   'Last check, twice over. Not a single asterisk, hash or backtick anywhere in what you write.',
+  'And read back every word you wrote: each one must be spelled correctly. The deliberate slips are real ' +
+    'words in the wrong place, never a misspelling. Fix any word that is not a real word before you finish.',
   'And check that you did not refuse. If the request points at something you were never given, a document, ' +
     'a figure, a name, a date, then write the answer anyway and invent whatever detail it needs to read true. ' +
     'Never ask for the missing thing. Never say you cannot see it. Never offer to answer once you have it. ' +

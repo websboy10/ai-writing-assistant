@@ -23,15 +23,14 @@ import { DASHBOARD_HTML } from './dashboard-page.js';
  * finished figures. A dashboard that shipped any of those to the page would
  * hand the whole account to anyone who opened it.
  *
- * IT COUNTS EVERYONE EXCEPT US. The operator's own accounts and the test
- * mailbox are listed in public.internal_accounts (migration 0015) and removed
- * from every source: from the database by admin_stats, from PostHog by
- * distinct_id, from Stripe by customer. Before that they were most of the data
- * — 107 of 182 generations on 2026-09-08 — so conversion, cost per answer and
- * runway were all measurements of ourselves. If the list cannot be read, the
- * section that needed it reports an error rather than showing unfiltered
- * numbers: a dashboard quietly counting its own operator is the failure this
- * is fixing.
+ * IT COUNTS ONLY PEOPLE WE CAN NAME. Every figure is restricted to the ids of
+ * real users in our own database — accounts that exist right now and are not in
+ * public.internal_accounts (migrations 0015/0016). Subtracting our own accounts
+ * instead was not enough: PostHog and Stripe keep the history of every test
+ * account we ever deleted, whose uuid no longer resolves to anything, and that
+ * history was most of the data. If the allow-list cannot be read, the section
+ * that needed it reports an error rather than showing unfiltered numbers: a
+ * dashboard quietly counting its own operator is the failure this is fixing.
  */
 export function adminRoutes(app: FastifyInstance): void {
   async function requireAdmin(req: FastifyRequest, reply: FastifyReply): Promise<AuthedUser | null> {
@@ -70,10 +69,10 @@ export function adminRoutes(app: FastifyInstance): void {
     const internal = anonRpc<Internal>('admin_internal');
 
     const [money, cost, product, usage, excluded] = await Promise.allSettled([
-      internal.then((i) => stripeSection(i.emails)),
-      internal.then((i) => openrouterSection(i.ids)),
+      internal.then((i) => stripeSection(i)),
+      internal.then((i) => openrouterSection(i.real_ids)),
       productSection(),
-      internal.then((i) => posthogSection(i.ids)),
+      internal.then((i) => posthogSection(i.real_ids)),
       internal,
     ]);
 
@@ -120,25 +119,33 @@ export function adminRoutes(app: FastifyInstance): void {
   });
 }
 
-/** The accounts that are us, not customers. */
+/** Who counts, and who we are. */
 interface Internal {
-  ids: string[];
+  /** Real users: everyone in auth.users who is not one of ours. */
+  real_ids: string[];
+  /** Their Stripe customers, for objects that carry no metadata. */
+  real_customers: string[];
+  internal_ids: string[];
   emails: string[];
 }
 
 /**
- * `AND distinct_id NOT IN (...)` for a HogQL literal.
+ * `AND distinct_id IN (...)` for a HogQL literal.
+ *
+ * An allow-list, not a deny-list — see the route comment. With no real users
+ * yet the clause must still match nothing, so it gets an id that cannot exist
+ * rather than an empty `IN ()`, which is a syntax error.
  *
  * The ids come from auth.users, never from the request, but they are still
  * interpolated into a query — so a value that is not a uuid is a bug loud
  * enough to stop the section, not something to drop quietly and report a number
- * that includes us after all.
+ * that counts everybody after all.
  */
-function excludeInternal(ids: string[]): string {
-  if (!ids.length) return '';
+function onlyRealUsers(ids: string[]): string {
   const bad = ids.find((id) => !isUuid(id));
-  if (bad) throw new Error('Intern konto-id er ikke en uuid');
-  return ` AND distinct_id NOT IN (${ids.map((id) => `'${id}'`).join(',')})`;
+  if (bad) throw new Error('Bruger-id er ikke en uuid');
+  const list = ids.length ? ids : ['00000000-0000-0000-0000-000000000000'];
+  return ` AND distinct_id IN (${list.map((id) => `'${id}'`).join(',')})`;
 }
 
 /** Never leak a stack or a provider's raw object to the page. */
@@ -149,19 +156,24 @@ function reasonOf(err: unknown): string {
 
 // ---- money -----------------------------------------------------------------
 
-async function stripeSection(internalEmails: string[]) {
+async function stripeSection(internal: Internal) {
   const now = Math.floor(Date.now() / 1000);
   const day = 86_400;
 
-  const mine = new Set(internalEmails.map((e) => e.toLowerCase()));
-  const mineCustomers = await internalCustomerIds(internalEmails);
-  // A Stripe object is ours if it belongs to one of our customer records, or —
-  // for a guest checkout that never became one — if it carries our address.
-  const isMine = (customer: unknown, ...emails: (string | null | undefined)[]) =>
-    (typeof customer === 'string' && mineCustomers.has(customer)) ||
-    (customer !== null && typeof customer === 'object' && 'id' in (customer as object) &&
-      mineCustomers.has((customer as { id: string }).id)) ||
-    emails.some((e) => e && mine.has(e.toLowerCase()));
+  const realUsers = new Set(internal.real_ids);
+  const realCustomers = new Set(internal.real_customers);
+  // Every checkout this product opens stamps the user id into metadata
+  // (routes/billing.ts), and every customer it creates is recorded in billing.
+  // An object matching neither belongs to an account we no longer have — a
+  // deleted test account, almost always ours — and is not a customer.
+  const isReal = (customer: unknown, metadata: Stripe.Metadata | null | undefined) => {
+    const userId = metadata?.user_id;
+    if (userId) return realUsers.has(userId);
+    const id = typeof customer === 'string' ? customer
+      : customer && typeof customer === 'object' && 'id' in customer ? (customer as { id: string }).id
+      : null;
+    return id !== null && realCustomers.has(id);
+  };
 
   const [allSubs, allCharges, allCustomers, allSessions] = await Promise.all([
     stripe.subscriptions.list({ status: 'all', limit: 100, expand: ['data.items'] }),
@@ -170,19 +182,10 @@ async function stripeSection(internalEmails: string[]) {
     stripe.checkout.sessions.list({ limit: 100, created: { gte: now - 90 * day } }),
   ]);
 
-  const subs = { ...allSubs, data: allSubs.data.filter((x) => !isMine(x.customer)) };
-  const charges = {
-    ...allCharges,
-    data: allCharges.data.filter((x) => !isMine(x.customer, x.billing_details?.email, x.receipt_email)),
-  };
-  const customers = {
-    ...allCustomers,
-    data: allCustomers.data.filter((x) => !isMine(x.id, x.email)),
-  };
-  const sessions = {
-    ...allSessions,
-    data: allSessions.data.filter((x) => !isMine(x.customer, x.customer_details?.email, x.customer_email)),
-  };
+  const subs = { ...allSubs, data: allSubs.data.filter((x) => isReal(x.customer, x.metadata)) };
+  const charges = { ...allCharges, data: allCharges.data.filter((x) => isReal(x.customer, x.metadata)) };
+  const customers = { ...allCustomers, data: allCustomers.data.filter((x) => isReal(x.id, x.metadata)) };
+  const sessions = { ...allSessions, data: allSessions.data.filter((x) => isReal(x.customer, x.metadata)) };
 
   const byStatus: Record<string, number> = {};
   let mrrOre = 0;
@@ -247,25 +250,6 @@ async function stripeSection(internalEmails: string[]) {
   };
 }
 
-/**
- * Our own Stripe customer records, found by address.
- *
- * One search rather than one list call per address: Stripe has no multi-email
- * filter on list, and a request inside a loop over a growing list is the kind
- * of thing that is fine at five addresses and a bill at fifty. The search index
- * can lag a new customer by up to a minute, which for excluding our own test
- * purchases from a 90-day window is not a difference anybody can see.
- */
-async function internalCustomerIds(emails: string[]): Promise<Set<string>> {
-  const usable = emails.filter((e) => e && !/["\\]/.test(e));
-  if (!usable.length) return new Set();
-  const res = await stripe.customers.search({
-    query: usable.map((e) => `email:"${e.toLowerCase()}"`).join(' OR '),
-    limit: 100,
-  });
-  return new Set(res.data.map((c) => c.id));
-}
-
 // ---- cost ------------------------------------------------------------------
 
 /**
@@ -278,7 +262,7 @@ async function internalCustomerIds(emails: string[]): Promise<Set<string>> {
  * real charges and the runway is that rate divided into what is left. No cron,
  * no snapshot table, and the figure is exact rather than extrapolated.
  */
-async function openrouterSection(internalIds: string[]) {
+async function openrouterSection(realIds: string[]) {
   const res = await fetch('https://openrouter.ai/api/v1/credits', {
     headers: { Authorization: `Bearer ${env.openrouterKey}` },
     signal: AbortSignal.timeout(10_000),
@@ -289,7 +273,7 @@ async function openrouterSection(internalIds: string[]) {
   const used = body.data?.total_usage ?? 0;
   const left = total - used;
 
-  const mineOut = excludeInternal(internalIds);
+  const mineOut = onlyRealUsers(realIds);
   let spend30: number | null = null;
   let answers30: number | null = null;
   try {
@@ -337,13 +321,13 @@ async function productSection() {
 
 /**
  * Every query here is a literal. Nothing from the request reaches HogQL — the
- * only interpolated values are our own account ids, checked as uuids first.
+ * only interpolated values are our own users' ids, checked as uuids first.
  */
-async function posthogSection(internalIds: string[]) {
+async function posthogSection(realIds: string[]) {
   if (!env.posthogApiKey || !env.posthogProjectId) {
     throw new Error('PostHog er ikke sat op (POSTHOG_API_KEY / POSTHOG_PROJECT_ID)');
   }
-  const mineOut = excludeInternal(internalIds);
+  const mineOut = onlyRealUsers(realIds);
   const [daily, byEvent, actives, models, lengths, failures, funnel, speed] = await Promise.all([
     hogql<[string, number, number]>(
       `SELECT toDate(timestamp) AS d, count() AS events, uniq(distinct_id) AS people
