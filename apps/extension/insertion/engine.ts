@@ -1,4 +1,4 @@
-import type { InsertionAdapter, InsertionCallbacks, InsertionState, InsertResult, PacingConfig } from './types';
+import { paceDelayMs, type InsertionAdapter, type InsertionCallbacks, type InsertionState, type InsertResult, type PacingConfig } from './types';
 import { awaLog } from './debug';
 import { humanScript, type Piece } from './human';
 
@@ -179,7 +179,7 @@ export class InsertionSession {
     if (step.insert === undefined) return extra;
     // Letter-by-letter at wpm words/min (5 chars/word), with human jitter —
     // a metronome-steady 400 ms tick reads as robotic, uneven strokes don't.
-    const base = 60_000 / (Math.max(1, this.pacing.wpm) * 5);
+    const base = paceDelayMs(this.pacing.wpm);
     const jittered = base * (0.6 + Math.random() * 0.8);
     // Chunks carry LEADING whitespace, so a paragraph break lives at the start
     // of the next chunk and sentence punctuation at the end of this one.

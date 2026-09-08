@@ -78,6 +78,21 @@ export const MIN_WPM = 10;
 export const MAX_WPM = 200;
 export const DEFAULT_PACING: PacingConfig = { wpm: 30, human: false };
 
+/**
+ * Milliseconds a single character costs in paced mode, before jitter.
+ *
+ * The engine's own tick rate (engine.ts delayAfter) and anything that wants to
+ * tell the user how long a run will take must not each carry their own copy of
+ * this: an estimate that disagrees with the engine is worse than no estimate,
+ * because it is believed. Jitter averages out over any run long enough to be
+ * worth estimating, and the per-sentence pauses only ever make it slower — so
+ * this is a floor, and a caller phrasing it as such ("ca.") is telling the
+ * truth.
+ */
+export function paceDelayMs(wpm: number): number {
+  return 60_000 / (Math.max(1, wpm) * 5);
+}
+
 export type InsertionState = 'idle' | 'running' | 'paused' | 'stopped' | 'done' | 'error';
 
 export interface InsertionCallbacks {

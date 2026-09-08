@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import { MAX_CONTEXT_ITEMS, type ParsedFile } from '@awa/shared';
+import { pacedDurationText } from '@/insertion';
 import { call } from '../api';
 import { addFilesToContext, newContextId as newId } from '../ingest';
+import { inserter } from '../inserter';
 import { readPageAsContext } from '../page-context';
 import { useStore } from '../store';
 
@@ -89,6 +91,7 @@ export function ContextChips() {
         <pre className="max-h-[180px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-wash p-2 text-aside leading-relaxed">
           {open.text}
         </pre>
+        <WriteFileIn text={open.text} chars={open.chars} />
       </div>
     );
   }
@@ -170,6 +173,65 @@ export function ContextChips() {
           e.target.value = '';
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * Write an attachment's own text into the document — no model, no answer.
+ *
+ * The other route through this product asks a question and inserts the reply.
+ * This one inserts the file: you attached a document because you want *it* in
+ * the page you are standing in. It reuses the insertion engine untouched, so
+ * the tempo slider, Pause, Stop and Fortryd all apply exactly as they do to a
+ * draft, and nothing here talks to the backend — the text was extracted when
+ * the file was attached, so this costs nothing and counts against no quota.
+ *
+ * Both honesty lines below are load-bearing rather than decorative:
+ *
+ *   Time   The slow path is a real commitment. A full 60.000-tegn attachment
+ *          at the default 30 ord/min runs for 6 timer og 40 minutter. Nobody
+ *          derives that from "ord i minuttet", and a button that starts it
+ *          without saying so is a trap.
+ *   Format Insertion writes text/plain. The user is visibly handing over a
+ *          FORMATTED document — a Word file with headings and bold — so
+ *          silence here would be read as a promise the product cannot keep.
+ */
+function WriteFileIn({ text, chars }: { text: string; chars: number }) {
+  const canInsert = useStore((st) => st.hasInsertTarget);
+  const wpm = useStore((st) => st.pacing.wpm);
+
+  return (
+    <div className="space-y-1 border-t border-hairline pt-2">
+      {/* Same rule as the draft's own buttons (ChatView): nothing is disabled,
+          and the button that can actually work right now wears the filled
+          style. With no target chosen, pressing either one lands on a banner
+          telling you to click a field first — which is a worse way to learn it
+          than the title text is. */}
+      <div className="flex flex-wrap gap-1.5 text-ui">
+        <button
+          onClick={() => inserter.start(text, 'progressive')}
+          className={`rounded-full px-3 py-1 ${canInsert ? 'bg-ink text-paper hover:opacity-85' : 'border border-hairline hover:border-ink'}`}
+          title={
+            canInsert
+              ? `Skriver hele filen ind bogstav for bogstav, ${wpm} ord i minuttet — kan sættes på pause eller stoppes når som helst`
+              : 'Klik først i det felt eller dokument, teksten skal ind i'
+          }
+        >
+          Skriv ind i dokumentet
+        </button>
+        <button
+          onClick={() => inserter.start(text, 'instant')}
+          className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
+          title="Sætter hele filens tekst ind på én gang"
+        >
+          Skriv ind straks
+        </button>
+      </div>
+      <p className="awa-note">
+        Langsomt tager <span className="awa-num">{pacedDurationText(chars, wpm)}</span> ved {wpm} ord i minuttet.
+        Formatering følger ikke med — overskrifter, fed skrift og tabeller bliver til almindelig tekst.
+      </p>
     </div>
   );
 }
