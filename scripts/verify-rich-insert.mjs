@@ -27,7 +27,7 @@ const TEST_PASSWORD = process.env.AWA_TEST_PASSWORD ?? 'awa-test-2026-xK9';
 const ASK = 'Opsummer fordelene ved hjemmearbejde i punktform med fire punkter.';
 
 const r = reporter();
-const ctx = await launch({ headless: false });
+const ctx = await launch();
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 
 const host = page.locator('awa-sidebar');

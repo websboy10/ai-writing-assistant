@@ -17,7 +17,7 @@
 import { launch, newDoc, readDoc, shotsDir } from './docs-harness.mjs';
 import { resolve } from 'node:path';
 
-const ctx = await launch({ headless: false });
+const ctx = await launch();
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 
 const focusReport = () =>

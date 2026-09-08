@@ -37,7 +37,7 @@ const LAYOUTS = {
 };
 
 const r = reporter();
-const ctx = await launch({ headless: false });
+const ctx = await launch();
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 
 const host = page.locator('awa-sidebar');

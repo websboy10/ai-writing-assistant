@@ -57,13 +57,28 @@ function dropCachedServiceWorkers() {
 }
 
 /**
+ * Every script here used to open a real 1512x982 Chrome window. A tuning run is
+ * dozens of launches, so the operator's screen spent the afternoon with a
+ * browser flashing open and shut over whatever he was doing — and the windows
+ * steal keyboard focus while they live. Headless is now the default and the
+ * window is opt-in: `AWA_HEADED=1 node scripts/verify-docs.mjs` when you
+ * genuinely need to watch it. Verified 2026-09-08 that the MV3 service worker
+ * registers and the content script mounts in headless, which is the only thing
+ * the window was ever needed for.
+ *
+ * To drive the extension by hand, use scripts/launch-chrome.sh — that one is
+ * meant to be seen and is deliberately unaffected.
+ */
+const headless = process.env.AWA_HEADED !== '1';
+
+/**
  * `viewport` is for the store screenshots and nothing else. The Chrome Web
  * Store accepts exactly 1280x800 or 640x400, and a shot that is one pixel off
  * is rejected at upload — so that one caller needs a viewport Playwright
  * enforces, not a window size the OS is free to adjust. Every test caller
  * leaves it null and keeps the real window it has always had.
  */
-export async function launch({ headless = false, viewport = null, windowSize = '1512,982' } = {}) {
+export async function launch({ viewport = null, windowSize = '1512,982' } = {}) {
   dropCachedServiceWorkers();
   return chromium.launchPersistentContext(profilePath, {
     executablePath: chromeForTestingPath(),

@@ -37,7 +37,7 @@ const TEST_PASSWORD = 'awa-test-2026';
 const EXPECTED_BACKEND = process.env.VITE_BACKEND_URL ?? 'http://127.0.0.1:8787';
 
 const r = reporter();
-const ctx = await launch({ headless: false });
+const ctx = await launch();
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 
 /**

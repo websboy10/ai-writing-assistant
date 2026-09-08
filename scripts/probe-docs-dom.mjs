@@ -3,7 +3,7 @@
  *  session got lost to a stale selector. */
 import { launch, newDoc } from './docs-harness.mjs';
 
-const ctx = await launch({ headless: false });
+const ctx = await launch();
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 try {
   const id = await newDoc(page);

@@ -42,7 +42,7 @@ const server = createServer((_req, res) => {
 await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
 const FIXTURE = `http://127.0.0.1:${server.address().port}/`;
 
-const ctx = await launch({ headless: false });
+const ctx = await launch();
 
 // The stale-service-worker trap: a cached MV3 worker can route every call to
 // the previously-built backend while the suite goes green proving nothing.

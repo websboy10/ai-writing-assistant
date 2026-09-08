@@ -3,7 +3,7 @@
  *  full URL. Ends the question of which backend is actually being called. */
 import { launch, newDoc } from './docs-harness.mjs';
 
-const ctx = await launch({ headless: false });
+const ctx = await launch();
 const seen = [];
 await ctx.route('**/api/**', async (route) => {
   seen.push(`${route.request().method()} ${route.request().url()}`);
