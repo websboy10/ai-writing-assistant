@@ -103,7 +103,8 @@ form .btn{padding:11px;background:var(--ink);color:#fff;border-color:var(--ink)}
       <button class="btn" id="refresh">Opdatér</button></div>
   </div>
   <div class="health" id="health"></div>
-  <p class="muted" id="scope">Alle tal er uden operatørens egne konti og testkontoen.</p>
+  <p class="muted" id="scope">Alle tal tæller kun rigtige brugere: konti der findes i dag og ikke er vores egne.
+    Slettede konti og testkonti er ikke med — heller ikke i PostHog og Stripe, hvor deres historik ellers bliver liggende.</p>
 
   <h2>Penge</h2>
   <div class="grid" id="money"></div>
@@ -272,10 +273,11 @@ async function load() {
   const health = [];
   // Said first, because every other number below depends on it being true.
   if (x && !x.error) {
-    health.push(pill('idle', 'Uden ' + nf(x.emails.length) + ' interne konti',
-                     'Ekskluderet fra alle tal: ' + x.emails.join(', ')));
+    health.push(pill('idle', 'Kun ' + nf(x.real_ids.length) + ' rigtige brugere talt med',
+                     'Alt andet er ikke talt med: vores egne konti (' + x.emails.join(', ') +
+                     ') og enhver konto der er slettet siden.'));
   } else if (x && x.error) {
-    health.push(pill('bad', 'Interne konti tælles muligvis med'));
+    health.push(pill('bad', 'Vores egne konti tælles muligvis med'));
   }
   if (c && !c.error) {
     const days = c.runway_days;
