@@ -19,11 +19,31 @@ answer slowly, with "Skriv som et menneske" slips and rewrites, AND with real
 formatting — bold, italic, bullets, numbers — by pressing the same shortcuts a
 person presses between keystrokes.
 
-## Observed (scripts/verify-formatted-answers.mjs, 14/14, Langsomt + human)
+## How a run decides where to write (since 2026-09-09)
 
-One worksheet carrying every shape at once (the last two rows and the
-letter-for-letter check were added 2026-09-08 evening, after the first run on
-a real MUS form found three defects — see below):
+The model reads the whole document with its structure — headings, bold
+lines, list items, every cell and whether it is empty — and returns a PLAN:
+each question with the empty place its answer belongs in (`answerAt`), or
+none when the answer simply goes under the question. The server checks each
+place against the paragraphs it was sent (empty, after the question, claimed
+once). The extension turns the place into keystrokes from the last line with
+text before it: Tab into the next cell, ArrowDown into the next list item, or
+a measured walk into a table or list below, past any blank lines
+(docs-tables.ts slotPlanFor, docs-source.ts walkIntoBox). The old rules
+remain as the fallback when the model gives no place or names one that
+cannot be reached safely.
+
+## Observed (scripts/verify-formatted-answers.mjs, Langsomt + human)
+
+Latest run 2026-09-09: 22 of 23 checks live, the 23rd a checker that
+compared a bulleted answer with its list markers still on — corrected and
+confirmed against that run's own output. Six of seven questions got a place
+from the model and all six were carried out by the plan (three walks, one
+Tab, one list); the seventh, the bold-word question, has no box and went
+under its question as intended.
+
+One worksheet carrying every shape at once (rows added as real forms found
+them wanting — see below):
 
 | Shape | Result |
 |---|---|
@@ -35,15 +55,24 @@ a real MUS form found three defects — see below):
 | a two-column table, question beside an empty cell | answer in the cell; question cell untouched |
 | "skriv Vigtigt med fed" | **Vigtigt** in real bold, a real space after it, typed slowly with slips |
 | whole document | not one asterisk; nothing reported unplaced |
-| every deletion of the human-typing mode (36 in the run) | verified by reading the selection back before anything was replaced; 36/36 first try |
+| a question, a BLANK LINE, then the box (the operator's own form) | answer in the box; nothing on the blank line |
+| a question, a plain note ("Skriv kun årstallet."), then the box | answer in the box, the note untouched — the model's plan, walked from the note |
+| every deletion of the human-typing mode (20–36 per run) | verified by reading the selection back before anything was replaced; every one first try |
 | the answers, read back from the document | letter for letter what the model wrote — no slip left behind, no letter eaten |
+
+Open observation: one run (2026-09-09, 01:30) read back the bold word as
+"V<zw><zw>gtigt" — the second letter replaced by two zero-width spaces. Not
+reproduced in 20 tries under load (scripts/probe-docs-bold-start.mjs) and
+clean in the runs before and after; the verify now keeps the whole adapter
+log (test-results/formatted-awa.log) so the next occurrence can be traced.
 
 Regressions, same session: `verify-answer-all` 9/9, `verify-table-answers`
 7/7, `verify-box-below` 2/2 — the last on BOTH layouts, including the one
 predicted unsolvable before this phase.
 
-Unit: 121 extension tests (19 new for the compiler, 11 for placement, 1 for
-one-step deletions), 19 backend. Typecheck clean.
+Unit: 130 extension tests (19 for the compiler, 20 for placement and the
+plan, 1 for one-step deletions), 27 backend (plan validation, the paragraph
+validator). Typecheck clean.
 
 ## Defects found by measurement on the way, all fixed
 
@@ -81,6 +110,18 @@ one-step deletions), 19 backend. Typecheck clean.
   character, the selection read back and compared with what was typed, a
   dropped arrow retried, and only an exact match left for the next paste to
   replace. The engine sends each deletion as one step so that is one gesture.
+- **The operator's own form (2026-09-08 23:52): every box left empty, the
+  answers on the line under each question.** A blank line between question
+  and box, which Docs' copy html does not show at all. Placement now
+  measures the way down by extending a selection until it touches the box
+  (07-FINDINGS-docs.md F-6), and the model PLANS: it reads the whole form
+  and names the empty place each answer belongs in (`answerAt`), which the
+  extension carries out by Tab, ArrowDown or that walk, from the last line
+  with text before the place — so a note or hint between question and box
+  no longer matters.
+- **The server had been stripping the structure all along** (F-7): the
+  shape tags never reached the model and the first plans were all rejected.
+  Fixed in the validator, with tests.
 - **The test account had spent its 200 daily requests** on the day's
   verification runs, and the verify script waited 15 minutes for a run that
   had never started. It now fails within seconds on the panel's own message;

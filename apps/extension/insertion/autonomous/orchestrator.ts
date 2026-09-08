@@ -251,6 +251,7 @@ export class AutonomousRun {
       const target = await this.source.locate({
         paragraphIndex: answer.paragraphIndex,
         questionText: answer.questionText,
+        ...(answer.answerAt !== undefined ? { answerAt: answer.answerAt } : {}),
       });
 
       if (!target) {

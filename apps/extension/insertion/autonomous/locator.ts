@@ -28,7 +28,7 @@ export interface QuestionSource {
    */
   readonly sourceName: string;
   read(): Promise<AutonomousParagraph[]>;
-  locate(q: { paragraphIndex: number; questionText: string }): Promise<SavedTarget | null>;
+  locate(q: { paragraphIndex: number; questionText: string; answerAt?: number }): Promise<SavedTarget | null>;
   /**
    * Rule 2 addition (not in the plan's literal interface): a specific reason
    * for the most recent locate() miss, distinguishing "not found" from

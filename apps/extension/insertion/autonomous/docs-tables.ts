@@ -76,6 +76,75 @@ export function answerCellFor(cells: string[], questionText: string, occurrence 
   return { kind: 'outside-table' };
 }
 
+/**
+ * How to reach the place the MODEL chose for an answer (AutonomousAnswer.answerAt).
+ *
+ * The model reads the whole form — every box, every empty point, which
+ * question each belongs to — and names the empty paragraph the answer goes
+ * in. This turns that index into keystrokes that are known to arrive, from an
+ * ANCHOR: the last line with text before the place, found with Docs' Find.
+ */
+export type SlotPlan =
+  /** No plan, or one this code cannot carry out safely — the rules below decide instead. */
+  | { kind: 'none' }
+  /** The chosen place already holds text. */
+  | { kind: 'occupied'; text: string }
+  /** The place is the cell right after the anchor's own cell: Find the anchor, Tab. */
+  | { kind: 'tab'; anchor: string; occurrence: number }
+  /** An empty item in the same list as the anchor: Find, End, ArrowDown — a list has no blank lines inside it. */
+  | { kind: 'down'; anchor: string; occurrence: number; list: 'bullet' | 'numbered' }
+  /**
+   * A table or list below the anchor with any number of blank lines between
+   * (Docs' copy html does not show blank lines at all): Find the anchor, then
+   * extend the selection down until it reaches the structure and walk the
+   * caret that far — docs-source.ts walkIntoBox, measured 5/5 on 2026-09-09.
+   */
+  | { kind: 'walk'; anchor: string; occurrence: number; into: 'table' | 'list'; list?: 'bullet' | 'numbered' };
+
+const SLOT_KINDS = new Set(['cell', 'bullet', 'numbered']);
+
+export function slotPlanFor(
+  paragraphs: AutonomousParagraph[],
+  q: { paragraphIndex: number; answerAt?: number },
+): SlotPlan {
+  if (q.answerAt === undefined) return { kind: 'none' };
+  const slot = paragraphs[q.answerAt];
+  if (!slot || q.answerAt <= q.paragraphIndex || !SLOT_KINDS.has(slot.kind ?? '')) return { kind: 'none' };
+  if (slot.text) return { kind: 'occupied', text: slot.text };
+
+  let a = q.answerAt - 1;
+  while (a >= 0 && !paragraphs[a].text) a -= 1;
+  if (a < 0) return { kind: 'none' };
+  const anchor = paragraphs[a];
+  const occurrence = paragraphs.slice(0, a).filter((p) => p.text === anchor.text).length + 1;
+  // Only empty paragraphs sit between the anchor and the place, by the choice
+  // of anchor. If any of them is a cell or a list item, the walk would stop at
+  // THAT structure — an empty box before the chosen one — so the plan is off.
+  const between = paragraphs.slice(a + 1, q.answerAt);
+  if (between.some((p) => SLOT_KINDS.has(p.kind ?? ''))) return { kind: 'none' };
+
+  const cellOrdinal = (idx: number) => paragraphs.slice(0, idx).filter((p) => p.kind === 'cell').length;
+  if (anchor.kind === 'cell') {
+    // Tab walks cells in document order, so the place must be the very next
+    // cell — and in the SAME table: Tab from a table's last cell adds a row
+    // to it rather than entering the next table.
+    const sameTable = !!anchor.cell && !!slot.cell && anchor.cell.table === slot.cell.table;
+    if (slot.kind === 'cell' && sameTable && cellOrdinal(q.answerAt) === cellOrdinal(a) + 1) {
+      return { kind: 'tab', anchor: anchor.text, occurrence };
+    }
+    return { kind: 'none' };
+  }
+  if (slot.kind !== 'bullet' && slot.kind !== 'numbered') {
+    // A walk enters a table at its first cell and nowhere else.
+    if (!slot.cell || slot.cell.row !== 0 || slot.cell.col !== 0) return { kind: 'none' };
+    return { kind: 'walk', anchor: anchor.text, occurrence, into: 'table' };
+  }
+  if (anchor.kind === 'bullet' || anchor.kind === 'numbered') {
+    return { kind: 'down', anchor: anchor.text, occurrence, list: slot.kind };
+  }
+  return { kind: 'walk', anchor: anchor.text, occurrence, into: 'list', list: slot.kind };
+}
+
 export type BoxBelowVerdict =
   /** No box under this line of text. */
   | { kind: 'none' }

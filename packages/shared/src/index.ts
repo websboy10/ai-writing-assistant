@@ -272,6 +272,16 @@ export interface AutonomousAnswer {
   paragraphIndex: number;
   questionText: string;
   /**
+   * The model's plan for WHERE this answer goes: the index of the empty
+   * paragraph it belongs in — an empty table cell, an empty list item — chosen
+   * with the whole document in view. Absent when the answer simply goes on the
+   * line under the question. Validated server-side against the paragraphs the
+   * extension sent (empty, after the question, claimed once); the extension
+   * checks again and falls back to its own placement rules when it cannot reach
+   * the place safely.
+   */
+  answerAt?: number;
+  /**
    * The answer as the model wrote it: plain prose, with the markdown subset
    * the paced engine can type as real formatting — paragraphs, **bold**,
    * *italic*, "- " bullets and "1. " numbers. The extension flattens it for

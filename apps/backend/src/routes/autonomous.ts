@@ -4,7 +4,7 @@ import { verifyUser, rpc, danishTime, anonRpc } from '../supabase.js';
 import { getEntitlement } from '../billing.js';
 import { collect } from '../autonomous/complete.js';
 import { detectionMessages, answerMessages } from '../autonomous/prompt.js';
-import { parseDetection, parseAnswers, type DetectedQuestion } from '../autonomous/parse.js';
+import { parseDetection, parseAnswers, validateParagraphs, type DetectedQuestion } from '../autonomous/parse.js';
 import { NoModelsError, PolicyError } from '../openrouter.js';
 import { needsWebSearch } from '../websearch.js';
 
@@ -137,7 +137,19 @@ export function autonomousRoutes(app: FastifyInstance): void {
       if (detection.failures.length) {
         req.log.warn({ served: detection.model, failures: detection.failures }, 'model chain fallback');
       }
-      const detected = parseDetection(detection.text, paragraphs.length);
+      const detected = parseDetection(detection.text, paragraphs.length, paragraphs);
+      // The plan, as validated: which questions got a place and which did
+      // not. A run where every place is null and the raw reply never says
+      // "answerAt" means the model ignored the field, not that the form had
+      // no boxes.
+      req.log.info(
+        {
+          plan: detected.map((q) => ({ i: q.paragraphIndex, at: q.answerAt ?? null })),
+          rawMentionsPlan: /answerAt/.test(detection.text),
+          rawHead: detection.text.slice(0, 500),
+        },
+        'detection plan',
+      );
       if (detected.length === 0 && detection.text.trim()) {
         req.log.warn(
           { finishReason: detection.finishReason, chars: detection.text.length, tail: detection.text.slice(-300) },
@@ -267,27 +279,4 @@ export function autonomousRoutes(app: FastifyInstance): void {
       });
     }
   });
-}
-
-/**
- * The request body is untrusted (T-07-08). Every paragraph must have an
- * integer `index` and a string `text` before anything downstream — including
- * the model — sees it. Any malformed item rejects the whole request with a
- * specific reason rather than silently dropping data the client expected
- * to be answered.
- *
- * Only `index` and `text` are copied out: the paragraph handed downstream is
- * built here, never the caller's own object, so a field the client invents
- * cannot ride along into the prompt.
- */
-export function validateParagraphs(paragraphs: unknown): AutonomousParagraph[] | null {
-  if (!Array.isArray(paragraphs) || paragraphs.length === 0) return null;
-  const out: AutonomousParagraph[] = [];
-  for (const p of paragraphs) {
-    if (!p || typeof p !== 'object') return null;
-    const rec = p as Record<string, unknown>;
-    if (!Number.isInteger(rec.index) || typeof rec.text !== 'string') return null;
-    out.push({ index: rec.index as number, text: rec.text });
-  }
-  return out;
 }

@@ -20,6 +20,12 @@
  *
  * F and G were both failures on the first real form this ran on (2026-09-08).
  *
+ *   H  the operator's own shape (2026-09-08 23:52): a question, a BLANK LINE,
+ *      then the box — the html cannot see the blank line, and the answer
+ *      went on it while the box stayed empty
+ *   I  a plain note between the question and its box ("Skriv kun årstallet.")
+ *      — the model's plan names the box, the walk starts from the note
+ *
  * Read back through Docs' HTML export (the harness's channel, outside the
  * page), because only markup shows whether a list is a list and which cell a
  * sentence is in. Every check is on that markup, never on the extension's
@@ -32,6 +38,7 @@
  * Run: node scripts/verify-formatted-answers.mjs [--keep]
  */
 import { resolve } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import { launch, newDoc, isSignedIn, reporter, shotsDir, clickIntoDoc } from './docs-harness.mjs';
 
 const KEEP = process.argv.includes('--keep');
@@ -46,6 +53,10 @@ const INSTRUCTION = 'Udfyld skemaet nedenfor. Svar så konkret som muligt.';
 const Q_HINTS = 'Beskriv dine vigtigste resultater i år.';
 const HINT_1 = 'Tænk på både faglige og personlige resultater';
 const HINT_2 = 'Nævn gerne konkrete eksempler';
+const Q_BLANK = 'Hvad hedder Danmarks længste å?';
+const Q_NOTE = 'Hvilket år blev Danmark medlem af EF?';
+const NOTE = 'Skriv kun årstallet.';
+const BOX = '<table border="1"><tr><td></td></tr></table>';
 
 const WORKSHEET = `
 <h1>Opgaver til i dag</h1>
@@ -93,19 +104,34 @@ async function readHtml(docId) {
   throw new Error('html export failed');
 }
 
-async function paste(html) {
-  return page.evaluate((h) => {
+async function paste(html, text = '') {
+  return page.evaluate(([h, t]) => {
     const iframe = document.querySelector('iframe.docs-texteventtarget-iframe');
     const doc = iframe?.contentDocument;
     if (!doc) return 'no iframe';
     const el = doc.querySelector('[contenteditable="true"], [contenteditable=""]') ?? doc.body;
     iframe.contentWindow?.focus();
     const dt = new DataTransfer();
-    dt.setData('text/plain', '');
-    dt.setData('text/html', h);
+    dt.setData('text/plain', t);
+    if (h) dt.setData('text/html', h);
     el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
     return 'ok';
-  }, html);
+  }, [html, text]);
+}
+
+/** Caret to the end of the document (Cmd/Ctrl+ArrowDown), so a second seeding phase lands after the first. */
+async function caretToEnd() {
+  await page.evaluate(() => {
+    const iframe = document.querySelector('iframe.docs-texteventtarget-iframe');
+    const doc = iframe?.contentDocument;
+    const el = doc?.querySelector('[contenteditable="true"], [contenteditable=""]') ?? doc?.body;
+    if (!el) return;
+    iframe.contentWindow?.focus();
+    const mod = navigator.platform.toLowerCase().includes('mac') ? { metaKey: true } : { ctrlKey: true };
+    const init = { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40, which: 40, bubbles: true, cancelable: true, ...mod };
+    el.dispatchEvent(new KeyboardEvent('keydown', init));
+    el.dispatchEvent(new KeyboardEvent('keyup', init));
+  });
 }
 
 async function openAndSignIn() {
@@ -143,6 +169,24 @@ try {
   if (!seeded()) throw new Error(`could not seed the worksheet: ${strip(before).slice(0, 200)}`);
   r.ok('the worksheet is in the document: heading, instruction, list prompt, box below, cell beside, bold prompt, hints + box', true);
 
+  // Phase 2 — H and I. An html paste drops empty paragraphs before a table
+  // (scripts/probe-docs-box-kinds.mjs), so the blank line is made the way a
+  // person makes it: a text paste with newlines, then the box.
+  await caretToEnd();
+  await sleep(400);
+  await paste('', `\n${Q_BLANK}\n\n`);
+  await sleep(900);
+  await paste(BOX);
+  await sleep(900);
+  await paste('', `${Q_NOTE}\n${NOTE}\n`);
+  await sleep(900);
+  await paste(BOX);
+  await sleep(3500);
+  before = await readHtml(docId);
+  const seeded2 = strip(before).includes(NOTE) && (before.match(/<td/g) ?? []).length >= 6;
+  r.ok('phase 2 is in the document: question + blank line + box, question + note + box', seeded2, `${(before.match(/<td/g) ?? []).length} cells`);
+  if (!seeded2) throw new Error('could not seed phase 2');
+
   await openAndSignIn();
   await clickIntoDoc(page);
   await sleep(500);
@@ -164,9 +208,14 @@ try {
   await sleep(2500);
   await shot('done');
 
+  // Every adapter line of the run, for a post-mortem the printed selection
+  // cannot support (2026-09-09: a letter replaced by two zero-width spaces,
+  // unexplained because the insert log was not kept).
+  writeFileSync(resolve(shotsDir, 'formatted-awa.log'), awaLines.join('\n'));
+
   const html = await readHtml(docId);
   const text = strip(html);
-  const cells = [...html.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => strip(m[1]));
+  const cells = [...html.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => strip(m[1].replace(/<\/(?:p|li|div|h[1-6])>/gi, ' ')));
   const lists = [...html.matchAll(/<(ol|ul)[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => ({
     kind: m[1].toLowerCase(),
     items: [...m[2].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map((x) => strip(x[1])).filter(Boolean),
@@ -193,6 +242,7 @@ try {
   for (const l of awaLines.filter((l) => /pressKey/.test(l))) console.log(`  ${l.slice(0, 160)}`);
   const deleteLogs = awaLines.filter((l) => /gdocs\.deleteBack/.test(l));
   for (const l of deleteLogs) console.log(`  ${l.slice(0, 200)}`);
+  for (const l of awaLines.filter((l) => /docs\.walk/.test(l))) console.log(`  ${l.slice(0, 200)}`);
   console.log('');
 
   // The answers the model gave, by the question they answer — so a typed
@@ -212,7 +262,10 @@ try {
     const at = located.find((x) => q.startsWith(x.q) || x.q.startsWith(q.slice(0, 40)));
     return answers.find((a) => a.i === at?.index)?.md ?? null;
   };
-  const norm = (s) => (s ?? '').replace(/\*\*|__/g, '').replace(/[​﻿]/g, '').replace(/\s+/g, ' ').trim();
+  // What the engine types: markdown flattened the way the extension flattens
+  // it (no ** or list markers), whitespace collapsed. Cell text gets a space at
+  // every block edge first, or two list items read as one word ("før.Min").
+  const norm = (s) => (s ?? '').replace(/^\s*(?:[-*]|\d+\.)\s+/gm, '').replace(/\*\*|__/g, '').replace(/[​﻿]/g, '').replace(/\s+/g, ' ').trim();
 
   // A — the heading is a title, not a question. F — the instruction line is
   // the form talking to its reader, not a question either. Both read the same
@@ -244,7 +297,16 @@ try {
 
   r.ok('nothing was reported as unplaced', unplaced === 0);
 
-  // H — "Skriv som et menneske" was on for the whole run, so every answer was
+  // H, I — the box past a blank line, and the box past a note. Nothing of
+  // either answer may land outside a cell: the blank line and the note stay
+  // as they were.
+  const outsideCells = strip(html.replace(/<table[\s\S]*?<\/table>/gi, ''));
+  r.ok('the answer to the question with a BLANK LINE before its box landed IN the box', /guden/i.test(cells[4] ?? ''), `box: ${JSON.stringify(cells[4])}`);
+  r.ok('nothing of it landed on the blank line or anywhere outside a box', !/guden/i.test(outsideCells));
+  r.ok('the answer to the question with a note before its box landed IN the box', /1973/.test(cells[5] ?? ''), `box: ${JSON.stringify(cells[5])}`);
+  r.ok('the note itself was left alone and nothing landed outside a box', outsideCells.includes(NOTE) && !/1973/.test(outsideCells));
+
+  // J — "Skriv som et menneske" was on for the whole run, so every answer was
   // typed with slips and rewrites. What is in the boxes has to be, letter for
   // letter, what the model wrote: a slip left behind or a letter eaten by a
   // late correction is exactly the "drerude" / "Sren" defect of 2026-09-08.

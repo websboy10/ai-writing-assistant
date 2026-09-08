@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateParagraphs } from './autonomous.js';
+import { validateParagraphs } from '../autonomous/parse.js';
 
 /**
  * The request body is untrusted (T-07-08): the paragraph list arrives over the

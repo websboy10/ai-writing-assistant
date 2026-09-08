@@ -74,10 +74,22 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
         'An EMPTY point, marked (punkt, TOM) or (nummereret punkt, TOM), is an answer slot like an empty box: ' +
         'never a question, and it belongs to the line above it. ' +
         'Table header cells such as "Spørgsmål" or "Dit svar" are labels, not questions.',
+      // The plan. The operator's own test form (2026-09-08): every question
+      // had a box drawn under it and the answers went on the line under the
+      // question instead, because the box was matched by a rule that could not
+      // see a blank line. The model sees the whole form at once — every box,
+      // every empty point, which belongs to what — so it names the place.
+      'For each question also decide WHERE its answer belongs, reading the whole document first: ' +
+        '"answerAt" is the bracketed number of the EMPTY place meant for that answer — the empty answer box ' +
+        'beside it in its table row or below it, or the empty point (punkt, TOM / nummereret punkt, TOM) under ' +
+        'it — even when guidance lines or a note sit between the question and that place. It is null when the ' +
+        'document has no empty place for this answer and it simply goes under the question. An empty place ' +
+        'belongs to ONE question: the nearest question above it, unless the layout plainly says otherwise ' +
+        '(a row of boxes beside a row of questions). Never give two questions the same place.',
       'Output ONLY a bare JSON array, no prose before or after it and no markdown code fence, of objects ' +
-        'shaped { "paragraphIndex": number, "questionText": string }. "paragraphIndex" is the bracketed ' +
-        'number shown before each paragraph. "questionText" must be quoted VERBATIM from that paragraph, ' +
-        'never paraphrased. If the document contains no questions, output [].',
+        'shaped { "paragraphIndex": number, "questionText": string, "answerAt": number | null }. ' +
+        '"paragraphIndex" is the bracketed number shown before each paragraph. "questionText" must be quoted ' +
+        'VERBATIM from that paragraph, never paraphrased. If the document contains no questions, output [].',
     ].join(' '),
   };
 

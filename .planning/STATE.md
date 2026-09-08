@@ -35,11 +35,21 @@ answered, an answer placed above its hints, and letters lost to Docs dropping
 synthetic Backspaces under load — all three measured, fixed and re-verified
 the same evening (08-SUMMARY.md, 07-FINDINGS-docs.md F-5).
 
-**Backend deployed 2026-09-08 evening** (the autonomous prompt with structure
-tags, markdown rules, the instruction-line rule, per-run web search). The
-extension half is still flagged OUT of the store build; that is the operator's
-switch (wxt.config.ts, answerAllEnabled), so nothing a store user can reach
-changes until a new package ships with it on.
+**2026-09-09, after the operator's own test:** the answers had gone on the
+line under each question instead of into the boxes. Two causes, both fixed
+and verified live (08-SUMMARY.md, 07-FINDINGS-docs.md F-6/F-7): Docs' copy
+html hides blank lines, so placement now measures its way into a box; and
+the server had been stripping every paragraph's structure since the day the
+structure tags were written, so the model had never seen a box. The run now
+PLANS: the model names the empty place for each answer with the whole form
+in view, and the extension carries it out. 22/23 live plus the corrected
+checker; regressions re-run with the plan active.
+
+**Backend deployed 2026-09-09** (plan, structure reaching the model, the
+prompts from the 8th). The extension half is still flagged OUT of the store
+build; that is the operator's switch (wxt.config.ts, answerAllEnabled), so
+nothing a store user can reach changes until a new package ships with it on.
+The operator's Desktop test build is the current code with the feature on.
 
 ### Where this stood (2026-09-04)
 

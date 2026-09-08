@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AutonomousParagraph } from '@awa/shared';
-import { answerCellFor, boxBelowFor, normalizeCellText } from './docs-tables.js';
+import { answerCellFor, boxBelowFor, normalizeCellText, slotPlanFor } from './docs-tables.js';
 
 /**
  * The cells arrive from docs-structure.ts, which walks Docs' copy html with
@@ -228,4 +228,80 @@ test('guidance bullets followed by ordinary text is not a box — the hints were
     P(2, { text: 'Næste spørgsmål?', kind: 'text' }),
   ];
   assert.deepEqual(boxBelowFor(form, { paragraphIndex: 0, questionText: 'Spørgsmål?' }), { kind: 'none' });
+});
+
+// ---------------------------------------------------------------------------
+// The model's plan (answerAt) → keystrokes. The operator's own form
+// (2026-09-08): a question, a blank line the html cannot show, a box.
+// ---------------------------------------------------------------------------
+
+const para = (index: number, text: string, kind?: AutonomousParagraph['kind'], extra: Partial<AutonomousParagraph> = {}): AutonomousParagraph =>
+  ({ index, text, ...(kind ? { kind } : {}), ...extra });
+
+const FORM: AutonomousParagraph[] = [
+  para(0, 'Hvad betyder ligestilling?'),
+  para(1, '', 'cell', { cell: { table: 0, row: 0, col: 0 } }),
+  para(2, 'Hvilke argumenter kommer frem?'),
+  para(3, 'Tænk på begge sider', 'bullet', { level: 1 }),
+  para(4, '', 'cell', { cell: { table: 1, row: 0, col: 0 } }),
+  para(5, 'Navn', 'cell', { cell: { table: 2, row: 0, col: 0 } }),
+  para(6, '', 'cell', { cell: { table: 2, row: 0, col: 1 } }),
+  para(7, 'Nævn tre ting', 'text'),
+  para(8, '', 'numbered', { level: 1 }),
+  para(9, 'Husk eksempler', 'bullet', { level: 1 }),
+  para(10, '', 'bullet', { level: 1 }),
+  para(11, 'Udfyldt', 'cell', { cell: { table: 3, row: 0, col: 0 } }),
+  para(12, '', 'cell', { cell: { table: 4, row: 0, col: 1 } }),
+];
+
+test('plan: a box below the question is a walk from the question, whatever blank lines the html hid', () => {
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 0, answerAt: 1 }), { kind: 'walk', anchor: 'Hvad betyder ligestilling?', occurrence: 1, into: 'table' });
+});
+
+test('plan: a box below guidance is a walk from the LAST guidance line', () => {
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 2, answerAt: 4 }), { kind: 'walk', anchor: 'Tænk på begge sider', occurrence: 1, into: 'table' });
+});
+
+test('plan: the cell after a label cell is one Tab from that label', () => {
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 2, answerAt: 6 }), { kind: 'tab', anchor: 'Navn', occurrence: 1 });
+});
+
+test('plan: an empty numbered item under a text question is a walk into the list', () => {
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 7, answerAt: 8 }), { kind: 'walk', anchor: 'Nævn tre ting', occurrence: 1, into: 'list', list: 'numbered' });
+});
+
+test('plan: an empty item after a filled item in the same list is one ArrowDown', () => {
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 7, answerAt: 10 }), { kind: 'down', anchor: 'Husk eksempler', occurrence: 1, list: 'bullet' });
+});
+
+test('plan: a filled place is reported occupied, never written into', () => {
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 7, answerAt: 11 }), { kind: 'occupied', text: 'Udfyldt' });
+});
+
+test('plan: no plan, a place before the question, a text line, or a cell a walk cannot enter → none', () => {
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 0 }), { kind: 'none' });
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 2, answerAt: 1 }), { kind: 'none' });
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 0, answerAt: 7 }), { kind: 'none' });
+  // Not the first cell of its table, and the anchor before it is a cell of another table.
+  assert.deepEqual(slotPlanFor(FORM, { paragraphIndex: 7, answerAt: 12 }), { kind: 'none' });
+});
+
+test('plan: an empty box between the anchor and the chosen one would catch the walk — no plan', () => {
+  const twoBoxes: AutonomousParagraph[] = [
+    para(0, 'Spørgsmål'),
+    para(1, '', 'cell', { cell: { table: 0, row: 0, col: 0 } }),
+    para(2, '', 'cell', { cell: { table: 1, row: 0, col: 0 } }),
+  ];
+  assert.deepEqual(slotPlanFor(twoBoxes, { paragraphIndex: 0, answerAt: 2 }), { kind: 'none' });
+  assert.equal(slotPlanFor(twoBoxes, { paragraphIndex: 0, answerAt: 1 }).kind, 'walk');
+});
+
+test('plan: a repeated anchor line is found by its occurrence', () => {
+  const twice: AutonomousParagraph[] = [
+    para(0, 'Kommentar'),
+    para(1, '', 'cell', { cell: { table: 0, row: 0, col: 0 } }),
+    para(2, 'Kommentar'),
+    para(3, '', 'cell', { cell: { table: 1, row: 0, col: 0 } }),
+  ];
+  assert.deepEqual(slotPlanFor(twice, { paragraphIndex: 2, answerAt: 3 }), { kind: 'walk', anchor: 'Kommentar', occurrence: 2, into: 'table' });
 });

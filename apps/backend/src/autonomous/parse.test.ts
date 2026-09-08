@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDetection, parseAnswers, type DetectedQuestion } from './parse.js';
+import { parseDetection, parseAnswers, validateParagraphs, type DetectedQuestion } from './parse.js';
 
 // ---- parseDetection ----
 
@@ -181,4 +181,99 @@ test('Test 15: the positional rescue drops empty answers too', () => {
   assert.equal(out.length, 1);
   assert.equal(out[0].paragraphIndex, 2);
   assert.equal(out[0].answer, 'Svar');
+});
+
+// ---- answerAt: the model's plan for where an answer goes ----
+
+const PARAGRAPHS = [
+  { index: 0, text: 'Hvad er status?', kind: 'text' as const },
+  { index: 1, text: '', kind: 'cell' as const, cell: { table: 0, row: 0, col: 0 } },
+  { index: 2, text: 'Beskriv dine resultater', kind: 'text' as const },
+  { index: 3, text: 'Tænk på hele året', kind: 'bullet' as const, level: 1 },
+  { index: 4, text: '', kind: 'numbered' as const, level: 1 },
+  { index: 5, text: 'Allerede udfyldt', kind: 'cell' as const, cell: { table: 1, row: 0, col: 0 } },
+  { index: 6, text: '', kind: 'text' as const },
+];
+
+test('answerAt: an empty cell or empty list item after the question is kept, past guidance too', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: 0, questionText: 'Hvad er status?', answerAt: 1 },
+    { paragraphIndex: 2, questionText: 'Beskriv dine resultater', answerAt: 4 },
+  ]);
+  assert.deepEqual(parseDetection(raw, PARAGRAPHS.length, PARAGRAPHS), [
+    { paragraphIndex: 0, questionText: 'Hvad er status?', answerAt: 1 },
+    { paragraphIndex: 2, questionText: 'Beskriv dine resultater', answerAt: 4 },
+  ]);
+});
+
+test('answerAt: null, a filled cell, a text line, a place before the question, or an out-of-range index all mean "no plan"', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: 0, questionText: 'A', answerAt: null },
+    { paragraphIndex: 0, questionText: 'B', answerAt: 5 },
+    { paragraphIndex: 0, questionText: 'C', answerAt: 6 },
+    { paragraphIndex: 2, questionText: 'D', answerAt: 1 },
+    { paragraphIndex: 0, questionText: 'E', answerAt: 99 },
+    { paragraphIndex: 0, questionText: 'F', answerAt: '1' },
+  ]);
+  for (const q of parseDetection(raw, PARAGRAPHS.length, PARAGRAPHS)) {
+    assert.equal('answerAt' in q, false, `${q.questionText} should carry no plan`);
+  }
+});
+
+test('answerAt: one place is claimed once — the second question naming it gets no plan', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: 0, questionText: 'A', answerAt: 1 },
+    { paragraphIndex: 2, questionText: 'B', answerAt: 1 },
+  ]);
+  const out = parseDetection(raw, PARAGRAPHS.length, PARAGRAPHS);
+  assert.equal(out[0].answerAt, 1);
+  assert.equal('answerAt' in out[1], false);
+});
+
+test('answerAt: without the paragraph list (old callers) it is ignored', () => {
+  const raw = JSON.stringify([{ paragraphIndex: 0, questionText: 'A', answerAt: 1 }]);
+  assert.deepEqual(parseDetection(raw, 3), [{ paragraphIndex: 0, questionText: 'A' }]);
+});
+
+test('answerAt travels from the detected question onto its answer', () => {
+  const asked: DetectedQuestion[] = [{ paragraphIndex: 0, questionText: 'Hvad er status?', answerAt: 1 }];
+  const out = parseAnswers(JSON.stringify([{ paragraphIndex: 0, answer: 'Alt går fint.' }]), asked);
+  assert.equal(out[0].answerAt, 1);
+  const positional = parseAnswers(JSON.stringify([{ paragraphIndex: -1, answer: 'Alt går fint.' }]), asked);
+  assert.equal(positional[0].answerAt, 1);
+});
+
+// ---- validateParagraphs: the structure the extension read off Docs must reach the model ----
+
+test('validateParagraphs keeps kind, level, bold and cell when well-formed', () => {
+  const out = validateParagraphs([
+    { index: 0, text: 'Overskrift', kind: 'heading', level: 2 },
+    { index: 1, text: 'Udfyld skemaet', kind: 'text', bold: true },
+    { index: 2, text: '', kind: 'cell', cell: { table: 0, row: 0, col: 1 } },
+    { index: 3, text: '', kind: 'numbered', level: 1 },
+  ]);
+  assert.deepEqual(out, [
+    { index: 0, text: 'Overskrift', kind: 'heading', level: 2 },
+    { index: 1, text: 'Udfyld skemaet', kind: 'text', bold: true },
+    { index: 2, text: '', kind: 'cell', cell: { table: 0, row: 0, col: 1 } },
+    { index: 3, text: '', kind: 'numbered', level: 1 },
+  ]);
+});
+
+test('validateParagraphs drops malformed structure fields but keeps the paragraph; a malformed paragraph rejects the request', () => {
+  const out = validateParagraphs([
+    { index: 0, text: 'x', kind: 'sidebar', level: 'two', bold: 'yes', cell: { table: -1, row: 0, col: 0 }, invented: 1 },
+  ]);
+  assert.deepEqual(out, [{ index: 0, text: 'x' }]);
+  assert.equal(validateParagraphs([{ index: 'a', text: 'x' }]), null);
+  assert.equal(validateParagraphs([]), null);
+});
+
+test('answerAt survives end to end: the extension paragraphs, validated, let the plan through', () => {
+  const paragraphs = validateParagraphs([
+    { index: 0, text: 'Hvad er hovedstaden i Danmark?', kind: 'text' },
+    { index: 1, text: '', kind: 'cell', cell: { table: 0, row: 0, col: 0 } },
+  ]);
+  const out = parseDetection('[{"paragraphIndex": 0, "questionText": "Hvad er hovedstaden i Danmark?", "answerAt": 1}]', 2, paragraphs ?? undefined);
+  assert.equal(out[0].answerAt, 1);
 });

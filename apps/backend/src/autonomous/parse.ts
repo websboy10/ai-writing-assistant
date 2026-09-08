@@ -1,4 +1,4 @@
-import type { AutonomousAnswer } from '@awa/shared';
+import type { AutonomousAnswer, AutonomousParagraph } from '@awa/shared';
 
 // Kept in sync with packages/shared/src/index.ts. Values (not types) must be
 // local: @awa/shared ships TS source, which Node can't load in the deployed
@@ -9,6 +9,77 @@ const MAX_AUTONOMOUS_QUESTIONS = 40;
 export interface DetectedQuestion {
   paragraphIndex: number;
   questionText: string;
+  /** The empty paragraph the model chose for the answer — see AutonomousAnswer.answerAt. */
+  answerAt?: number;
+}
+
+/** What may hold an answer: an empty cell or an empty list item. A blank text line is not sent at all (Docs' copy leaves it out). */
+const SLOT_KINDS = new Set(['cell', 'bullet', 'numbered']);
+/** ParagraphKind, as values — see the note at the top of this file. */
+const PARAGRAPH_KINDS = new Set(['heading', 'text', 'bullet', 'numbered', 'cell']);
+
+const smallInt = (v: unknown, min: number, max: number): v is number => Number.isInteger(v) && (v as number) >= min && (v as number) <= max;
+
+/**
+ * The request body is untrusted (T-07-08). Every paragraph must have an
+ * integer `index` and a string `text` before anything downstream — including
+ * the model — sees it. Any malformed item rejects the whole request with a
+ * specific reason rather than silently dropping data the client expected
+ * to be answered.
+ *
+ * The paragraph handed downstream is built here, never the caller's own
+ * object, so a field the client invents cannot ride along into the prompt.
+ * The structure the extension reads off Docs — kind, level, bold, cell — is
+ * copied only when well-formed, and dropped otherwise: a client without it
+ * still gets its questions answered, just placed by the old rules.
+ *
+ * Until 2026-09-09 only index and text were copied, and the structure tags
+ * the detection prompt was written around had never once reached the model:
+ * every "(tabelcelle, TOM svarboks)" in the design was an empty string in
+ * practice, and every answerAt the model returned was rejected for pointing
+ * at a paragraph of no kind. Found by logging the plan.
+ */
+export function validateParagraphs(paragraphs: unknown): AutonomousParagraph[] | null {
+  if (!Array.isArray(paragraphs) || paragraphs.length === 0) return null;
+  const out: AutonomousParagraph[] = [];
+  for (const p of paragraphs) {
+    if (!p || typeof p !== 'object') return null;
+    const rec = p as Record<string, unknown>;
+    if (!Number.isInteger(rec.index) || typeof rec.text !== 'string') return null;
+    const clean: AutonomousParagraph = { index: rec.index as number, text: rec.text };
+    if (typeof rec.kind === 'string' && PARAGRAPH_KINDS.has(rec.kind)) clean.kind = rec.kind as AutonomousParagraph['kind'];
+    if (smallInt(rec.level, 1, 9)) clean.level = rec.level;
+    if (rec.bold === true) clean.bold = true;
+    const cell = rec.cell as Record<string, unknown> | undefined;
+    if (cell && typeof cell === 'object' && smallInt(cell.table, 0, 999) && smallInt(cell.row, 0, 999) && smallInt(cell.col, 0, 99)) {
+      clean.cell = { table: cell.table, row: cell.row, col: cell.col };
+    }
+    out.push(clean);
+  }
+  return out;
+}
+
+/**
+ * The model's chosen place for an answer is an index into OUR paragraph list,
+ * so it is checked against that list, never trusted: it must be an empty
+ * cell or list item, after the question, and claimed by one question only.
+ * Anything else means "no plan", and the extension places the answer by its
+ * own rules — exactly as it did before the model had a say.
+ */
+function validAnswerAt(
+  value: unknown,
+  questionIndex: number,
+  paragraphs: AutonomousParagraph[] | undefined,
+  claimed: Set<number>,
+): number | undefined {
+  if (!paragraphs || !Number.isInteger(value)) return undefined;
+  const at = value as number;
+  const slot = paragraphs[at];
+  if (!slot || at <= questionIndex) return undefined;
+  if (slot.text.trim() !== '' || !SLOT_KINDS.has(slot.kind ?? '')) return undefined;
+  if (claimed.has(at)) return undefined;
+  claimed.add(at);
+  return at;
 }
 
 /**
@@ -43,11 +114,12 @@ function extractJsonArray(raw: string): unknown[] | null {
  * `paragraphCount` — the length of the paragraph array WE built and sent —
  * never trusted as an offset into anything else (RESEARCH.md Pitfall 3).
  */
-export function parseDetection(raw: string, paragraphCount: number): DetectedQuestion[] {
+export function parseDetection(raw: string, paragraphCount: number, paragraphs?: AutonomousParagraph[]): DetectedQuestion[] {
   const items = extractJsonArray(raw);
   if (!items) return [];
 
   const out: DetectedQuestion[] = [];
+  const claimed = new Set<number>();
   for (const item of items) {
     if (out.length >= MAX_AUTONOMOUS_QUESTIONS) break;
     if (!item || typeof item !== 'object') continue;
@@ -60,7 +132,12 @@ export function parseDetection(raw: string, paragraphCount: number): DetectedQue
     const questionText = rec.questionText;
     if (typeof questionText !== 'string' || !questionText.trim()) continue;
 
-    out.push({ paragraphIndex: paragraphIndex as number, questionText: questionText.trim() });
+    const answerAt = validAnswerAt(rec.answerAt, paragraphIndex as number, paragraphs, claimed);
+    out.push({
+      paragraphIndex: paragraphIndex as number,
+      questionText: questionText.trim(),
+      ...(answerAt !== undefined ? { answerAt } : {}),
+    });
   }
   return out;
 }
@@ -101,6 +178,7 @@ function positionalFallback(
     .map((rec, i) => ({
       paragraphIndex: asked[i].paragraphIndex,
       questionText: asked[i].questionText,
+      ...(asked[i].answerAt !== undefined ? { answerAt: asked[i].answerAt } : {}),
       answer: typeof rec.answer === 'string' ? rec.answer : '',
       grounded: typeof rec.grounded === 'boolean' ? rec.grounded : true,
     }))
@@ -150,7 +228,13 @@ export function parseAnswers(raw: string, askedQuestions: DetectedQuestion[]): A
     const grounded = typeof rec.grounded === 'boolean' ? rec.grounded : true;
 
     seen.add(paragraphIndex as number);
-    out.push({ paragraphIndex: paragraphIndex as number, questionText: asked.questionText, answer, grounded });
+    out.push({
+      paragraphIndex: paragraphIndex as number,
+      questionText: asked.questionText,
+      ...(asked.answerAt !== undefined ? { answerAt: asked.answerAt } : {}),
+      answer,
+      grounded,
+    });
   }
   return out;
 }

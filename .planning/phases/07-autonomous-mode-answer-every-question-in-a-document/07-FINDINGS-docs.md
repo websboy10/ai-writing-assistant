@@ -169,6 +169,43 @@ deletion as one step so the selection is one gesture. The read is untrimmed
 (`gdocsMarkedTextNow`) so a selection that reached into the space before a
 word cannot pass as a match.
 
+## F-6 — A blank line between a question and its box is invisible to the structure read (MEASURED, FIXED 2026-09-09)
+
+The operator's own test form (2026-09-08 23:52): a question, a blank line, a
+one-cell box. The answer went on the blank line; the box stayed empty.
+
+Measured (`scripts/probe-docs-box-kinds.mjs`, `probe-docs-text-lines.mjs`,
+`probe-docs-next-table.mjs`, `probe-docs-extend-into-box.mjs`):
+
+- Docs' copy **html leaves empty paragraphs out entirely** — the box looks
+  like the very next block after the question, so "End, ArrowDown" lands on
+  the blank line.
+- The copy **text flavour** shows the blank lines but draws a one-cell table
+  as three empty lines (cell, row end, table end), so blank-before and
+  blank-after cannot be told apart by counting.
+- Docs' own **"move to next table" chord is ignored** when synthetic.
+- An html paste **drops empty paragraphs before a table**, which is why no
+  test fixture ever had this shape: it had to be built with a text paste.
+- What works: **extend the selection down one line at a time with
+  Shift+ArrowDown and read the copy html after each step.** Docs takes a
+  table into a selection whole the moment the selection touches it, so the
+  step count is the number of ArrowDowns to the box; an EMPTY list item has
+  nothing to serialise, so its list shows one step late. 5/5 through one,
+  two and three blank lines, into an empty list item, and past a hint line.
+
+**Fix (docs-source.ts walkIntoBox):** used both for the model's plan and for
+the old box-below rule. Text met on the way down stops the walk.
+
+## F-7 — The server stripped every paragraph's structure before the model saw it (FOUND 2026-09-09, FIXED)
+
+`validateParagraphs` copied only `index` and `text`. Every "(tabelcelle, TOM
+svarboks)" tag in the detection prompt had therefore been an empty string
+since the day it was written, and every `answerAt` the model returned was
+rejected for pointing at a paragraph of no kind. Found by logging the
+validated plan next to the raw reply: the model said `"answerAt": 1`, the
+plan said `null`. The validator now copies kind, level, bold and cell, each
+checked, and lives in autonomous/parse.ts with tests.
+
 ## Diagnostics available
 
 `insertion/debug.ts` — off unless the page's localStorage has `awa-debug=1`.

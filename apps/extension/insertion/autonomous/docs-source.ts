@@ -4,7 +4,7 @@ import type { SavedTarget } from '../target';
 import { gdocsEventTarget, gdocsSelectionNow, gdocsWholeDocumentNow, pressGdocsKey, type GDocsRead } from '../target';
 import { GDocsAdapter } from '../adapters/gdocs';
 import { findAndPlaceCursor } from './docs-find';
-import { answerCellFor, boxBelowFor } from './docs-tables';
+import { answerCellFor, boxBelowFor, slotPlanFor, type SlotPlan } from './docs-tables';
 import { parseDocsHtml } from './docs-structure';
 import type { QuestionSource } from './locator';
 import { awaLog } from '../debug';
@@ -65,6 +65,67 @@ function linesToParagraphs(text: string): AutonomousParagraph[] {
 /** How long Docs is given to act on the synthetic Tab before the first letter is typed — matches docs-find.ts' own OCCURRENCE_ADVANCE_DELAY_MS. */
 const TAB_SETTLE_MS = 150;
 
+const KEY = {
+  end: { key: 'End', code: 'End', keyCode: 35, which: 35 },
+  down: { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40, which: 40 },
+  left: { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37, which: 37 },
+  tab: { key: 'Tab', code: 'Tab', keyCode: 9, which: 9 },
+} as const;
+
+/** How many lines below the anchor a box may sit. A form's blank lines are one or two; six is already a different section. */
+const WALK_MAX_LINES = 6;
+const WALK_SETTLE_MS = 120;
+const settle = (ms = WALK_SETTLE_MS) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * From the caret at the end of a line, down INTO the next table or list item,
+ * past any number of blank lines.
+ *
+ * Docs' copy html leaves empty paragraphs out and its text flavour draws a
+ * one-cell table as three empty lines, so neither says how many lines down
+ * the box is; Docs' own "next table" chord is ignored when synthetic
+ * (scripts/probe-docs-box-kinds.mjs, -text-lines, -next-table, 2026-09-09).
+ * What does work: extend the selection one line at a time with
+ * Shift+ArrowDown and ask Docs what is marked — the html holds a <table> the
+ * moment the selection touches one, because Docs takes a table into a
+ * selection whole. That step count is the number of ArrowDowns to the box.
+ * An EMPTY list item has nothing to serialise, so its list appears one step
+ * late. Measured 5/5, through one, two and three blank lines and past a hint
+ * (scripts/probe-docs-extend-into-box.mjs).
+ *
+ * Text met on the way down means the box is not directly below after all,
+ * and the walk stops rather than carry an answer past someone's line.
+ */
+async function walkIntoBox(el: HTMLElement, into: 'table' | 'list'): Promise<boolean> {
+  const pattern = into === 'table' ? /<t(?:able|d)\b/i : /<(?:ol|ul|li)\b/i;
+  pressGdocsKey(el, KEY.end);
+  await settle();
+  for (let line = 1; line <= WALK_MAX_LINES; line++) {
+    pressGdocsKey(el, { ...KEY.down, shiftKey: true });
+    await settle();
+    const marked = gdocsSelectionNow();
+    const hit = pattern.test(marked.html);
+    if (!hit && marked.text.replace(/\s/g, '')) break;
+    if (hit) {
+      pressGdocsKey(el, KEY.left);
+      await settle();
+      pressGdocsKey(el, KEY.end);
+      await settle();
+      const down = into === 'table' ? line : line - 1;
+      for (let i = 0; i < down; i++) {
+        pressGdocsKey(el, KEY.down);
+        await settle();
+      }
+      awaLog('docs.walk', { into, line, down });
+      return true;
+    }
+  }
+  pressGdocsKey(el, KEY.left);
+  await settle();
+  awaLog('docs.walk', { into, line: 0 });
+  return false;
+}
+
 // ---- GDocsFindSource — the primary path (D-16 steps 2-3): zero writes ----
 
 /**
@@ -96,10 +157,27 @@ class GDocsFindSource implements QuestionSource {
     return this.reason;
   }
 
-  async locate(q: { paragraphIndex: number; questionText: string }): Promise<SavedTarget | null> {
+  async locate(q: { paragraphIndex: number; questionText: string; answerAt?: number }): Promise<SavedTarget | null> {
     this.reason = '';
     const occurrence = (this.occurrenceSeen.get(q.questionText) ?? 0) + 1;
     this.occurrenceSeen.set(q.questionText, occurrence);
+
+    // The model's plan first: it read the whole form and named the empty
+    // place this answer belongs in (AutonomousAnswer.answerAt). Checked here
+    // against the same paragraphs it saw, and carried out only by moves that
+    // are known to arrive; anything else falls through to the rules below.
+    const plan = slotPlanFor(this.paragraphs, q);
+    if (plan.kind === 'occupied') {
+      this.reason =
+        `Svarfeltet til "${q.questionText}" er ikke tomt — der står "${plan.text}" i det. ` +
+        'Svaret blev ikke skrevet, for det ville have overskrevet din egen tekst.';
+      return null;
+    }
+    if (plan.kind !== 'none') {
+      const placed = await this.placeByPlan(plan);
+      awaLog('docs.locate', { q: q.questionText.slice(0, 40), index: q.paragraphIndex, plan: plan.kind, answerAt: q.answerAt, placed: !!placed });
+      if (placed) return placed;
+    }
 
     // Decided BEFORE Find, so a question whose answer box is occupied costs
     // nothing at all: no search, no cursor moved, no keystroke sent into the
@@ -161,25 +239,45 @@ class GDocsFindSource implements QuestionSource {
     }
 
     if (below.kind === 'empty-box-below' || below.kind === 'empty-list-item-below') {
-      // From the end of the line above a table, ArrowDown walks into its first
-      // cell — measured 2026-09-08 (scripts/probe-docs-placement.mjs), with and
-      // without other text around it. End first, because Find leaves the caret
-      // at the end of the MATCH, and a question may run on past it. The same
-      // two keys reach an empty list item drawn under the question.
-      pressGdocsKey(el, { key: 'End', code: 'End', keyCode: 35, which: 35 });
-      await new Promise((resolve) => setTimeout(resolve, TAB_SETTLE_MS));
-      pressGdocsKey(el, { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40, which: 40 });
-      await new Promise((resolve) => setTimeout(resolve, TAB_SETTLE_MS));
-      return {
-        kind: 'gdocs',
-        element: el,
-        label: this.label,
-        inBox: true,
-        ...(below.kind === 'empty-list-item-below' ? { inList: below.list } : {}),
-      };
+      // The box is the next STRUCTURE below, but the html cannot say how many
+      // blank lines sit before it — one ArrowDown landed on such a blank line
+      // in the operator's own form (2026-09-08). The walk measures it.
+      const into = below.kind === 'empty-box-below' ? 'table' : 'list';
+      if (await walkIntoBox(el, into)) {
+        return {
+          kind: 'gdocs',
+          element: el,
+          label: this.label,
+          inBox: true,
+          ...(below.kind === 'empty-list-item-below' ? { inList: below.list } : {}),
+        };
+      }
     }
 
     return { kind: 'gdocs', element: el, label: this.label };
+  }
+
+  /** The plan's keystrokes, from its anchor. Null when the anchor cannot be found or the walk finds no box, so the rules in locate() take over. */
+  private async placeByPlan(plan: Exclude<SlotPlan, { kind: 'none' | 'occupied' }>): Promise<SavedTarget | null> {
+    const found = await findAndPlaceCursor(plan.anchor, plan.occurrence);
+    if (!found.ok) return null;
+    const el = gdocsEventTarget();
+    if (!el) return null;
+    const target: SavedTarget = { kind: 'gdocs', element: el, label: this.label, inBox: true };
+    if (plan.kind === 'tab') {
+      pressGdocsKey(el, KEY.tab);
+      await settle(TAB_SETTLE_MS);
+      return target;
+    }
+    if (plan.kind === 'down') {
+      pressGdocsKey(el, KEY.end);
+      await settle(TAB_SETTLE_MS);
+      pressGdocsKey(el, KEY.down);
+      await settle(TAB_SETTLE_MS);
+      return { ...target, inList: plan.list };
+    }
+    if (!(await walkIntoBox(el, plan.into))) return null;
+    return plan.into === 'list' && plan.list ? { ...target, inList: plan.list } : target;
   }
 }
 
