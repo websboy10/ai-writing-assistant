@@ -43,7 +43,7 @@ export const LENGTH_LABELS: Record<OutputLength, string> = {
 
 /** What each size promises, shown as the picker's tooltip so it is not a guess. */
 export const LENGTH_HINTS: Record<OutputLength, string> = {
-  short: 'Kort — 40 til 70 ord, højst fire sætninger, ét afsnit',
+  short: 'Kort — én til to sætninger, 15 til 40 ord',
   medium: 'Middel — 120 til 180 ord, to til tre afsnit',
   long: 'Lang — 300 til 450 ord, fire til seks afsnit',
 };

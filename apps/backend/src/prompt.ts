@@ -164,9 +164,13 @@ const SYSTEM_VOICE = [
  * the operator can predict what lands in the document before pressing send.
  */
 const LENGTH_INSTRUCTIONS: Record<string, string> = {
+  // Tightened 2026-09-08 on the operator's word: "make a short answer much
+  // shorter, maybe 1 or 2 sentences max". Forty to seventy words with four
+  // sentences allowed was a short paragraph, which is what Middel is for — the
+  // three sizes only earn their place if the smallest one is genuinely small.
   short:
-    'LENGTH: short. Between 40 and 70 words. Four sentences at the most, in one single paragraph. No list, ' +
-    'no headings, no closing line. Stop as soon as the point is made.',
+    'LENGTH: short. One sentence, or two at the very most. Between 15 and 40 words in one single paragraph. ' +
+    'Never a third sentence. No list, no headings, no closing line. Answer the thing itself and stop.',
   medium:
     'LENGTH: medium. Between 120 and 180 words, in two or three paragraphs. Each paragraph is at least two ' +
     'sentences. At most one list, and only where a list genuinely helps.',

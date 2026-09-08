@@ -312,6 +312,7 @@ five.
 | Date | Task | Outcome |
 |---|---|---|
 | 2026-09-04 | `20260903-focus-on-ask-and-insert` — strip autonomous mode and the selection actions; add a tempo slider and a human typing style | Done. 6,602 lines deleted, 128 added. 44/44 in a real browser; Google Docs left to the operator |
+| 2026-09-08 | `20260908-kort-svar-kortere` — "Kort" cut from 40–70 words / four sentences to one or two sentences | Done. Observed against the local backend: 5 of 5 Danish prompts came back at exactly 2 sentences, 23–36 words, voice slips intact |
 
 ## Decisions
 
