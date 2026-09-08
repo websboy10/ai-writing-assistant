@@ -6,6 +6,7 @@ import { collect } from '../autonomous/complete.js';
 import { detectionMessages, answerMessages } from '../autonomous/prompt.js';
 import { parseDetection, parseAnswers, type DetectedQuestion } from '../autonomous/parse.js';
 import { NoModelsError, PolicyError } from '../openrouter.js';
+import { needsWebSearch } from '../websearch.js';
 
 // Kept in sync with packages/shared/src/index.ts. Values (not types) must be
 // local: @awa/shared ships TS source, which Node can't load in the deployed
@@ -160,6 +161,20 @@ export function autonomousRoutes(app: FastifyInstance): void {
         batches.push(detected.slice(i, i + ANSWER_BATCH_SIZE));
       }
 
+      // The same rule the chat route uses, once for the whole run: a form
+      // about a named novel or this year's tax rules gets looked up, a form
+      // about the user's own year at work does not. An attached file settles
+      // it as NO before any call is made — the attachment IS the grounding.
+      const webSearch = await needsWebSearch(
+        {
+          messages: [{ role: 'user', content: detected.map((q) => q.questionText).join('\n') }],
+          operation: 'chat',
+          contentClass,
+          context: autoReq.context,
+        },
+        abort.signal,
+      );
+
       // Batches are independent — each carries the whole document as context
       // and only its own questions — so running them one after another just
       // made the user wait twice as long. Measured 2026-08-25: ten questions
@@ -168,7 +183,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       const perBatch = await Promise.all(
         batches.map(async (batch) => {
           const run = async (insist: boolean) => {
-            const completion = await collect(answerMessages(autoReq, batch, insist), contentClass, abort.signal);
+            const completion = await collect(answerMessages(autoReq, batch, insist), contentClass, abort.signal, { webSearch });
             if (completion.failures.length) {
               req.log.warn({ served: completion.model, failures: completion.failures }, 'model chain fallback');
             }

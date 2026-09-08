@@ -15,12 +15,7 @@ export type OneShotRequest =
   | { kind: 'reset'; email: string }
   | { kind: 'session' }
   | { kind: 'screenshot' }
-  | { kind: 'google-auth' }
-  // Docs' own HTML export, fetched with nothing but the browser's existing
-  // cookies — no OAuth, no scope, nothing to have verified. It must be asked
-  // for from HERE: the Docs page's own CSP blocks the same fetch made from the
-  // content script. Answers `{ html: string }`.
-  | { kind: 'docs-export-html'; documentId: string };
+  | { kind: 'google-auth' };
 
 export interface OneShotResponse {
   ok: boolean;

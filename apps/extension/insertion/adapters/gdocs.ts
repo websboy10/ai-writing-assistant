@@ -1,4 +1,4 @@
-import type { InsertionAdapter, InsertResult } from '../types';
+import type { FormatKey, InsertionAdapter, InsertResult } from '../types';
 import { awaLog, describeNode } from '../debug';
 import { gdocsCommandKey, gdocsSelectionTextNow, pressGdocsKey } from '../target';
 
@@ -39,6 +39,8 @@ export class GDocsAdapter implements InsertionAdapter {
   /** Characters this session has in the document right now: pasted minus deleted. */
   private netChars = 0;
   private deletions = 0;
+  /** Any formatting or Enter/space key pressed this session — decides how undo works. */
+  private usedKeys = false;
   private lastEl: HTMLElement | null = null;
   private lastIframe: HTMLIFrameElement | null = null;
 
@@ -173,6 +175,7 @@ export class GDocsAdapter implements InsertionAdapter {
     this.chunksInserted = 0;
     this.netChars = 0;
     this.deletions = 0;
+    this.usedKeys = false;
     // Make sure the doc has keyboard focus (the user may be in our sidebar).
     this.iframe()?.contentWindow?.focus();
     // A marked selection must not be replaced by the paste — ArrowRight
@@ -276,6 +279,55 @@ export class GDocsAdapter implements InsertionAdapter {
   }
 
   /**
+   * A formatting shortcut on the same keystroke channel as everything else
+   * Docs is told to do here, plus the two keys a paste cannot carry.
+   *
+   * Every chord below was measured against a live document on 2026-09-08
+   * (scripts/probe-docs-typing-format.mjs, 8 of 8): Docs treats a synthetic
+   * Cmd+B exactly as it treats the real one. `space` is a `beforeinput`
+   * rather than a keystroke because a synthetic Space keydown types nothing,
+   * and a pasted lone space is trimmed — `beforeinput insertText` is the one
+   * channel that measured a real U+0020 (scripts/probe-docs-space.mjs).
+   *
+   * Once any key has been pressed, undo switches to Backspace over the typed
+   * characters (see undoAll): a toggle is not always a history step in Docs,
+   * so counting Cmd+Z presses could reach past this session into the user's
+   * own edits, and that is the one thing undo must never do.
+   */
+  pressKey(key: FormatKey): InsertResult {
+    const el = this.targetEl();
+    if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt forsvandt midt i indsættelsen.' };
+    this.usedKeys = true;
+    // A paste is handed to the element and Docs takes it whoever has focus; a
+    // shortcut is a keystroke, and Docs only listens to those while its editor
+    // is the focused thing. The panel the user just clicked in is not.
+    this.iframe()?.contentWindow?.focus();
+    if (key === 'space') {
+      el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: ' ', bubbles: true, cancelable: true }));
+      this.netChars += 1;
+      return { ok: true, verified: false };
+    }
+    const cmd = gdocsCommandKey();
+    const CHORDS: Record<Exclude<FormatKey, 'space'>, KeyboardEventInit> = {
+      bold: { key: 'b', code: 'KeyB', keyCode: 66, which: 66, ...cmd },
+      italic: { key: 'i', code: 'KeyI', keyCode: 73, which: 73, ...cmd },
+      h1: { key: '1', code: 'Digit1', keyCode: 49, which: 49, ...cmd, altKey: true },
+      h2: { key: '2', code: 'Digit2', keyCode: 50, which: 50, ...cmd, altKey: true },
+      h3: { key: '3', code: 'Digit3', keyCode: 51, which: 51, ...cmd, altKey: true },
+      normal: { key: '0', code: 'Digit0', keyCode: 48, which: 48, ...cmd, altKey: true },
+      bullets: { key: '8', code: 'Digit8', keyCode: 56, which: 56, ...cmd, shiftKey: true },
+      numbered: { key: '7', code: 'Digit7', keyCode: 55, which: 55, ...cmd, shiftKey: true },
+      enter: { key: 'Enter', code: 'Enter', keyCode: 13, which: 13 },
+    };
+    pressGdocsKey(el, CHORDS[key]);
+    if (key === 'enter') this.netChars += 1;
+    // The one write here that cannot be inferred from the text afterwards: a
+    // toggle that Docs ignored leaves no trace but missing bold.
+    awaLog('gdocs.pressKey', { key, el: describeNode(el), docHasFocus: this.targetDoc()?.hasFocus() ?? null });
+    return { ok: true, verified: false };
+  }
+
+  /**
    * Synthetic Backspace, on the same keystroke channel prepare() uses for
    * ArrowRight and undoAll() for Cmd+Z. Unverifiable for the same reason
    * every write is: the canvas cannot be read back.
@@ -293,8 +345,10 @@ export class GDocsAdapter implements InsertionAdapter {
   undoAll(): InsertResult {
     const el = this.targetEl();
     if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt kan ikke nås længere.' };
-    if (this.deletions > 0) {
+    if (this.deletions > 0 || this.usedKeys) {
       for (let i = 0; i < this.netChars; i++) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
+      // A list or heading style can outlive its text on the now-empty line.
+      if (this.usedKeys) pressGdocsKey(el, { key: '0', code: 'Digit0', keyCode: 48, which: 48, ...gdocsCommandKey(), altKey: true });
     } else {
       for (let i = 0; i < this.chunksInserted; i++) {
         pressGdocsKey(el, { key: 'z', code: 'KeyZ', keyCode: 90, which: 90, ...gdocsCommandKey() });
@@ -303,6 +357,7 @@ export class GDocsAdapter implements InsertionAdapter {
     this.chunksInserted = 0;
     this.netChars = 0;
     this.deletions = 0;
+    this.usedKeys = false;
     return { ok: true, verified: false };
   }
 }

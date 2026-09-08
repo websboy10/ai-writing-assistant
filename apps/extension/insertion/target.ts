@@ -10,6 +10,15 @@ export interface SavedTarget {
   range?: Range;
   /** human label for the UI ("Where will this go?") */
   label: string;
+  /**
+   * The caret already stands inside an empty answer box (a table cell), so the
+   * answer starts right there. Without this the run prefixes a newline to put
+   * the answer on the line BELOW the question — correct after Find, wrong
+   * inside a box, where it would open with a blank line.
+   */
+  inBox?: boolean;
+  /** The caret stands in an EMPTY LIST ITEM of this kind: the answer continues that list. */
+  inList?: 'bullet' | 'numbered';
 }
 
 const GDOCS_IFRAME = 'iframe.docs-texteventtarget-iframe';
@@ -84,15 +93,45 @@ const ZERO_WIDTH = /[\u200B\uFEFF]/g;
  * there is no selection poll anywhere any more.
  */
 export function gdocsSelectionTextNow(): string {
+  return gdocsSelectionNow().text;
+}
+
+/** Both flavours of one synthetic copy: what the marked text says, and how it is built. */
+export interface GDocsRead {
+  text: string;
+  /**
+   * Docs' own serialisation of the marked text — tables, cells, headings, bold,
+   * list items, all as real markup. Measured 2026-09-08 (scripts/probe-docs-html.mjs):
+   * the same copy that returned 404 characters of text returned 9,087 of html,
+   * and every empty answer box in it was a `<td><br/></td>`. Empty when Docs
+   * offered no html flavour, which callers must treat as "structure unknown",
+   * never as "no structure".
+   */
+  html: string;
+}
+
+/**
+ * The same one-shot synthetic copy, reading BOTH flavours Docs writes into it.
+ *
+ * For a year this read `text/plain` alone and threw the rest away, which is
+ * why "Besvar alle spørgsmål" could not tell an empty answer box from a blank
+ * line — both were "". The html was in the same DataTransfer the whole time.
+ * Reading it costs one extra getData and nothing else: no permission, no
+ * request, no Google account, only the document the user is looking at.
+ */
+export function gdocsSelectionNow(): GDocsRead {
   const el = gdocsEventTarget();
-  if (!el) return '';
+  if (!el) return { text: '', html: '' };
   try {
     const dt = new DataTransfer();
     dt.setData('text/plain', '');
     el.dispatchEvent(new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }));
-    return dt.getData('text/plain').replace(ZERO_WIDTH, '').trim();
+    return {
+      text: dt.getData('text/plain').replace(ZERO_WIDTH, '').trim(),
+      html: dt.getData('text/html'),
+    };
   } catch {
-    return '';
+    return { text: '', html: '' };
   }
 }
 
@@ -120,14 +159,19 @@ export function gdocsSelectionTextNow(): string {
  * failure and never as an empty document.
  */
 export function gdocsWholeDocumentText(): string {
+  return gdocsWholeDocumentNow().text;
+}
+
+/** The whole document, both flavours — see gdocsSelectionNow for why html. */
+export function gdocsWholeDocumentNow(): GDocsRead {
   const el = gdocsEventTarget();
-  if (!el) return '';
+  if (!el) return { text: '', html: '' };
   pressGdocsKey(el, { key: 'a', code: 'KeyA', keyCode: 65, which: 65, ...gdocsCommandKey() });
-  const text = gdocsSelectionTextNow();
+  const read = gdocsSelectionNow();
   // Collapse, whether or not the read worked: leaving the user's whole
   // document selected is how the next keystroke deletes all of it.
   pressGdocsKey(el, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 });
-  return text;
+  return read;
 }
 
 function isTextInput(el: Element): el is HTMLInputElement | HTMLTextAreaElement {

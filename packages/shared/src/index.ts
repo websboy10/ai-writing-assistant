@@ -233,9 +233,31 @@ export const PASS_DAYS = 30;
 // path can see one — so a question that IS a picture cannot be answered this
 // way any more. "+ Skærmbillede" remains the honest route for those.
 
+/**
+ * What a paragraph IS, not only what it says.
+ *
+ * Until 2026-09-08 the model received a flat list of lines, so an empty answer
+ * box and a blank line looked identical — both were "". Google Docs hands the
+ * document's structure over on the same synthetic copy the extension already
+ * fires (the `text/html` flavour, see target.ts), and this is that structure,
+ * reduced to what the model and the placement logic actually use.
+ *
+ * Every field but `index` and `text` is optional so the plain-field and
+ * contenteditable sources, which have no structure to report, keep sending
+ * exactly what they always did.
+ */
+export type ParagraphKind = 'heading' | 'text' | 'bullet' | 'numbered' | 'cell';
+
 export interface AutonomousParagraph {
   index: number;
   text: string;
+  kind?: ParagraphKind;
+  /** Heading 1-6, or list nesting depth from 1. */
+  level?: number;
+  /** The whole paragraph is bold — a label, not a sentence. */
+  bold?: boolean;
+  /** Where in which table. `text === ''` in a cell means an empty answer box. */
+  cell?: { table: number; row: number; col: number };
 }
 
 export interface AutonomousRequest {
@@ -249,9 +271,23 @@ export interface AutonomousRequest {
 export interface AutonomousAnswer {
   paragraphIndex: number;
   questionText: string;
+  /**
+   * The answer as the model wrote it: plain prose, with the markdown subset
+   * the paced engine can type as real formatting — paragraphs, **bold**,
+   * *italic*, "- " bullets and "1. " numbers. The extension flattens it for
+   * editors that cannot hold structure and compiles it to keystrokes for
+   * Google Docs (insertion/richsteps.ts). Never headings: an answer sits
+   * under a question, it does not become a section.
+   */
   answer: string;
   /** false = nothing in the document or attached context grounded this answer (D-12). */
   grounded: boolean;
+  /**
+   * Client-side only. The extension flattens `answer` to plain text for every
+   * path and keeps the model's original here for the one that can type it
+   * formatted. Never sent by the server; never read by it.
+   */
+  markdown?: string;
 }
 
 export interface AutonomousResponse {

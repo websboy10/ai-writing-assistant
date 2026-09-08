@@ -17,7 +17,7 @@ import type { ChatMessage, ChatRequest } from '@awa/shared';
  * draft read as machine-written at a glance, and this text goes into a
  * performance review or a client letter with the user's name on it.
  */
-export const PROSE_RULES = [
+export const FORMAT_PLAIN_RULES = [
   'FORMAT. The destination is a plain document that renders no formatting at all, so any formatting',
   'character you type arrives as that literal character in the finished text.',
   '- Never use asterisk or underscore characters to mark emphasis. Emphasise with word choice instead.',
@@ -26,7 +26,29 @@ export const PROSE_RULES = [
   '- Never draw a table out of pipe and dash characters.',
   '- A list, where one genuinely helps, numbers its lines "1. ", "2. ". Never start a line with a hyphen.',
   '- Never leave trailing spaces at the end of a line.',
-  '',
+].join('\n');
+
+/**
+ * The one destination that CAN hold formatting typed slowly: "Besvar alle
+ * spørgsmål" in Google Docs, where the extension compiles this subset into
+ * real keystrokes as it types (apps/extension/insertion/richsteps.ts, measured
+ * 2026-09-08). The subset is exactly what that compiler understands — anything
+ * outside it would arrive as literal characters, which is the failure the
+ * plain rules above exist to prevent.
+ */
+export const FORMAT_MARKDOWN_RULES = [
+  'FORMAT. The answer is typed into the document with real formatting, so use this markdown and nothing else.',
+  '- Two asterisks around a word or short phrase for bold, one asterisk for italic. Bold is for a label or a',
+  '  key term, never a whole sentence.',
+  '- A list, where the question asks for several things or an empty list sits under it, is one item per line,',
+  '  each starting "- " for bullets or "1. ", "2. " for numbered steps.',
+  '- A blank line between paragraphs.',
+  '- Never a heading, never a table, never backticks, never a link. The answer sits under a question;',
+  '  it is not a section of its own.',
+  '- Never leave trailing spaces at the end of a line.',
+].join('\n');
+
+export const VOICE_RULES = [
   // Written in the voice it asks for, on purpose. The one thing this file has
   // already proved (2026-08-25, the markdown ban) is that the model copies how
   // the prompt is written over what it says. So: no long dashes below, no
@@ -144,6 +166,9 @@ export const PROSE_RULES = [
     '"Regn ud". Carry it out and write the finished result. Maths, grammar, an essay, a translation, anything: do the ' +
     'actual work and give the answer itself, never a description of how someone would do it.',
 ].join('\n');
+
+/** What every chat reply must get right: the plain-text format, then the voice. */
+export const PROSE_RULES = [FORMAT_PLAIN_RULES, '', VOICE_RULES].join('\n');
 
 const SYSTEM_VOICE = [
   "You are a writing assistant embedded in the user's browser. What you write is pasted directly into the",

@@ -1,5 +1,16 @@
 export type EditorKind = 'plain' | 'contenteditable' | 'gdocs';
 
+/**
+ * The keystrokes a formatted paced run is made of, besides the text itself.
+ *
+ * `enter` and `space` are here because the paste channel cannot deliver them
+ * where they matter: Enter inside a list is what makes the next item (a pasted
+ * newline does not), and a space at a formatting boundary sits at a paste
+ * edge, which Docs trims (scripts/probe-docs-space.mjs — `beforeinput` puts a
+ * real U+0020 there).
+ */
+export type FormatKey = 'bold' | 'italic' | 'h1' | 'h2' | 'h3' | 'normal' | 'bullets' | 'numbered' | 'enter' | 'space';
+
 export interface InsertResult {
   ok: boolean;
   /** false when the adapter cannot observe the editor's state (Google Docs). */
@@ -32,6 +43,18 @@ export interface InsertionAdapter {
    * adapter can hand the editor both flavours in one paste and let it choose.
    */
   insertRich?(html: string, plain: string): InsertResult;
+  /**
+   * Press one formatting shortcut, or one of the two keys the paste channel
+   * cannot deliver. This is how paced mode carries formatting at all: the
+   * engine keeps typing characters and, between them, does what a person
+   * does — Cmd+B, type the word, Cmd+B again.
+   *
+   * Measured against a live document 2026-09-08 (scripts/probe-docs-typing-format.mjs):
+   * every key below produced the real thing in Docs, 8 of 8. Only editors that
+   * honour synthetic shortcuts implement it; the engine types plain text
+   * everywhere else, exactly as before.
+   */
+  pressKey?(key: FormatKey): InsertResult;
   /**
    * Remove the last `count` characters this session wrote, the way Backspace
    * would. Only "Skriv som et menneske" calls it: a slip is deleted before

@@ -1,5 +1,6 @@
 import type { AutonomousRequest, AutonomousResponse } from '@awa/shared';
 import { AutonomousRun, sourceFor, stripMarkdown, type RunCallbacks } from '@/insertion';
+import { awaLog } from '@/insertion/debug';
 import { call } from './api';
 import { inserter } from './inserter';
 import { useStore } from './store';
@@ -99,11 +100,16 @@ class Autonomous {
       return;
     }
 
-    // Every answer is pasted straight into the document, so markdown in it
-    // arrives as literal asterisks under the user's question. Sanitised once,
-    // here, before anything reads them — the run writes these, the error path
-    // copies these to the clipboard, and both must be the same clean text.
-    const answers = data.answers.map((a) => ({ ...a, answer: stripMarkdown(a.answer) }));
+    // Two forms of every answer, decided once, here. `answer` is the flat text
+    // — what a textarea receives, what the error path copies to the clipboard,
+    // what a Docs run types when it cannot format. `markdown` is the model's
+    // own, which a Docs run compiles into real formatting as it types
+    // (insertion/richsteps.ts). Both are kept so no path ever re-derives one
+    // from the other and quietly disagrees.
+    const answers = data.answers.map((a) => ({ ...a, answer: stripMarkdown(a.answer), markdown: a.answer }));
+    // What the model actually sent, before any of it is typed: the only way
+    // to tell "the model wrote bullets" from "the run typed them wrong".
+    awaLog('autonomous.answers', { detected: data.detected, answers: data.answers.map((a) => ({ i: a.paragraphIndex, md: a.answer })) });
     const ungrounded = answers.filter((a) => !a.grounded).map((a) => a.questionText);
 
     const cb: RunCallbacks = {
@@ -150,7 +156,7 @@ class Autonomous {
     };
 
     this.active?.destroy();
-    this.active = new AutonomousRun(source, answers, mode, cb);
+    this.active = new AutonomousRun(source, answers, mode, useStore.getState().pacing, cb);
     this.loadingRun = false;
     // A pause that arrived while we were still awaiting the answer batch (see
     // the loadingRun comment above) must hold the run from its very first

@@ -1,6 +1,7 @@
-import { paceDelayMs, type InsertionAdapter, type InsertionCallbacks, type InsertionState, type InsertResult, type PacingConfig } from './types';
+import { paceDelayMs, type FormatKey, type InsertionAdapter, type InsertionCallbacks, type InsertionState, type InsertResult, type PacingConfig } from './types';
 import { awaLog } from './debug';
-import { humanScript, type Piece } from './human';
+import { humanScript } from './human';
+import { richPieces, type RichPiece } from './richsteps';
 
 /**
  * The insertion state machine. Lives in the content script (the only context
@@ -25,6 +26,8 @@ interface Step {
   insert?: string;
   /** Always one character, so a deletion looks like a held key, not a cut. */
   deleteBack?: number;
+  /** A formatting shortcut, or an Enter/space the paste channel cannot carry. See richsteps.ts. */
+  key?: FormatKey;
   /** Extra wait after this step, on top of the tempo. */
   pauseMs?: number;
   committed: number;
@@ -38,12 +41,25 @@ export interface SessionOptions {
   /**
    * The same text as real formatting, for editors that can hold it.
    *
-   * Used by "Indsæt straks" alone. Paced mode ignores it and always types the
-   * plain text — a bold sentence cannot be delivered one code point at a time,
-   * and the alternative (type it flat, then re-paste it formatted at the end)
-   * would make the finished text visibly jump.
+   * Used by "Indsæt straks" alone: one paste, one undo step.
    */
   html?: string;
+  /**
+   * The same text as markdown, for PACED mode on an editor that honours
+   * formatting shortcuts (InsertionAdapter.pressKey).
+   *
+   * Until 2026-09-08 the comment above said a bold sentence could not be
+   * delivered one code point at a time. It can — by pressing Cmd+B before it
+   * and after it, which is what a person does, and what richsteps.ts compiles
+   * this into. Ignored on adapters without pressKey, which type `text`.
+   */
+  markdown?: string;
+  /**
+   * The caret already stands in an empty list item of this kind — a worksheet
+   * that draws "1." under its question. The compiled run then continues that
+   * list rather than starting a second one beside it. See richsteps.ts.
+   */
+  startInList?: 'bullet' | 'numbered';
 }
 
 export class InsertionSession {
@@ -66,10 +82,18 @@ export class InsertionSession {
     this.totalChars = text.length;
     this.html = opts.html;
     const chunk = (t: string) => adapter.chunkText?.(t) ?? chunkText(t);
-    const pieces: Piece[] = pacing.human
-      ? humanScript(text, { rng: opts.rng })
-      : [{ kind: 'type', text, intended: true }];
+    const rich = !!opts.markdown && !!adapter.pressKey;
+    const pieces: RichPiece[] = rich
+      ? richPieces(opts.markdown!, { human: pacing.human, rng: opts.rng, startInList: opts.startInList })
+      : pacing.human
+        ? humanScript(text, { rng: opts.rng })
+        : [{ kind: 'type', text, intended: true }];
     this.steps = planSteps(pieces, chunk, opts.pauseScale ?? 1);
+    awaLog('engine.plan', {
+      rich,
+      keys: this.steps.filter((s) => s.key).map((s) => s.key),
+      steps: this.steps.length,
+    });
   }
 
   getState(): InsertionState {
@@ -173,6 +197,7 @@ export class InsertionSession {
     this.inOwnDispatch = true;
     if (step.insert !== undefined) res = this.adapter.insert(step.insert);
     else if (step.deleteBack) res = this.adapter.deleteBack(step.deleteBack);
+    else if (step.key) res = this.adapter.pressKey?.(step.key) ?? { ok: false, verified: true, reason: 'Editoren kan ikke formatere tekst.' };
     this.inOwnDispatch = false;
 
     if (!res.ok) {
@@ -192,6 +217,14 @@ export class InsertionSession {
     if (step.deleteBack) {
       // A held backspace: quick, and never metronome-steady.
       return 40 + Math.random() * 70 + extra;
+    }
+    if (step.key) {
+      // A shortcut is a chord, not a thought: quick. Enter is a line and gets
+      // the same beat a paragraph break gets below; a space is one keystroke.
+      const base = paceDelayMs(this.pacing.wpm);
+      if (step.key === 'enter') return base * (0.6 + Math.random() * 0.8) + 700 + extra;
+      if (step.key === 'space') return base * (0.6 + Math.random() * 0.8) + extra;
+      return 60 + Math.random() * 60 + extra;
     }
     if (step.insert === undefined) return extra;
     // Letter-by-letter at wpm words/min (5 chars/word), with human jitter —
@@ -264,7 +297,7 @@ export class InsertionSession {
  * how many slipped characters sit after it. A deletion eats the slip first,
  * then the real text (a rewrite).
  */
-function planSteps(pieces: Piece[], chunk: (t: string) => string[], pauseScale: number): Step[] {
+function planSteps(pieces: RichPiece[], chunk: (t: string) => string[], pauseScale: number): Step[] {
   const steps: Step[] = [];
   let good = 0;
   let bad = 0;
@@ -296,6 +329,13 @@ function planSteps(pieces: Piece[], chunk: (t: string) => string[], pauseScale: 
       continue;
     }
     flushRun();
+    if (p.kind === 'key') {
+      // Enter and space put a real character in the document; a toggle does
+      // not, so only the former count towards what is committed.
+      if (p.key === 'enter' || p.key === 'space') good += 1;
+      steps.push({ key: p.key, committed: good });
+      continue;
+    }
     if (p.kind === 'type') {
       for (const c of chunk(p.text)) {
         bad += c.length;

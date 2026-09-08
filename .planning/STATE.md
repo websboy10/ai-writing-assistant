@@ -24,7 +24,17 @@ See: .planning/PROJECT.md (updated 2026-08-05)
 in, arriving at a pace they can read along with and stop mid-flow.
 **Current focus:** Operator walkthrough (UAT) of the full v1 build
 
-## Where this stands (2026-09-04)
+## Where this stands (2026-09-08)
+
+**Phase 8 complete: "Besvar alle spørgsmål" reads a Google Doc's structure and
+answers into it — the right box, real formatting, typed slowly — with no API
+and no permission.** 11/11 on a worksheet carrying every shape at once, three
+regressions green. Still flagged OUT of the store build; that is the operator's
+switch (wxt.config.ts, answerAllEnabled). Backend half deployed with the
+chain/search/spelling work earlier the same day is live; the extension half
+ships with the next store build.
+
+### Where this stood (2026-09-04)
 
 **The product is now one sentence: ask a question, get a draft, put it into the
 document — instantly or typed out, at a speed you choose.** Everything that

@@ -253,7 +253,15 @@ async function attemptFind(
   // answered.
   for (let attempt = 0; attempt < 3; attempt++) {
     dispatchKey(target, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39, bubbles: true, cancelable: true });
-    if (await waitFor(() => gdocsSelectionTextNow() === '', SELECTION_TIMEOUT_MS)) return { ok: true };
+    if (await waitFor(() => gdocsSelectionTextNow() === '', SELECTION_TIMEOUT_MS)) {
+      // The match may be a prefix of the question (see findAndPlaceCursor), so
+      // the caret is at the end of the MATCH, not of the line. End moves it to
+      // the end of the line the question is on — where an answer belongs, and
+      // where the box-below and Tab routes already expect it.
+      dispatchKey(target, { key: 'End', code: 'End', keyCode: 35, which: 35, bubbles: true, cancelable: true });
+      await new Promise((resolve) => setTimeout(resolve, OCCURRENCE_ADVANCE_DELAY_MS));
+      return { ok: true };
+    }
   }
 
   // Three tries and the match is still selected. Writing now would delete the
@@ -282,18 +290,25 @@ export async function findAndPlaceCursor(
     return { ok: false, reason: 'Google Docs’ skrivefelt blev ikke fundet — er dokumentet åbent i denne fane?' };
   }
 
-  const shortQuery = firstLine(questionText).slice(0, FIND_QUERY_SHORT_LEN);
-  if (!shortQuery.trim()) {
+  const line = firstLine(questionText).trim();
+  if (!line) {
     return { ok: false, reason: 'Spørgsmålet var tomt efter første linje og kunne derfor ikke findes i dokumentet.' };
   }
 
-  let attempt = await attemptFind(eventTarget, shortQuery, occurrence);
-  if (!attempt.ok) {
-    const sentenceQuery = firstSentence(questionText);
-    // Only worth a second attempt if it is a genuinely different (longer) query.
-    if (sentenceQuery && sentenceQuery !== shortQuery) {
-      attempt = await attemptFind(eventTarget, sentenceQuery, occurrence);
-    }
+  // The WHOLE line first. The 60-character prefix used to go first, on the
+  // reasoning that a long exact query fails more often — true, but a failed
+  // find is retried, while a prefix that matches leaves the caret at
+  // character 60, in the middle of a word. Measured 2026-09-08 on a 77-character
+  // question: the answer was typed into "kort sæ|tning", splitting the user's
+  // own sentence. So the prefix and the first sentence are fallbacks, in that
+  // order, and each is tried only if it is a genuinely different query.
+  const queries = [line, line.slice(0, FIND_QUERY_SHORT_LEN), firstSentence(questionText)].filter(
+    (q, i, all) => q.trim() && all.indexOf(q) === i,
+  );
+  let attempt: { ok: true } | { ok: false; reason: string } = { ok: false, reason: '' };
+  for (const q of queries) {
+    attempt = await attemptFind(eventTarget, q, occurrence);
+    if (attempt.ok) break;
   }
   return attempt.ok ? { ok: true } : { ok: false, reason: attempt.reason };
 }

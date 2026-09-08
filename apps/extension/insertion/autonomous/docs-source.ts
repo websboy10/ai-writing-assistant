@@ -1,10 +1,11 @@
 import type { AutonomousParagraph } from '@awa/shared';
 import type { EditorKind } from '../types';
 import type { SavedTarget } from '../target';
-import { gdocsEventTarget, gdocsSelectionTextNow, gdocsWholeDocumentText, pressGdocsKey } from '../target';
+import { gdocsEventTarget, gdocsSelectionNow, gdocsWholeDocumentNow, pressGdocsKey, type GDocsRead } from '../target';
 import { GDocsAdapter } from '../adapters/gdocs';
 import { findAndPlaceCursor } from './docs-find';
-import { answerCellFor, readDocTableCells } from './docs-tables';
+import { answerCellFor, boxBelowFor } from './docs-tables';
+import { parseDocsHtml } from './docs-structure';
 import type { QuestionSource } from './locator';
 import { awaLog } from '../debug';
 
@@ -32,7 +33,24 @@ import { awaLog } from '../debug';
  * 07-FINDINGS-docs.md). The gated variant of this read went with the selection
  * poll it existed for; this is the one-shot read, which is all a run needs.
  */
-const markedMirrorText = gdocsSelectionTextNow;
+const markedMirror = gdocsSelectionNow;
+
+/**
+ * Structure when Docs gave it, lines when it did not.
+ *
+ * The html flavour carries what a questionnaire is made of — the cells, the
+ * headings, the empty boxes — and it is what the model and the placement
+ * logic read from now on. It is not assumed: a copy that came back without
+ * html falls back to the line split this always used, so a document Docs
+ * serialises oddly is still answered, on the old terms, rather than not at all.
+ */
+function readToParagraphs(read: GDocsRead): { paragraphs: AutonomousParagraph[]; cells: string[] } {
+  if (read.html) {
+    const structure = parseDocsHtml(read.html);
+    if (structure.paragraphs.length) return structure;
+  }
+  return { paragraphs: linesToParagraphs(read.text), cells: [] };
+}
 
 /** Local copy of locator.ts's private helper — DomSource's selection-text splitting, reused for the two Docs sources that read their text out of Docs itself. */
 function linesToParagraphs(text: string): AutonomousParagraph[] {
@@ -83,7 +101,7 @@ class GDocsFindSource implements QuestionSource {
     const occurrence = (this.occurrenceSeen.get(q.questionText) ?? 0) + 1;
     this.occurrenceSeen.set(q.questionText, occurrence);
 
-    // Decided BEFORE Find, so a question whose answer cell is occupied costs
+    // Decided BEFORE Find, so a question whose answer box is occupied costs
     // nothing at all: no search, no cursor moved, no keystroke sent into the
     // user's document. Refusing after the fact would leave the caret parked in
     // their text with nothing to show for it.
@@ -96,6 +114,16 @@ class GDocsFindSource implements QuestionSource {
     }
     if (verdict.kind === 'last-cell') {
       this.reason = `"${q.questionText}" står i tabellens sidste celle, så der er ingen celle at skrive svaret i.`;
+      return null;
+    }
+    // The worksheet shape — the question as a line of text, a box drawn under
+    // it. Only looked at when the question is in no cell at all.
+    const below = verdict.kind === 'outside-table' ? boxBelowFor(this.paragraphs, q) : { kind: 'none' as const };
+    awaLog('docs.locate', { q: q.questionText.slice(0, 40), index: q.paragraphIndex, cell: verdict.kind, below: below.kind });
+    if (below.kind === 'occupied-box-below') {
+      this.reason =
+        `Svarboksen under "${q.questionText}" er ikke tom — der står "${below.text}" i den. ` +
+        'Svaret blev ikke skrevet, for det ville have overskrevet din egen tekst.';
       return null;
     }
 
@@ -125,6 +153,26 @@ class GDocsFindSource implements QuestionSource {
       // Tab, so it cannot say whether the caret moved. It is the same interval
       // Find already allows Docs between its own keystrokes.
       await new Promise((resolve) => setTimeout(resolve, TAB_SETTLE_MS));
+      return { kind: 'gdocs', element: el, label: this.label, inBox: true };
+    }
+
+    if (below.kind === 'empty-box-below' || below.kind === 'empty-list-item-below') {
+      // From the end of the line above a table, ArrowDown walks into its first
+      // cell — measured 2026-09-08 (scripts/probe-docs-placement.mjs), with and
+      // without other text around it. End first, because Find leaves the caret
+      // at the end of the MATCH, and a question may run on past it. The same
+      // two keys reach an empty list item drawn under the question.
+      pressGdocsKey(el, { key: 'End', code: 'End', keyCode: 35, which: 35 });
+      await new Promise((resolve) => setTimeout(resolve, TAB_SETTLE_MS));
+      pressGdocsKey(el, { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40, which: 40 });
+      await new Promise((resolve) => setTimeout(resolve, TAB_SETTLE_MS));
+      return {
+        kind: 'gdocs',
+        element: el,
+        label: this.label,
+        inBox: true,
+        ...(below.kind === 'empty-list-item-below' ? { inList: below.list } : {}),
+      };
     }
 
     return { kind: 'gdocs', element: el, label: this.label };
@@ -213,8 +261,7 @@ async function pickDocsSource(scope: 'document' | 'selection'): Promise<Question
     throw new Error(selfTest.reason ?? 'Google Docs-indsættelse virker ikke lige nu.');
   }
 
-  const text = scope === 'selection' ? markedMirrorText() : gdocsWholeDocumentText();
-  const paragraphs = linesToParagraphs(text);
+  const { paragraphs, cells } = readToParagraphs(scope === 'selection' ? markedMirror() : gdocsWholeDocumentNow());
 
   // An empty read is Docs refusing to hand the text over, NOT an empty
   // document — the same '' comes back either way, so it must never be reported
@@ -233,9 +280,9 @@ async function pickDocsSource(scope: 'document' | 'selection'): Promise<Question
   // which read as "empty document" and sent the whole run down the
   // nothing-found path.
   const probeText = paragraphs.find((p) => p.text.trim())?.text;
-  if (!probeText) return new GDocsFindSource(paragraphs, await readDocTableCells());
+  if (!probeText) return new GDocsFindSource(paragraphs, cells);
 
   const probe = await findAndPlaceCursor(probeText);
-  if (probe.ok) return new GDocsFindSource(paragraphs, await readDocTableCells());
+  if (probe.ok) return new GDocsFindSource(paragraphs, cells);
   return new GDocsPasteSource(paragraphs, pasteReasonForFindFailure(probe.reason));
 }

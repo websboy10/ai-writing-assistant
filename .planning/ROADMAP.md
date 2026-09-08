@@ -153,6 +153,17 @@ and a human typing style in the same change (PACE-01, PACE-02).
 **Plans:** 5/6 executed before withdrawal. Removed in
 `.planning/quick/20260903-focus-on-ask-and-insert/`.
 
+### Phase 8: Besvar alle spørgsmål — see the structure, keep the formatting
+
+**Built and observed 2026-09-08**, under the operator's hard constraint: no
+Google Docs API, no permissions. Everything Phase 7 lacked turned out to be
+available from the document on screen — the copy event Docs already answers
+carries the whole structure as html, and Docs honours the same formatting
+shortcuts a person presses. Placement by structure (beside, beneath, in a box
+below, into a drawn "1."), answers typed slowly WITH bold, italic and real
+lists, the user's tempo and human switch respected, web search decided per run.
+Plan and evidence: `phases/08-answer-all-structure-and-formatting/`.
+
 ## Progress
 
 **Execution Order:**
@@ -173,3 +184,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6. Phase 3's spik
 | 5. Conversation History | 0/TBD | Not started | - |
 | 6. Quota Hardening, Usage Transparency & Trust Polish | 0/TBD | Not started | - |
 | 7. Autonomous mode — answer every question in a document | 5/6 | Withdrawn 2026-09-04 | — |
+| 8. Besvar alle spørgsmål — structure in, formatting out, no API | 1/1 | Complete | 2026-09-08 |

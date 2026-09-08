@@ -1,5 +1,5 @@
 import type { ChatMessage, ContentClass } from '@awa/shared';
-import { streamChat } from '../openrouter.js';
+import { streamChat, type RouteHint } from '../openrouter.js';
 
 export interface Completion {
   text: string;
@@ -25,6 +25,7 @@ export async function collect(
   messages: ChatMessage[],
   contentClass: ContentClass,
   signal: AbortSignal,
+  hint: RouteHint = {},
 ): Promise<Completion> {
   let text = '';
   let finishReason = '';
@@ -42,6 +43,6 @@ export async function collect(
       finishReason = reason;
     },
     onModelFailed: (m, reason) => failures.push({ model: m, reason }),
-  });
+  }, hint);
   return { text, finishReason, model, failures };
 }

@@ -1,7 +1,7 @@
 import type { AutonomousAnswer } from '@awa/shared';
 import { InsertionSession } from '../engine';
 import { adapterFor } from '../index';
-import { DEFAULT_PACING } from '../types';
+import type { PacingConfig } from '../types';
 import type { SavedTarget } from '../target';
 import type { QuestionSource } from './locator';
 import { orderForRun, orderForUndo } from './plan';
@@ -82,6 +82,12 @@ export class AutonomousRun {
     private source: QuestionSource,
     answers: AutonomousAnswer[],
     private mode: 'instant' | 'progressive',
+    /**
+     * The panel's own tempo and "Skriv som et menneske" switch. This was
+     * hard-wired to DEFAULT_PACING until 2026-09-08, so a run ignored the
+     * slider the user had just set for it.
+     */
+    private pacing: PacingConfig,
     private cb: RunCallbacks,
   ) {
     // Top-down: Langsomt must start at the first question and work downward
@@ -280,10 +286,16 @@ export class AutonomousRun {
       const adapter = adapterFor(target);
       // The caret sits right after the question's text (locate() collapsed
       // it there) — prefixing a newline puts the answer on the line below,
-      // never appended onto the question's own line.
-      const text = `\n${answer.answer}`;
+      // never appended onto the question's own line. Inside an answer box
+      // the caret already stands where the answer starts, so no newline.
+      const lead = target.inBox ? '' : '\n';
+      const text = `${lead}${answer.answer}`;
+      // The formatted form, for an editor that can type formatting (Google
+      // Docs). Same leading newline, so the two never disagree about where the
+      // answer starts.
+      const markdown = answer.markdown ? `${lead}${answer.markdown}` : undefined;
 
-      const session = new InsertionSession(adapter, text, DEFAULT_PACING, {
+      const session = new InsertionSession(adapter, text, this.pacing, {
         onState: (state, detail) => {
           if (state === 'paused') {
             // A trusted keystroke mid-run reports detail === 'user-typing'
@@ -322,7 +334,7 @@ export class AutonomousRun {
           }
         },
         onProgress: (inserted, total) => this.reportProgress(inserted, total),
-      });
+      }, { markdown, startInList: target.inList });
 
       this.currentSession = session;
       if (this.mode === 'instant') session.insertInstant();
@@ -355,7 +367,7 @@ export class AutonomousRun {
         const adapter = adapterFor(target);
         const text = composeBlockText(this.queue);
 
-        const session = new InsertionSession(adapter, text, DEFAULT_PACING, {
+        const session = new InsertionSession(adapter, text, this.pacing, {
           onState: (state, detail) => {
             if (state === 'paused') {
               this.state = 'paused';

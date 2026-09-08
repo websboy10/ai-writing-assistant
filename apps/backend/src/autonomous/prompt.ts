@@ -1,6 +1,6 @@
-import type { AutonomousRequest, ChatMessage } from '@awa/shared';
+import type { AutonomousParagraph, AutonomousRequest, ChatMessage } from '@awa/shared';
 import type { DetectedQuestion } from './parse.js';
-import { PROSE_RULES } from '../prompt.js';
+import { FORMAT_MARKDOWN_RULES, VOICE_RULES } from '../prompt.js';
 
 /**
  * Structured prompt assembly for autonomous mode (mirrors PROM-03's
@@ -9,8 +9,34 @@ import { PROSE_RULES } from '../prompt.js';
  * concatenated string.
  */
 
+/**
+ * What a line IS, in front of what it says.
+ *
+ * Until 2026-09-08 the model saw a flat list and could not tell an empty
+ * answer box from a blank line — the extension had thrown the difference
+ * away before sending. Now every line carries its shape (docs-structure.ts on
+ * the extension side), and the two things this feature was failing at — what
+ * counts as a question, and what shape its answer should take — are both
+ * decided with that in view. Lines with no structure (a textarea, a
+ * contenteditable) print exactly as they always did.
+ */
+function shapeTag(p: AutonomousParagraph): string {
+  switch (p.kind) {
+    case 'heading':
+      return `(overskrift ${p.level ?? 1}) `;
+    case 'bullet':
+      return p.text ? '(punkt) ' : '(punkt, TOM)';
+    case 'numbered':
+      return p.text ? '(nummereret punkt) ' : '(nummereret punkt, TOM)';
+    case 'cell':
+      return p.text ? '(tabelcelle) ' : '(tabelcelle, TOM svarboks)';
+    default:
+      return p.bold ? '(fed) ' : '';
+  }
+}
+
 function paragraphLines(req: AutonomousRequest): string {
-  return req.paragraphs.map((p) => `[${p.index}] ${p.text}`).join('\n');
+  return req.paragraphs.map((p) => `[${p.index}] ${shapeTag(p)}${p.text}`).join('\n');
 }
 
 /**
@@ -33,6 +59,14 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
         'imperative prompts ("Beskriv dine tre vigtigste resultater i år"), and headings with blank space ' +
         'left beneath them all count as things a person is expected to answer. A plain statement of fact ' +
         'is NOT a question and must not be included.',
+      'Each line is prefixed with what kind of line it is. A line marked (tabelcelle, TOM svarboks) is an ' +
+        'empty answer box: it is never a question itself, and it belongs to the question in the cell before ' +
+        'it or on the line above its table — that question IS one to answer. A heading is a section title, not ' +
+        'a question, unless it is itself phrased as a task. A bullet or numbered point under a question is ' +
+        'usually guidance for the answer, not a separate question — unless it is itself a question or task. ' +
+        'An EMPTY point, marked (punkt, TOM) or (nummereret punkt, TOM), is an answer slot like an empty box: ' +
+        'never a question, and it belongs to the line above it. ' +
+        'Table header cells such as "Spørgsmål" or "Dit svar" are labels, not questions.',
       'Output ONLY a bare JSON array, no prose before or after it and no markdown code fence, of objects ' +
         'shaped { "paragraphIndex": number, "questionText": string }. "paragraphIndex" is the bracketed ' +
         'number shown before each paragraph. "questionText" must be quoted VERBATIM from that paragraph, ' +
@@ -130,11 +164,22 @@ export function answerMessages(
       'A question you had to invent an answer for still gets its own real index, like any other.',
   );
 
-  // The style rules come AFTER the contract, not before it. These answers are
-  // pasted straight under the question in the user's own document, so "**" is
-  // a worse failure here than in the panel — nobody reads it before it lands —
-  // but the shape of the reply has to be the first thing the model reads.
-  sections.push(`How to write the text inside each "answer":\n\n${PROSE_RULES}`);
+  // The style rules come AFTER the contract, not before it: the shape of the
+  // reply has to be the first thing the model reads. The format rules are the
+  // markdown subset the extension can TYPE as real formatting into Google Docs
+  // (richsteps.ts); everywhere else the extension flattens it, so nothing the
+  // model is allowed here can arrive as a literal asterisk.
+  sections.push(
+    `How to write the text inside each "answer":\n\n${FORMAT_MARKDOWN_RULES}\n\n` +
+      'SHAPE. Each question in the document list carries what kind of line it is and what follows it. ' +
+      'Match that shape. A question followed by an empty numbered point, (nummereret punkt, TOM), gets a ' +
+      'numbered list "1. ", "2. "; one followed by an empty bullet point, (punkt, TOM), gets a bullet list ' +
+      '"- "; a question that asks for several things gets exactly that many items, one per line; a question ' +
+      'in a table cell with an empty box beside or beneath it gets a plain answer that fits a box, one or two ' +
+      'short paragraphs at most; a question with room beneath it gets paragraphs. When a question asks for ' +
+      'a word or phrase in bold, write it as **bold**. Never write a heading.\n\n' +
+      VOICE_RULES,
+  );
 
   if (req.context?.length) {
     const ctx = req.context.map((c) => `[Source: ${c.name} (${c.kind})]\n${c.text}`).join('\n\n');
