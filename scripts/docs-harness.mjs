@@ -14,7 +14,8 @@ import { mkdirSync, readdirSync, existsSync, rmSync } from 'node:fs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const extPath = resolve(root, 'apps/extension/.output/chrome-mv3');
-export const profilePath = resolve(root, '.chrome-profile-cft');
+// AWA_PROFILE points at a COPY when the real profile is held open by a demo browser (readback-doc.mjs).
+export const profilePath = process.env.AWA_PROFILE ?? resolve(root, '.chrome-profile-cft');
 export const shotsDir = resolve(root, 'test-results');
 mkdirSync(shotsDir, { recursive: true });
 
