@@ -70,11 +70,13 @@ lookup in a separate short call and never attaches the plugin to the answer
 call; one more pass through the chain on transient failures. Reasons now
 logged on every such failure. Deployed 09:15.
 
-**Backend deployed 2026-09-09 08:25** (no-bold rule and strip, the marked
-range). The extension half is still flagged OUT of the store build; that is
-the operator's switch (wxt.config.ts, answerAllEnabled), so nothing a store
-user can reach changes until a new package ships with it on. The operator's
-Desktop test build (08:28) is the current code with the feature on.
+**0.2.2 to the store, 2026-09-09, WITH "Besvar alle spørgsmål" and "Besvar
+markeringen" on** — the operator's call after a day of testing on real forms
+(wxt.config.ts answerAllEnabled is now simply true; the constant stays so a
+feature can be held back again with one word). The package on the operator's
+Desktop is `pnpm zip:store`'s output: production backend only, no localhost
+permission, no manifest key. Same permissions as the approved 0.2.0, so
+nothing new to justify in review. Backend for it deployed 09:15.
 
 ### Where this stood (2026-09-04)
 

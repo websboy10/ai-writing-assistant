@@ -183,8 +183,8 @@ The copy html carries the same cells and depends on nothing.
 ## Not done, said plainly
 
 - Non-Docs editors (textarea, contenteditable) still get plain-text answers.
-- The store build still has the feature flagged out; that switch is the
-  operator's.
+- ~~The store build still has the feature flagged out; that switch is the
+  operator's.~~ Shipped in 0.2.2 on 2026-09-09, the operator's call.
 - The test fixture's empty cells are 13pt wide (Docs' default for an
   unsized `<td>`), so answers there wrap one letter per line in the
   screenshot. Real worksheets size their cells; the product did not do this.
