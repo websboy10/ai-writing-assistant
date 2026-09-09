@@ -21,6 +21,7 @@
  *
  * Run: node scripts/verify-answer-all.mjs [--keep] [--slow]
  */
+import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { launch, newDoc, readDoc, isSignedIn, reporter, shotsDir, clickIntoDoc, typeIntoDoc } from './docs-harness.mjs';
 
@@ -49,6 +50,13 @@ const r = reporter();
 const ctx = await launch();
 const page = ctx.pages()[0] ?? (await ctx.newPage());
 
+// The extension's own log, kept for the read after a failure: the document
+// says WHAT did not land, this says where the run believed it was writing.
+const awaLines = [];
+page.on('console', (msg) => {
+  const t = msg.text();
+  if (t.startsWith('[AWA]')) awaLines.push(t);
+});
 const host = page.locator('awa-sidebar');
 const shot = (name) => page.screenshot({ path: resolve(shotsDir, `answerall-${name}.png`) }).catch(() => {});
 const sleep = (ms) => new Promise((s) => setTimeout(s, ms));
@@ -216,6 +224,7 @@ try {
   r.ok('run completed', false, String(err?.message ?? err));
   await shot('failure');
 } finally {
+  writeFileSync(resolve(shotsDir, 'answerall-awa.log'), awaLines.join('\n'));
   if (!KEEP) await ctx.close();
 }
 

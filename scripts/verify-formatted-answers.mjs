@@ -81,9 +81,15 @@ const page = ctx.pages()[0] ?? (await ctx.newPage());
 // The adapter's own diagnostics (insertion/debug.ts): the one channel that
 // says which keys were pressed, since Docs cannot be asked what it received.
 const awaLines = [];
+// The same lines with the clock, so a marking seen on screen can be laid
+// against what the run was doing at that moment.
+const awaEvents = [];
 page.on('console', (msg) => {
   const t = msg.text();
-  if (t.startsWith('[AWA]')) awaLines.push(t);
+  if (t.startsWith('[AWA]')) {
+    awaLines.push(t);
+    awaEvents.push({ at: Date.now(), text: t });
+  }
 });
 const host = page.locator('awa-sidebar');
 const shot = (n) => page.screenshot({ path: resolve(shotsDir, `formatted-${n}.png`) }).catch(() => {});
@@ -200,6 +206,59 @@ try {
   r.ok('run started — Langsomt, Skriv som et menneske on', true);
   await shot('running');
 
+  // K — watch the screen itself for the whole run. Docs paints to canvas, and
+  // a selection is a light blue wash over the letters on the caret's line
+  // (measured: (167,201,255), (185,212,255) — scripts/probe-docs-backspace-verify.mjs).
+  // The operator saw the humanizer MARK a slip before deleting it (2026-09-09),
+  // which is what gave the run away; every frame from here on, the caret's
+  // line is read back and any wash is recorded with the clock, to be laid
+  // against the typing windows afterwards. Docs' Find marks its match while
+  // an answer is being PLACED, so only a wash inside a typing window counts.
+  await page.evaluate(() => {
+    const state = { run: true, frames: 0, intervals: [], open: null };
+    window.__awaMark = state;
+    let line = null;
+    const tiles = () => [...document.querySelectorAll('.kix-appview-editor canvas')].filter((c) => c.width > 0 && c.getBoundingClientRect().height > 0);
+    const wash = () => {
+      if (!line) return 0;
+      let n = 0;
+      for (const c of tiles()) {
+        const r = c.getBoundingClientRect();
+        if (line.bottom < r.top || line.top > r.bottom) continue;
+        const scale = c.height / r.height;
+        const y0 = Math.max(0, Math.floor((line.top - 4 - r.top) * scale));
+        const y1 = Math.min(c.height, Math.ceil((line.bottom + 4 - r.top) * scale));
+        if (y1 <= y0) continue;
+        try {
+          const d = c.getContext('2d').getImageData(0, y0, c.width, y1 - y0).data;
+          for (let i = 0; i < d.length; i += 8) if (d[i] > 140 && d[i + 2] > 220 && d[i + 2] > d[i] + 40) n += 1;
+        } catch {
+          return 0;
+        }
+      }
+      return n;
+    };
+    const loop = () => {
+      if (!state.run) return;
+      // Docs hides the caret while text is marked; the line is remembered
+      // from the last frame it was visible.
+      const caret = document.querySelector('.kix-cursor-caret')?.getBoundingClientRect();
+      if (caret && caret.height > 0) line = { top: caret.top, bottom: caret.bottom };
+      const n = wash();
+      const now = Date.now();
+      state.frames += 1;
+      if (n > 25) {
+        if (!state.open) state.open = { from: now, peak: n };
+        else state.open.peak = Math.max(state.open.peak, n);
+      } else if (state.open) {
+        state.intervals.push({ ...state.open, to: now });
+        state.open = null;
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  });
+
   // A run that never starts — the test account out of daily requests, a
   // backend error — shows in the panel within seconds; do not wait 15 minutes
   // for a button that is not coming.
@@ -209,6 +268,13 @@ try {
   if (await stopped.count()) throw new Error(`the run stopped: ${(await stopped.first().textContent())?.trim()}`);
   await sleep(2500);
   await shot('done');
+
+  const mark = await page.evaluate(() => {
+    const s = window.__awaMark;
+    s.run = false;
+    if (s.open) s.intervals.push({ ...s.open, to: Date.now() });
+    return { frames: s.frames, intervals: s.intervals };
+  });
 
   // Every adapter line of the run, for a post-mortem the printed selection
   // cannot support (2026-09-09: a letter replaced by two zero-width spaces,
@@ -320,8 +386,29 @@ try {
     const want = answerFor(q);
     r.ok(`the ${label} answer arrived letter for letter as the model wrote it`, want !== null && norm(cell) === norm(want), `typed ${JSON.stringify(norm(cell))} wanted ${JSON.stringify(norm(want))}`);
   }
-  const failedDeletes = deleteLogs.filter((l) => /"ok":false/.test(l)).length;
-  r.ok(`every deletion was verified before anything was replaced (${deleteLogs.length} deletions)`, deleteLogs.length > 0 && failedDeletes === 0, `${failedDeletes} unverified`);
+  const failedDeletes = deleteLogs.filter((l) => !/"verdict":"(?:ok|unchecked)"/.test(l)).length;
+  const repaired = deleteLogs.reduce((n, l) => n + (Number(l.match(/"extra":(\d+)/)?.[1]) || 0), 0);
+  r.ok(`every deletion checked out afterwards (${deleteLogs.length} deletions, ${repaired} dropped Backspace(s) caught and repaired)`, deleteLogs.length > 0 && failedDeletes === 0, `${failedDeletes} not ok`);
+
+  // K — the screen. A marking that starts inside a typing window is the
+  // humanizer marking a slip, the thing a person never does; a marking
+  // outside one is Docs' Find holding its match while the next answer is
+  // placed, which is how placement works.
+  const typing = [];
+  let openAt = null;
+  for (const { at, text } of awaEvents) {
+    if (text.startsWith('[AWA] engine.start')) openAt = at;
+    else if (text.startsWith('[AWA] engine.done') && openAt !== null) {
+      typing.push([openAt, at]);
+      openAt = null;
+    }
+  }
+  if (openAt !== null) typing.push([openAt, Date.now()]);
+  const whileTyping = mark.intervals.filter((iv) => typing.some(([a, b]) => iv.from >= a && iv.from <= b));
+  console.log(`  screen: ${mark.frames} frames read, ${mark.intervals.length} marking(s) seen in all, ${typing.length} typing window(s)`);
+  for (const iv of mark.intervals) console.log(`    marked ${iv.to - iv.from} ms, peak ${iv.peak} px, ${whileTyping.includes(iv) ? 'WHILE TYPING' : 'while placing'}`);
+  r.ok('the screen was read every frame of the run', mark.frames > 100, `${mark.frames} frames`);
+  r.ok(`nothing was ever shown as marked while an answer was being typed (${deleteLogs.length} deletions, ${typing.length} typing windows)`, typing.length > 0 && whileTyping.length === 0, `${whileTyping.length} marking(s) while typing`);
 } catch (err) {
   r.ok('run completed', false, String(err?.message ?? err));
   await shot('failure');

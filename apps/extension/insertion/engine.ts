@@ -189,6 +189,10 @@ export class InsertionSession {
     if (this.state !== 'running') return;
     if (this.stepIndex >= this.steps.length) {
       this.detachGuard();
+      // The end of a typing window, for a reading of the screen that must
+      // tell this session's own keystrokes from the Find that placed the next
+      // (scripts/verify-formatted-answers.mjs).
+      awaLog('engine.done', { steps: this.steps.length });
       this.setState('done');
       return;
     }
@@ -344,10 +348,11 @@ function planSteps(pieces: RichPiece[], chunk: (t: string) => string[], pauseSca
         steps.push({ insert: c, committed: good });
       }
     } else {
-      // The whole deletion as ONE step. On Docs a deletion is a selection the
-      // next paste replaces (adapters/gdocs.ts deleteBack), and marking three
-      // letters is one gesture; one Backspace per step, 40 ms apart, was how a
-      // dropped keystroke left "drerude" in a real form (2026-09-08).
+      // The whole deletion as ONE step, so the adapter can check it as one:
+      // on Docs that is the Backspaces and a same-task read of what is left
+      // (adapters/gdocs.ts deleteBack). One Backspace per step, 40 ms apart
+      // and unchecked, was how a dropped keystroke left "drerude" in a real
+      // form (2026-09-08).
       for (let i = 0; i < p.count; i++) {
         if (bad > 0) bad -= 1;
         else good -= 1;

@@ -161,7 +161,7 @@ test('human mode ends with the text byte for byte, having deleted along the way'
 });
 
 test('human mode: a deletion reaches the adapter as one call for the whole slip, never one per letter', async () => {
-  // adapters/gdocs.ts turns each call into one verified selection; split
+  // adapters/gdocs.ts turns each call into one checked deletion; split
   // into single characters it would be one unverifiable keystroke each.
   const text = 'Medarbejderen viste tydelig fremgang i salget. Hun lukkede fjorten aftaler, hvilket er over målet.';
   let calls = 0;

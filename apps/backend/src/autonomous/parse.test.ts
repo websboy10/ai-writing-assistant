@@ -139,13 +139,30 @@ test('fills: "below" continues under a cell that holds text; "inline" goes after
 });
 
 test('fills: a missing mode is read off the place — empty means fill, text means below', () => {
-  const raw = JSON.stringify([{ paragraphIndex: 7, questionText: 'Q', fills: [{ at: 12 }, { at: 11 }] }]);
+  const raw = JSON.stringify([{ paragraphIndex: 2, questionText: 'Q', fills: [{ at: 12 }, { at: 5 }] }]);
   assert.deepEqual(
     parseDetection(raw, SHEET.length, SHEET).map((f) => [f.at, f.mode]),
     [
       [12, 'fill'],
-      [11, 'below'],
+      [5, 'below'],
     ],
+  );
+});
+
+// verify-table-answers.mjs, 2026-09-09: the answer cell beside "Hvor mange dage
+// har en uge?" held "MIT EGET SVAR" and the model planned a "below" there, so
+// the answer was written under the user's own. A filled cell that does not
+// ask for more IS the answer, and the question gets nothing — not even the
+// line under itself.
+test('fills: a "below" or "inline" at a filled cell that asks for nothing more means the question is answered — it is left out entirely', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: 7, questionText: 'A', fills: [{ at: 11, mode: 'below' }] },
+    { paragraphIndex: 8, questionText: 'B', fills: [{ at: 11, mode: 'inline' }] },
+    { paragraphIndex: 2, questionText: 'C', fills: [{ at: 5, mode: 'below' }, { at: 11, mode: 'below' }] },
+  ]);
+  assert.deepEqual(
+    parseDetection(raw, SHEET.length, SHEET).map((f) => [f.questionText, f.at, f.mode]),
+    [['C', 5, 'below']],
   );
 });
 

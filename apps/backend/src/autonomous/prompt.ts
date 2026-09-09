@@ -88,7 +88,8 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
       'A question that is ALREADY ANSWERED is left out entirely: its answer stands in the paragraph under it, ' +
         'or in the box beside or below it, written the way a person filling in the form writes. Text that ' +
         'only STARTS an answer and asks for more ("fortsæt herunder…", "uddyb", "skriv videre", a sentence ' +
-        'that stops mid-thought) is not answered yet: it is continued.',
+        'that stops mid-thought) is not answered yet: it is continued. A cell beside or under a question ' +
+        'that holds anything else is the user\'s own answer: never a "below" or "inline" place.',
       // The plan. The operator's test form (2026-09-08): every question had a
       // box drawn under it and the answers went on the line under the
       // question instead, because the box was matched by a rule that could

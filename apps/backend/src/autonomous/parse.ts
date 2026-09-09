@@ -26,6 +26,14 @@ const SLOT_KINDS = new Set(['cell', 'bullet', 'numbered']);
 const PARAGRAPH_KINDS = new Set(['heading', 'text', 'bullet', 'numbered', 'cell']);
 const FILL_MODES = new Set<FillMode>(['fill', 'below', 'inline']);
 const TASK_MAX_LEN = 200;
+/**
+ * Text in a cell that asks for more: an explicit invitation, or a label or
+ * lead-in that stops short. Anything else in an answer cell is the user's own
+ * answer. Measured 2026-09-09 (scripts/verify-table-answers.mjs): a cell
+ * holding "MIT EGET SVAR" beside a question got a "below" fill and the answer
+ * was written under the user's text.
+ */
+const CONTINUE_CUE = /fortsæt|uddyb|skriv videre|continue|elaborate|[….:]\s*$/i;
 
 const smallInt = (v: unknown, min: number, max: number): v is number => Number.isInteger(v) && (v as number) >= min && (v as number) <= max;
 
@@ -104,13 +112,18 @@ export function validateMarked(marked: unknown, paragraphCount: number): { from:
  * one after it. A missing mode is read off the paragraph — empty means fill,
  * text means below — so a model that drops the field still places well.
  * One fill per paragraph across the whole run.
+ *
+ * A `below` or `inline` at a cell OTHER than the question's own, whose text
+ * does not ask to be continued, is the user's own answer sitting in the
+ * answer box: 'answered', and the caller leaves the question alone rather
+ * than falling back to a line under it.
  */
 function validFill(
   value: unknown,
   questionIndex: number,
   paragraphs: AutonomousParagraph[] | undefined,
   claimed: Set<number>,
-): { at: number; mode: FillMode; task?: string } | null {
+): { at: number; mode: FillMode; task?: string } | 'answered' | null {
   if (!paragraphs || !value || typeof value !== 'object') return null;
   const rec = value as Record<string, unknown>;
   if (!Number.isInteger(rec.at)) return null;
@@ -123,6 +136,8 @@ function validFill(
     if (!empty || !SLOT_KINDS.has(place.kind ?? '') || at <= questionIndex) return null;
   } else if (empty || at < questionIndex) {
     return null;
+  } else if (at !== questionIndex && place.kind === 'cell' && !CONTINUE_CUE.test(place.text)) {
+    return 'answered';
   }
   claimed.add(at);
   const task = typeof rec.task === 'string' && rec.task.trim() ? rec.task.trim().slice(0, TASK_MAX_LEN) : undefined;
@@ -195,14 +210,18 @@ export function parseDetection(
     if (typeof questionText !== 'string' || !questionText.trim()) continue;
 
     const wanted = Array.isArray(rec.fills) ? rec.fills : [];
-    let places = wanted
-      .map((f) => validFill(f, paragraphIndex as number, paragraphs, claimed))
-      .filter((f): f is NonNullable<typeof f> => f !== null);
+    let answered = false;
+    let places: { at: number; mode: FillMode; task?: string }[] = [];
+    for (const f of wanted) {
+      const place = validFill(f, paragraphIndex as number, paragraphs, claimed);
+      if (place === 'answered') answered = true;
+      else if (place) places.push(place);
+    }
     if (places.some((f) => f.mode === 'fill')) {
       places = places.filter((f) => !(f.mode === 'below' && f.at === paragraphIndex));
     }
     if (places.length === 0) {
-      if (claimed.has(paragraphIndex as number)) continue;
+      if (answered || claimed.has(paragraphIndex as number)) continue;
       claimed.add(paragraphIndex as number);
       places = [{ at: paragraphIndex as number, mode: 'below' }];
     }

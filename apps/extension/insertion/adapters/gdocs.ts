@@ -41,10 +41,8 @@ export class GDocsAdapter implements InsertionAdapter {
   private deletions = 0;
   /** Any formatting or Enter/space key pressed this session — decides how undo works. */
   private usedKeys = false;
-  /** The last characters this session put in the document, newest last — what a deletion must find marked before anything is replaced. */
+  /** The last characters this session put in the document, newest last — what deleteBack() checks its work against. */
   private tail = '';
-  /** Characters deleteBack() has left marked for the next write to replace. */
-  private marked = 0;
   private lastEl: HTMLElement | null = null;
   private lastIframe: HTMLIFrameElement | null = null;
 
@@ -181,7 +179,6 @@ export class GDocsAdapter implements InsertionAdapter {
     this.deletions = 0;
     this.usedKeys = false;
     this.tail = '';
-    this.marked = 0;
     // Make sure the doc has keyboard focus (the user may be in our sidebar).
     this.iframe()?.contentWindow?.focus();
     // A marked selection must not be replaced by the paste — ArrowRight
@@ -254,9 +251,8 @@ export class GDocsAdapter implements InsertionAdapter {
     return { ok: true, verified: false };
   }
 
-  /** Every write replaces whatever deleteBack() left marked, and extends the remembered tail. */
+  /** Every write extends the remembered tail. */
   private wrote(text: string): void {
-    this.marked = 0;
     this.tail = (this.tail + text).slice(-TAIL_CHARS);
   }
 
@@ -345,7 +341,7 @@ export class GDocsAdapter implements InsertionAdapter {
   }
 
   /**
-   * A deletion is a SELECTION here — verified — that the next write replaces.
+   * Backspaces — checked, and nothing ever shown as marked.
    *
    * A synthetic Backspace keydown is the one thing Docs drops: about one in
    * fifty while the page's main thread is busy, and during a run the
@@ -353,23 +349,30 @@ export class GDocsAdapter implements InsertionAdapter {
    * (scripts/probe-docs-backspace-race.mjs, probe-docs-delete-channel.mjs):
    * at every spacing from 40 to 200 ms, on keydown alone and on keydown with
    * beforeinput, while a beforeinput deleteContentBackward on its own is
-   * ignored outright. On a real form that read "drerude" and "Sren". In the
-   * same runs not one paste and not one Enter was lost, and a paste replaces
-   * whatever is marked.
+   * ignored outright. On a real form that read "drerude" and "Sren".
    *
-   * So: Shift+ArrowLeft once per character, then ask Docs what is marked (the
-   * same synthetic copy target.ts reads with) and compare it with what this
-   * session typed last. An arrow can drop like any keydown (7 of 396 did), but
-   * the read told the truth 108 times of 108 — exact on every whole selection,
-   * different on every short one (scripts/probe-docs-select-read.mjs). A short
-   * selection gets one more arrow and another read, twice at most. Only a
-   * selection that reads back as exactly the text to delete is left standing
-   * for the next write; anything else is collapsed and deleted the old way,
-   * which is still right 49 times in 50.
+   * For a day the answer was to mark the slip with Shift+ArrowLeft and let the
+   * next paste replace it — never dropped, but the marking is painted on
+   * screen until that next write comes, up to half a second, and the operator
+   * saw it (2026-09-09): a person backspaces, they do not mark three letters
+   * and type over them, and the highlight gives the run away.
+   *
+   * So: one Backspace per character, then, IN THE SAME SYNCHRONOUS TASK, a
+   * read of what now stands before the caret — Shift+ArrowLeft over the last
+   * few characters, the same synthetic copy target.ts reads with, ArrowRight
+   * to collapse — compared with what this session typed before the deleted
+   * characters. Docs updates its model on the keydown itself (the read told
+   * the truth 108 of 108 in scripts/probe-docs-select-read.mjs) and paints on
+   * a later frame, so a selection made and collapsed inside one task never
+   * reaches the screen: scripts/probe-docs-backspace-verify.mjs reads the
+   * canvas back every frame and sees none. Characters of the slip still
+   * standing, which is what a dropped Backspace leaves, get one more
+   * Backspace each and another read; an arrow can drop too (7 of 396), and a
+   * short read gets one more arrow, as before.
    *
    * target.ts's rule of no selection polling while Docs is being written to
-   * holds: at most three reads here, each after a keystroke of our own and
-   * before the next write, and 148 such reads in the probes changed nothing.
+   * holds: at most a handful of reads here, each after keystrokes of our own
+   * and before the next write.
    */
   deleteBack(count: number): InsertResult {
     const el = this.targetEl();
@@ -377,28 +380,65 @@ export class GDocsAdapter implements InsertionAdapter {
     const n = Math.min(count, this.netChars);
     if (n <= 0) return { ok: true, verified: false };
     const tail = [...this.tail];
-    const expected = tail.slice(-n).join('');
+    const before = tail.slice(0, tail.length - n);
+    const deleted = tail.slice(tail.length - n);
     this.iframe()?.contentWindow?.focus();
+    const BACKSPACE: KeyboardEventInit = { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 };
     const SHIFT_LEFT: KeyboardEventInit = { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37, which: 37, shiftKey: true };
-    for (let i = 0; i < n; i++) pressGdocsKey(el, SHIFT_LEFT);
-    let read = gdocsMarkedTextNow();
-    let retries = 0;
-    while (read !== expected && retries < 2 && tail.length > n + retries) {
-      pressGdocsKey(el, SHIFT_LEFT);
-      read = gdocsMarkedTextNow();
-      retries += 1;
+    const RIGHT: KeyboardEventInit = { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 };
+    for (let i = 0; i < n; i++) pressGdocsKey(el, BACKSPACE);
+
+    // The check reads a few characters more than were deleted, so a dropped
+    // Backspace shows as slip characters where the session's own text should
+    // end. Nothing to compare against when the deletion reaches back to the
+    // start of what this session typed.
+    //
+    // Newlines are left out of the comparison on both sides. A selection that
+    // reaches the start of a list item or a cell comes back from Docs' copy
+    // wrapped in the structure's own newlines ("\n\nOde\n" for "Ode", measured
+    // 2026-09-09 on the first word of a numbered answer), and a slip never
+    // holds a newline, so nothing a dropped Backspace could leave is hidden
+    // by dropping them. Spaces stay: a read one character too far is " re"
+    // for "re", and that difference is the whole point of the read.
+    const flat = (s: string) => s.replace(/\n/g, '');
+    const k = Math.min(before.length, n + 2);
+    let verdict = k > 0 ? 'gave-up' : 'unchecked';
+    let extra = 0;
+    for (let round = 0; k > 0 && round < 3; round++) {
+      const expected = flat(before.slice(-k).join(''));
+      for (let i = 0; i < k; i++) pressGdocsKey(el, SHIFT_LEFT);
+      let read = flat(gdocsMarkedTextNow());
+      let retries = 0;
+      while (read !== expected && [...read].length < [...expected].length && expected.endsWith(read) && retries < 2) {
+        pressGdocsKey(el, SHIFT_LEFT);
+        read = flat(gdocsMarkedTextNow());
+        retries += 1;
+      }
+      pressGdocsKey(el, RIGHT);
+      if (read === expected) {
+        verdict = 'ok';
+        break;
+      }
+      // Backspaces eat from the end, so what a dropped one leaves is the
+      // FIRST d of the deleted characters, still standing after `before`.
+      let d = 0;
+      for (let cand = 1; cand <= n; cand++) {
+        if (flat([...before, ...deleted.slice(0, cand)].slice(-k).join('')) === read) {
+          d = cand;
+          break;
+        }
+      }
+      if (d === 0) {
+        verdict = `unexplained:${read}`;
+        break;
+      }
+      for (let i = 0; i < d; i++) pressGdocsKey(el, BACKSPACE);
+      extra += d;
     }
-    const ok = read === expected;
-    awaLog('gdocs.deleteBack', { count: n, expected, read, retries, ok });
-    if (ok) {
-      this.marked = n;
-    } else {
-      pressGdocsKey(el, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 });
-      for (let i = 0; i < n; i++) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
-    }
+    awaLog('gdocs.deleteBack', { count: n, verdict, extra });
     this.netChars -= n;
     this.deletions += n;
-    this.tail = tail.slice(0, tail.length - n).join('');
+    this.tail = before.join('');
     return { ok: true, verified: false };
   }
 
@@ -406,9 +446,6 @@ export class GDocsAdapter implements InsertionAdapter {
     const el = this.targetEl();
     if (!el) return { ok: false, verified: true, reason: 'Google Docs’ skrivefelt kan ikke nås længere.' };
     if (this.deletions > 0 || this.usedKeys) {
-      // A selection deleteBack() left standing goes with the first Backspace;
-      // it is already off netChars.
-      if (this.marked > 0) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
       for (let i = 0; i < this.netChars; i++) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
       // A list or heading style can outlive its text on the now-empty line.
       if (this.usedKeys) pressGdocsKey(el, { key: '0', code: 'Digit0', keyCode: 48, which: 48, ...gdocsCommandKey(), altKey: true });
@@ -422,7 +459,6 @@ export class GDocsAdapter implements InsertionAdapter {
     this.deletions = 0;
     this.usedKeys = false;
     this.tail = '';
-    this.marked = 0;
     return { ok: true, verified: false };
   }
 }
