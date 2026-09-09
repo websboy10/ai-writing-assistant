@@ -57,13 +57,22 @@ const FIND_BAR_CONTAINER_SELECTOR =
   '.appsDocsUiWizFindbarFindBarContainer, [class*="FindbarFindBarContainer"], .docs-findbar-container';
 
 /**
- * How many matches Docs reports for the current query, or null when no
- * counter can be read (an older find bar, or the bar is closed).
+ * Docs' match counter for the current query — "2 af 5": the match the cursor
+ * is on, and how many there are — or null when no counter can be read (an
+ * older find bar, or the bar is closed).
  *
- * Used to tell "no such text in the document" apart from "not confirmed yet",
- * which the selection channel alone never could: while the find bar is open,
- * focus and the selection mirror belong to the find field, so a read there
- * times out even on a perfectly good match.
+ * The total tells "no such text in the document" apart from "not confirmed
+ * yet", which the selection channel alone never could: while the find bar is
+ * open, focus and the selection mirror belong to the find field, so a read
+ * there times out even on a perfectly good match.
+ *
+ * The current index is what makes a repeated line reachable. Measured
+ * 2026-09-09 (scratchpad probe-find-tab.mjs): typing the query selects the
+ * first match AFTER THE CARET, wrapping; every Enter moves one on; and the
+ * counter's first number is the match's position in the DOCUMENT, wherever
+ * the caret was. Until then this file pressed Enter once per wanted
+ * occurrence, which landed on the second copy of any repeated line — the
+ * observation left open in 07-FINDINGS-docs.md F-8.
  *
  * It is only half the confirmation. The counter belongs to whatever query the
  * bar last ran, so on its own it happily reports a stale match for a search
@@ -71,13 +80,13 @@ const FIND_BAR_CONTAINER_SELECTOR =
  * answer underneath the first. attemptFind clears the field before typing and
  * still verifies the cursor afterwards.
  */
-function findMatchTotal(): number | null {
+function findMatchState(): { current: number; total: number } | null {
   const bar = document.querySelector<HTMLElement>(FIND_BAR_CONTAINER_SELECTOR);
   if (!bar) return null;
   // Digits can only come from the counter — the query lives in an <input>,
   // whose value is not part of innerText.
   const m = bar.innerText.match(/(\d+)\D+(\d+)/);
-  return m ? Number(m[2]) : null;
+  return m ? { current: Number(m[1]), total: Number(m[2]) } : null;
 }
 
 const FIND_BAR_TIMEOUT_MS = 2000;
@@ -151,8 +160,8 @@ function openFindBar(eventTarget: EventTarget): void {
 
 /**
  * One search attempt: put `query` into the find bar, advance to the
- * `occurrence`-th match, close the bar, and only then confirm that the
- * document's cursor really moved there.
+ * `occurrence`-th match in the document, close the bar, and only then confirm
+ * that the document's cursor really moved there.
  *
  * The order matters and was arrived at by measurement, not preference:
  *
@@ -196,19 +205,38 @@ async function attemptFind(
   setFindValue(input, '');
   await new Promise((resolve) => setTimeout(resolve, OCCURRENCE_ADVANCE_DELAY_MS));
   setFindValue(input, query);
-  const matched = await waitFor(() => (findMatchTotal() ?? 0) > 0, SELECTION_TIMEOUT_MS);
+  const escape = () => dispatchKey(input, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+  const matched = await waitFor(() => (findMatchState()?.total ?? 0) > 0, SELECTION_TIMEOUT_MS);
   if (!matched) {
-    dispatchKey(input, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+    escape();
     return { ok: false, reason: `Docs fandt ingen forekomst af "${query.slice(0, 60)}" i dokumentet.` };
   }
 
-  // Enter moves to a match; one press per occurrence, all before the bar closes.
-  for (let i = 0; i < occurrence; i++) {
+  // Typing the query already put the cursor on a match — the first one after
+  // the caret. The counter says which one that is in the document, and Enter
+  // moves one on, wrapping, so the wanted match is a known number of presses
+  // away. Confirmed on the counter before the bar closes.
+  const state = findMatchState()!;
+  if (state.total < occurrence) {
+    escape();
+    return {
+      ok: false,
+      reason: `"${query.slice(0, 60)}" findes ${state.total} gange i dokumentet, men svaret skulle ved forekomst ${occurrence}.`,
+    };
+  }
+  const presses = (occurrence - state.current + state.total) % state.total;
+  for (let i = 0; i < presses; i++) {
     dispatchKey(input, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true });
     await new Promise((resolve) => setTimeout(resolve, OCCURRENCE_ADVANCE_DELAY_MS));
   }
-
-  dispatchKey(input, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+  const arrived = await waitFor(() => findMatchState()?.current === occurrence, SELECTION_TIMEOUT_MS);
+  escape();
+  if (!arrived) {
+    return {
+      ok: false,
+      reason: `Docs nåede ikke frem til forekomst ${occurrence} af "${query.slice(0, 60)}" — markøren stod på en anden.`,
+    };
+  }
 
   const norm = (t: string) => t.replace(/\s+/g, ' ').trim().toLowerCase();
   const wanted = norm(query);
@@ -275,22 +303,24 @@ async function attemptFind(
 }
 
 /**
- * Positions the cursor at the `occurrence`-th match of `questionText`
- * (1-based; default 1). Two identical questions in one run both resolve to
- * the same Find query — the second call passes `occurrence: 2` so the run
- * advances to the second match instead of re-landing on the first
+ * Positions the cursor at the end of a match of `text`'s first line — the
+ * `occurrenceOf(query)`-th match in the document (1-based), asked per query
+ * because the shorter fallback queries below may match more lines than the
+ * whole one does. Two identical lines in one document resolve to the same
+ * query; the caller counts which one it means (docs-source.ts occurrenceOf),
+ * so the run advances to the right copy instead of re-landing on the first
  * (07-05-PLAN.md task 2).
  */
 export async function findAndPlaceCursor(
-  questionText: string,
-  occurrence = 1,
+  text: string,
+  occurrenceOf: (query: string) => number = () => 1,
 ): Promise<{ ok: boolean; reason?: string }> {
   const eventTarget = gdocsEventTarget();
   if (!eventTarget) {
     return { ok: false, reason: 'Google Docs’ skrivefelt blev ikke fundet — er dokumentet åbent i denne fane?' };
   }
 
-  const line = firstLine(questionText).trim();
+  const line = firstLine(text).trim();
   if (!line) {
     return { ok: false, reason: 'Spørgsmålet var tomt efter første linje og kunne derfor ikke findes i dokumentet.' };
   }
@@ -302,12 +332,12 @@ export async function findAndPlaceCursor(
   // question: the answer was typed into "kort sæ|tning", splitting the user's
   // own sentence. So the prefix and the first sentence are fallbacks, in that
   // order, and each is tried only if it is a genuinely different query.
-  const queries = [line, line.slice(0, FIND_QUERY_SHORT_LEN), firstSentence(questionText)].filter(
+  const queries = [line, line.slice(0, FIND_QUERY_SHORT_LEN), firstSentence(text)].filter(
     (q, i, all) => q.trim() && all.indexOf(q) === i,
   );
   let attempt: { ok: true } | { ok: false; reason: string } = { ok: false, reason: '' };
   for (const q of queries) {
-    attempt = await attemptFind(eventTarget, q, occurrence);
+    attempt = await attemptFind(eventTarget, q, occurrenceOf(q));
     if (attempt.ok) break;
   }
   return attempt.ok ? { ok: true } : { ok: false, reason: attempt.reason };

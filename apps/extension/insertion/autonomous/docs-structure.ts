@@ -9,7 +9,9 @@ import { normalizeCellText } from './docs-tables';
  * headings, ordinary paragraphs, list items (bullet or numbered, with depth),
  * and every table cell — INCLUDING the empty ones. An empty cell is the single
  * most important thing in a questionnaire, because it is where the answer
- * goes, and it is the one thing the old plain-text read could not see.
+ * goes, and it is the one thing the old plain-text read could not see. A cell
+ * of several lines is one paragraph whose `lastLine` is kept, so an answer
+ * can be put under the cell's text with Find, which sees one line at a time.
  *
  * Empty paragraphs outside tables are still dropped, as the text read always
  * dropped them: a blank line between two questions is spacing, not a place.
@@ -26,12 +28,6 @@ import { normalizeCellText } from './docs-tables';
  * (docs-tables.ts, and markedRange below) is unit-tested.
  */
 
-export interface DocsStructure {
-  paragraphs: AutonomousParagraph[];
-  /** Every cell in document order — the same order a person tabs through. What docs-tables.ts places by. */
-  cells: string[];
-}
-
 /** Bold as Docs writes it: every text-bearing span carries font-weight 700, or a <b> that is not its wrapper. */
 function isWholeBold(el: Element): boolean {
   const spans = Array.from(el.querySelectorAll('span')).filter((s) => (s.textContent ?? '').trim());
@@ -39,10 +35,24 @@ function isWholeBold(el: Element): boolean {
   return spans.every((s) => /font-weight:\s*(700|bold)/i.test(s.getAttribute('style') ?? ''));
 }
 
-export function parseDocsHtml(html: string): DocsStructure {
+const BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6';
+
+/**
+ * A cell's lines, as Docs paragraphs them. Docs wraps every line of a cell
+ * in its own <p>, and reading the cell's textContent glued them together:
+ * the operator's worksheet (2026-09-09) read "Manden skal herskefortsæt
+ * herunder…" for a cell of two lines. The lines are what Find can look for,
+ * one at a time, so the last of them is kept when there are several.
+ */
+function cellLines(td: Element): string[] {
+  const blocks = Array.from(td.querySelectorAll(BLOCK_SELECTOR));
+  const lines = (blocks.length ? blocks.map((b) => b.textContent ?? '') : [td.textContent ?? '']).map(normalizeCellText).filter(Boolean);
+  return lines;
+}
+
+export function parseDocsHtml(html: string): AutonomousParagraph[] {
   const paragraphs: AutonomousParagraph[] = [];
-  const cells: string[] = [];
-  if (!html) return { paragraphs, cells };
+  if (!html) return paragraphs;
 
   const doc = new DOMParser().parseFromString(html, 'text/html');
   let tableIndex = -1;
@@ -91,9 +101,13 @@ export function parseDocsHtml(html: string): DocsStructure {
           Array.from(tr.children)
             .filter((c) => c.tagName === 'TD' || c.tagName === 'TH')
             .forEach((td, col) => {
-              const text = normalizeCellText(td.textContent ?? '');
-              cells.push(text);
-              push({ text, kind: 'cell', cell: { table: tableIndex, row, col } });
+              const lines = cellLines(td);
+              push({
+                text: lines.join(' '),
+                kind: 'cell',
+                cell: { table: tableIndex, row, col },
+                ...(lines.length > 1 ? { lastLine: lines[lines.length - 1] } : {}),
+              });
             });
         });
       } else {
@@ -106,7 +120,7 @@ export function parseDocsHtml(html: string): DocsStructure {
   };
 
   visit(doc.body);
-  return { paragraphs, cells };
+  return paragraphs;
 }
 
 const collapse = (s: string) => s.replace(/\s+/g, ' ').trim();

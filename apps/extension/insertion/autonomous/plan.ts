@@ -11,9 +11,13 @@ import type { AutonomousAnswer } from '@awa/shared';
  * it rather than sitting here with nothing calling it.
  */
 
-/** Sort by `paragraphIndex`, stable for ties. */
+/**
+ * Sort by the place each fill lands at (`at`), stable for ties. The place,
+ * not the question: a grid's cells are filled row by row down the page, and
+ * every Find on the way counts what stands above it (docs-source.ts).
+ */
 export function orderForRun(answers: AutonomousAnswer[]): AutonomousAnswer[] {
-  return [...answers].sort((a, b) => a.paragraphIndex - b.paragraphIndex);
+  return [...answers].sort((a, b) => a.at - b.at || a.paragraphIndex - b.paragraphIndex);
 }
 
 /**

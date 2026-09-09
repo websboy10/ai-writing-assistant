@@ -59,6 +59,7 @@ class Autonomous {
       ...(source.marked ? { marked: source.marked } : {}),
       context: store.context.length ? store.context : undefined,
       prefs: store.prefs,
+      fills: true,
     };
 
     useStore.getState().set({
@@ -110,7 +111,10 @@ class Autonomous {
     const answers = data.answers.map((a) => ({ ...a, answer: stripMarkdown(a.answer), markdown: a.answer }));
     // What the model actually sent, before any of it is typed: the only way
     // to tell "the model wrote bullets" from "the run typed them wrong".
-    awaLog('autonomous.answers', { detected: data.detected, answers: data.answers.map((a) => ({ i: a.paragraphIndex, md: a.answer })) });
+    awaLog('autonomous.answers', {
+      detected: data.detected,
+      answers: data.answers.map((a) => ({ i: a.paragraphIndex, at: a.at, mode: a.mode, task: a.task ?? null, md: a.answer })),
+    });
     const ungrounded = answers.filter((a) => !a.grounded).map((a) => a.questionText);
 
     const cb: RunCallbacks = {

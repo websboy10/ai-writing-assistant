@@ -51,15 +51,20 @@ type SessionOutcome = 'done' | 'error' | 'stopped';
  * can slow down in that case. The transport bar must never show a countdown
  * or an ETA — either would become a lie the moment that throttling kicks in.
  */
+/** What a fill is called in the panel and the block: its task when the model gave one ("Manden? for 1. Korintherbrev 11,3"), else its question. */
+function labelOf(a: AutonomousAnswer): string {
+  return a.task ?? a.questionText;
+}
+
 /**
- * The block composition a 'block'-placement source gets: every question with
- * its own answer beneath it, in document order. The question is repeated
- * because a block lands at the cursor, far from the questions it answers —
- * without it the user gets a wall of answers with nothing to match them to.
+ * The block composition a 'block'-placement source gets: every fill with its
+ * own answer beneath it, in document order. The label is repeated because a
+ * block lands at the cursor, far from the questions it answers — without it
+ * the user gets a wall of answers with nothing to match them to.
  */
 function composeBlockText(answers: AutonomousAnswer[]): string {
   return orderForRun(answers)
-    .map((a) => `${a.questionText}\n${a.answer}`)
+    .map((a) => `${labelOf(a)}\n${a.answer}`)
     .join('\n\n');
 }
 
@@ -251,15 +256,18 @@ export class AutonomousRun {
       const target = await this.source.locate({
         paragraphIndex: answer.paragraphIndex,
         questionText: answer.questionText,
-        ...(answer.answerAt !== undefined ? { answerAt: answer.answerAt } : {}),
+        ...(answer.task ? { task: answer.task } : {}),
+        at: answer.at,
+        mode: answer.mode,
+        answer: answer.answer,
       });
 
       if (!target) {
         this.cb.onUnplaced({
-          questionText: answer.questionText,
+          questionText: labelOf(answer),
           reason:
             this.source.lastLocateReason?.() ||
-            `Spørgsmålet "${answer.questionText}" kunne ikke placeres i teksten.`,
+            `Spørgsmålet "${labelOf(answer)}" kunne ikke placeres i teksten.`,
         });
         this.reportProgress();
         continue;
@@ -285,11 +293,12 @@ export class AutonomousRun {
   private runOneSession(target: SavedTarget, answer: AutonomousAnswer): Promise<SessionOutcome> {
     return new Promise((resolve) => {
       const adapter = adapterFor(target);
-      // The caret sits right after the question's text (locate() collapsed
-      // it there) — prefixing a newline puts the answer on the line below,
-      // never appended onto the question's own line. Inside an answer box
-      // the caret already stands where the answer starts, so no newline.
-      const lead = target.inBox ? '' : '\n';
+      // The caret sits right after a line of the document's text (locate()
+      // collapsed it there) — prefixing a newline puts the answer on the
+      // line below, never appended onto that line. Inside an answer box the
+      // caret already stands where the answer starts, so no newline; and an
+      // inline fill ("Navn:") goes on the same line, after a space.
+      const lead = target.inBox ? '' : answer.mode === 'inline' ? ' ' : '\n';
       const text = `${lead}${answer.answer}`;
       // The formatted form, for an editor that can type formatting (Google
       // Docs). Same leading newline, so the two never disagree about where the
@@ -317,7 +326,7 @@ export class AutonomousRun {
             return;
           }
           if (state === 'done') {
-            this.completed.push({ session, label: answer.questionText });
+            this.completed.push({ session, label: labelOf(answer) });
             this.currentSession = null;
             this.reportProgress();
             resolve('done');
@@ -354,7 +363,7 @@ export class AutonomousRun {
   private runBlockSession(): Promise<void> {
     return new Promise((resolve) => {
       void (async () => {
-        const target = await this.source.locate({ paragraphIndex: 0, questionText: '' });
+        const target = await this.source.locate({ paragraphIndex: 0, questionText: '', at: 0, mode: 'below', answer: '' });
         if (!target) {
           this.state = 'error';
           this.cb.onRunState(

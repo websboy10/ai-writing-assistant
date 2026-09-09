@@ -1,4 +1,4 @@
-import type { AutonomousParagraph } from '@awa/shared';
+import type { AutonomousParagraph, FillMode } from '@awa/shared';
 import type { EditorKind } from '../types';
 import type { SavedTarget } from '../target';
 import { resolveDocsSource } from './docs-source';
@@ -7,9 +7,24 @@ const BLOCK_SELECTOR = 'p, div, li, h1, h2, h3, h4, h5, h6';
 const REASON_PREVIEW_LEN = 60;
 
 /**
- * Reads questions out of a target and places the cursor under one.
+ * One fill to place: the question it answers, the paragraph it lands at or
+ * under and how (AutonomousAnswer.at / mode), and the flat text about to be
+ * typed — which a Docs source remembers, since every later Find has to count
+ * it (docs-source.ts occurrenceOf).
+ */
+export interface FillTarget {
+  paragraphIndex: number;
+  questionText: string;
+  task?: string;
+  at: number;
+  mode: FillMode;
+  answer: string;
+}
+
+/**
+ * Reads questions out of a target and places the cursor where one fill goes.
  *
- * `locate()` is called once per answer, immediately before that answer is
+ * `locate()` is called once per fill, immediately before that answer is
  * written, never up front (D-03): writing under question 1 moves question 2
  * down the page, so only the CURRENT content can be trusted. A match that is
  * absent, or ambiguous within the remaining region, returns `null` — never a
@@ -35,7 +50,7 @@ export interface QuestionSource {
    */
   readonly marked?: { from: number; to: number };
   read(): Promise<AutonomousParagraph[]>;
-  locate(q: { paragraphIndex: number; questionText: string; answerAt?: number }): Promise<SavedTarget | null>;
+  locate(fill: FillTarget): Promise<SavedTarget | null>;
   /**
    * Rule 2 addition (not in the plan's literal interface): a specific reason
    * for the most recent locate() miss, distinguishing "not found" from
@@ -72,6 +87,8 @@ class DomSource implements QuestionSource {
   private searchFromChar = 0;
   private searchFromBlock = 0;
   private reason = '';
+  /** What read() returned, so a fill that continues under a line other than its question can name that line. */
+  private paragraphs: AutonomousParagraph[] = [];
 
   constructor(
     private target: SavedTarget,
@@ -103,7 +120,8 @@ class DomSource implements QuestionSource {
         const b = this.target.selEnd ?? text.length;
         text = text.slice(a, b);
       }
-      return linesToParagraphs(text);
+      this.paragraphs = linesToParagraphs(text);
+      return this.paragraphs;
     }
     const blocks = this.currentBlocks();
     const out: AutonomousParagraph[] = [];
@@ -111,13 +129,20 @@ class DomSource implements QuestionSource {
       const text = (b.textContent ?? '').trim();
       if (text) out.push({ index: out.length, text });
     }
+    this.paragraphs = out;
     return out;
   }
 
-  async locate(q: { paragraphIndex: number; questionText: string }): Promise<SavedTarget | null> {
+  /**
+   * A DOM source has no cells or empty items to offer, so every fill lands
+   * at the end of a line of text: the question, or — for a fill the model
+   * put under some other line — that line.
+   */
+  async locate(fill: FillTarget): Promise<SavedTarget | null> {
     this.reason = '';
-    if (this.target.kind === 'plain') return this.locatePlain(q.questionText);
-    return this.locateCE(q.questionText);
+    const line = fill.mode !== 'fill' && fill.at !== fill.paragraphIndex ? (this.paragraphs[fill.at]?.text ?? fill.questionText) : fill.questionText;
+    if (this.target.kind === 'plain') return this.locatePlain(line);
+    return this.locateCE(line);
   }
 
   // ---- plain ----

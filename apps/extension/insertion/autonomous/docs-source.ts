@@ -4,9 +4,9 @@ import type { SavedTarget } from '../target';
 import { gdocsEventTarget, gdocsSelectionNow, gdocsWholeDocumentNow, pressGdocsKey, type GDocsRead } from '../target';
 import { GDocsAdapter } from '../adapters/gdocs';
 import { findAndPlaceCursor } from './docs-find';
-import { answerCellFor, boxBelowFor, slotPlanFor, type SlotPlan } from './docs-tables';
+import { boxBelowFor, findLine, normalizeCellText, slotPlanFor, type SlotPlan } from './docs-tables';
 import { markedRange, parseDocsHtml } from './docs-structure';
-import type { QuestionSource } from './locator';
+import type { FillTarget, QuestionSource } from './locator';
 import { awaLog } from '../debug';
 
 /**
@@ -44,12 +44,12 @@ const markedMirror = gdocsSelectionNow;
  * html falls back to the line split this always used, so a document Docs
  * serialises oddly is still answered, on the old terms, rather than not at all.
  */
-function readToParagraphs(read: GDocsRead): { paragraphs: AutonomousParagraph[]; cells: string[] } {
+function readToParagraphs(read: GDocsRead): AutonomousParagraph[] {
   if (read.html) {
-    const structure = parseDocsHtml(read.html);
-    if (structure.paragraphs.length) return structure;
+    const paragraphs = parseDocsHtml(read.html);
+    if (paragraphs.length) return paragraphs;
   }
-  return { paragraphs: linesToParagraphs(read.text), cells: [] };
+  return linesToParagraphs(read.text);
 }
 
 /** Local copy of locator.ts's private helper — DomSource's selection-text splitting, reused for the two Docs sources that read their text out of Docs itself. */
@@ -126,6 +126,23 @@ async function walkIntoBox(el: HTMLElement, into: 'table' | 'list'): Promise<boo
   return false;
 }
 
+async function tabs(el: HTMLElement, times: number): Promise<void> {
+  for (let i = 0; i < times; i++) {
+    pressGdocsKey(el, KEY.tab);
+    await settle(TAB_SETTLE_MS);
+  }
+}
+
+/** Non-overlapping occurrences of `needle` in `hay`, both normalised the way Docs' Find matches: whitespace collapsed, case ignored. */
+function countMatches(hay: string, needle: string): number {
+  const h = normalizeCellText(hay).toLowerCase();
+  const n = normalizeCellText(needle).toLowerCase();
+  if (!n) return 0;
+  let count = 0;
+  for (let i = h.indexOf(n); i !== -1; i = h.indexOf(n, i + n.length)) count += 1;
+  return count;
+}
+
 // ---- GDocsFindSource — the primary path (D-16 steps 2-3): zero writes ----
 
 /**
@@ -139,14 +156,20 @@ class GDocsFindSource implements QuestionSource {
   readonly label = 'Google Docs-dokument';
   readonly placement = 'in-place' as const;
   private reason = '';
-  // Duplicate question text within one run must resolve to the SECOND match
-  // on its SECOND locate() call, not the first again (07-05-PLAN.md task 2).
-  private occurrenceSeen = new Map<string, number>();
+  /**
+   * What this run has already typed, by the paragraph it went at or under.
+   * Find counts every copy of a line in the document, and by the time the
+   * tenth cell of a grid is placed, nine answers stand between the top of
+   * the document and its anchor — any of them may repeat the anchor's words.
+   * The last located fill is added here the moment the NEXT locate() is
+   * asked for: the orchestrator only asks once the previous answer is fully
+   * in the document, and a fill it could not place typed nothing.
+   */
+  private typed: { at: number; text: string }[] = [];
+  private pending: { at: number; text: string } | null = null;
 
-  /** `tableCells` is empty for every document without tables, and for every failed read — both mean "place the answer exactly as before". */
   constructor(
     private paragraphs: AutonomousParagraph[],
-    private tableCells: string[] = [],
     /** "Besvar markeringen": where in `paragraphs` (the whole document) the marking sits. See QuestionSource. */
     readonly marked?: { from: number; to: number },
   ) {}
@@ -159,93 +182,81 @@ class GDocsFindSource implements QuestionSource {
     return this.reason;
   }
 
-  async locate(q: { paragraphIndex: number; questionText: string; answerAt?: number }): Promise<SavedTarget | null> {
+  /**
+   * Which match of `query` the anchor paragraph holds, counted through every
+   * paragraph and every typed answer that stands before it in the document.
+   * Docs' Find lands by document position (docs-find.ts findMatchState), so
+   * this is the one number that reaches the right copy of a repeated line
+   * wherever the caret is.
+   */
+  private occurrenceOf(query: string, anchorIndex: number): number {
+    let before = 0;
+    for (const p of this.paragraphs) if (p.index < anchorIndex) before += countMatches(p.text, query);
+    for (const t of this.typed) if (t.at < anchorIndex) before += countMatches(t.text, query);
+    return before + 1;
+  }
+
+  private find(anchor: string, anchorIndex: number) {
+    return findAndPlaceCursor(anchor, (q) => this.occurrenceOf(q, anchorIndex));
+  }
+
+  async locate(fill: FillTarget): Promise<SavedTarget | null> {
     this.reason = '';
-    const occurrence = (this.occurrenceSeen.get(q.questionText) ?? 0) + 1;
-    this.occurrenceSeen.set(q.questionText, occurrence);
+    if (this.pending) {
+      this.typed.push(this.pending);
+      this.pending = null;
+    }
+    const target = await this.place(fill);
+    awaLog('docs.locate', { q: (fill.task ?? fill.questionText).slice(0, 40), index: fill.paragraphIndex, at: fill.at, mode: fill.mode, placed: !!target, inBox: !!target?.inBox });
+    if (target) this.pending = { at: fill.at, text: fill.answer };
+    return target;
+  }
 
-    // The model's plan first: it read the whole form and named the empty
-    // place this answer belongs in (AutonomousAnswer.answerAt). Checked here
-    // against the same paragraphs it saw, and carried out only by moves that
-    // are known to arrive; anything else falls through to the rules below.
-    const plan = slotPlanFor(this.paragraphs, q);
-    if (plan.kind === 'occupied') {
-      this.reason =
-        `Svarfeltet til "${q.questionText}" er ikke tomt — der står "${plan.text}" i det. ` +
-        'Svaret blev ikke skrevet, for det ville have overskrevet din egen tekst.';
+  private async place(fill: FillTarget): Promise<SavedTarget | null> {
+    if (fill.mode === 'fill') {
+      // The model's plan first: it read the whole form and named the empty
+      // place this answer belongs in. Checked here against the same
+      // paragraphs it saw, and carried out only by moves that are known to
+      // arrive; anything else goes under the question, as before the plan.
+      const plan = slotPlanFor(this.paragraphs, fill);
+      if (plan.kind === 'occupied') {
+        this.reason =
+          `Svarfeltet til "${fill.task ?? fill.questionText}" er ikke tomt — der står "${plan.text}" i det. ` +
+          'Svaret blev ikke skrevet, for det ville have overskrevet din egen tekst.';
+        return null;
+      }
+      if (plan.kind !== 'none') {
+        const placed = await this.placeByPlan(plan);
+        awaLog('docs.plan', { at: fill.at, plan: plan.kind, anchor: plan.anchor.slice(0, 40), placed: !!placed });
+        if (placed) return placed;
+      }
+      return this.placeUnderQuestion(fill);
+    }
+    if (fill.at === fill.paragraphIndex) return this.placeUnderQuestion(fill);
+    // "below" or "inline" at a line of the document's own text: the end of
+    // that line, found by its last line when the cell has several.
+    const p = this.paragraphs[fill.at];
+    if (!p || !p.text) {
+      this.reason = `Stedet til "${fill.task ?? fill.questionText}" blev ikke fundet i dokumentet.`;
       return null;
     }
-    if (plan.kind !== 'none') {
-      const placed = await this.placeByPlan(plan);
-      awaLog('docs.locate', { q: q.questionText.slice(0, 40), index: q.paragraphIndex, plan: plan.kind, answerAt: q.answerAt, placed: !!placed });
-      if (placed) return placed;
-    }
+    return this.atEndOf(findLine(p), fill.at);
+  }
 
-    // Decided BEFORE Find, so a question whose answer box is occupied costs
-    // nothing at all: no search, no cursor moved, no keystroke sent into the
-    // user's document. Refusing after the fact would leave the caret parked in
-    // their text with nothing to show for it.
-    const verdict = answerCellFor(this.tableCells, q.questionText, occurrence);
-    if (verdict.kind === 'occupied-next-cell') {
-      this.reason =
-        `Svarfeltet ved siden af "${q.questionText}" er ikke tomt — der står "${verdict.text}" i det. ` +
-        'Svaret blev ikke skrevet, for det ville have overskrevet din egen tekst.';
-      return null;
-    }
-    if (verdict.kind === 'last-cell') {
-      this.reason = `"${q.questionText}" står i tabellens sidste celle, så der er ingen celle at skrive svaret i.`;
-      return null;
-    }
-    // The worksheet shape — the question as a line of text, a box drawn under
-    // it. Only looked at when the question is in no cell at all.
-    const below = verdict.kind === 'outside-table' ? boxBelowFor(this.paragraphs, q) : { kind: 'none' as const };
-    awaLog('docs.locate', { q: q.questionText.slice(0, 40), index: q.paragraphIndex, cell: verdict.kind, below: below.kind });
-    if (below.kind === 'occupied-box-below') {
-      this.reason =
-        `Svarboksen under "${q.questionText}" er ikke tom — der står "${below.text}" i den. ` +
-        'Svaret blev ikke skrevet, for det ville have overskrevet din egen tekst.';
-      return null;
-    }
-
-    // D-03: re-run Find for THIS question right now — the document grows as
-    // answers land, so a position measured earlier would be stale. When the
-    // box sits past a run of guidance lines, Find lands on the LAST of those
-    // instead (docs-tables.ts `via`), so ArrowDown walks into the box from
-    // the line directly above it.
-    const via = 'via' in below ? below.via : undefined;
-    const found = await findAndPlaceCursor(via ?? q.questionText, via ? 1 : occurrence);
-    if (!found.ok) {
-      this.reason = found.reason ?? `Spørgsmålet "${q.questionText}" kunne ikke findes i dokumentet.`;
-      return null; // never a bare cursor target on a find failure
-    }
-    const el = gdocsEventTarget();
-    if (!el) {
-      this.reason = 'Google Docs-inputmålet blev ikke fundet efter positionering.';
-      return null;
-    }
-
-    if (verdict.kind === 'empty-next-cell') {
-      // Find leaves the caret at the end of the question, inside the question's
-      // OWN cell (docs-find.ts collapses the match there). One Tab is what
-      // moves it on to the next cell in document order — Docs' own behaviour,
-      // measured 2026-09-08, and the same order a person tabbing through the
-      // form would follow. No heuristic decides which cell belongs to which
-      // question, because Tab already answers that.
-      pressGdocsKey(el, { key: 'Tab', code: 'Tab', keyCode: 9, which: 9 });
-      // A fixed wait, unlike every other settle in this path, because there is
-      // nothing to observe: the selection mirror is empty on both sides of the
-      // Tab, so it cannot say whether the caret moved. It is the same interval
-      // Find already allows Docs between its own keystrokes.
-      await new Promise((resolve) => setTimeout(resolve, TAB_SETTLE_MS));
-      return { kind: 'gdocs', element: el, label: this.label, inBox: true };
-    }
-
-    if (below.kind === 'empty-box-below' || below.kind === 'empty-list-item-below') {
+  /**
+   * Under the question: into the empty box or list item drawn under it when
+   * there is one (the worksheet shape, docs-tables.ts boxBelowFor), else on
+   * the line below it.
+   */
+  private async placeUnderQuestion(fill: FillTarget): Promise<SavedTarget | null> {
+    const below = boxBelowFor(this.paragraphs, fill);
+    if (below.kind !== 'none') {
+      const found = await this.find(below.anchor, below.anchorIndex);
+      const el = found.ok ? gdocsEventTarget() : null;
       // The box is the next STRUCTURE below, but the html cannot say how many
       // blank lines sit before it — one ArrowDown landed on such a blank line
       // in the operator's own form (2026-09-08). The walk measures it.
-      const into = below.kind === 'empty-box-below' ? 'table' : 'list';
-      if (await walkIntoBox(el, into)) {
+      if (el && (await walkIntoBox(el, below.kind === 'empty-box-below' ? 'table' : 'list'))) {
         return {
           kind: 'gdocs',
           element: el,
@@ -255,20 +266,38 @@ class GDocsFindSource implements QuestionSource {
         };
       }
     }
+    // The question by index, trusted only when its text agrees with what
+    // the model quoted; else by the quote itself.
+    const p = this.paragraphs[fill.paragraphIndex];
+    const wanted = normalizeCellText(fill.questionText).toLowerCase();
+    const anchor = p && p.text.toLowerCase().includes(wanted) ? findLine(p) : fill.questionText;
+    return this.atEndOf(anchor, fill.paragraphIndex);
+  }
 
+  /** The caret at the end of `anchor`'s line — the D-03 re-run of Find for THIS fill, right now, since the document grows as answers land. */
+  private async atEndOf(anchor: string, anchorIndex: number): Promise<SavedTarget | null> {
+    const found = await this.find(anchor, anchorIndex);
+    if (!found.ok) {
+      this.reason = found.reason ?? `"${anchor}" kunne ikke findes i dokumentet.`;
+      return null; // never a bare cursor target on a find failure
+    }
+    const el = gdocsEventTarget();
+    if (!el) {
+      this.reason = 'Google Docs-inputmålet blev ikke fundet efter positionering.';
+      return null;
+    }
     return { kind: 'gdocs', element: el, label: this.label };
   }
 
-  /** The plan's keystrokes, from its anchor. Null when the anchor cannot be found or the walk finds no box, so the rules in locate() take over. */
+  /** The plan's keystrokes, from its anchor. Null when the anchor cannot be found or the walk finds no box, so the caller falls back. */
   private async placeByPlan(plan: Exclude<SlotPlan, { kind: 'none' | 'occupied' }>): Promise<SavedTarget | null> {
-    const found = await findAndPlaceCursor(plan.anchor, plan.occurrence);
+    const found = await this.find(plan.anchor, plan.anchorIndex);
     if (!found.ok) return null;
     const el = gdocsEventTarget();
     if (!el) return null;
     const target: SavedTarget = { kind: 'gdocs', element: el, label: this.label, inBox: true };
     if (plan.kind === 'tab') {
-      pressGdocsKey(el, KEY.tab);
-      await settle(TAB_SETTLE_MS);
+      await tabs(el, plan.times);
       return target;
     }
     if (plan.kind === 'down') {
@@ -279,7 +308,11 @@ class GDocsFindSource implements QuestionSource {
       return { ...target, inList: plan.list };
     }
     if (!(await walkIntoBox(el, plan.into))) return null;
-    return plan.into === 'list' && plan.list ? { ...target, inList: plan.list } : target;
+    if (plan.into === 'table') {
+      await tabs(el, plan.tabs ?? 0);
+      return target;
+    }
+    return plan.list ? { ...target, inList: plan.list } : target;
   }
 }
 
@@ -372,15 +405,15 @@ async function pickDocsSource(scope: 'document' | 'selection'): Promise<Question
     throw new Error(selfTest.reason ?? 'Google Docs-indsættelse virker ikke lige nu.');
   }
 
-  let { paragraphs, cells } = readToParagraphs(scope === 'selection' ? markedMirror() : gdocsWholeDocumentNow());
+  let paragraphs = readToParagraphs(scope === 'selection' ? markedMirror() : gdocsWholeDocumentNow());
   let marked: { from: number; to: number } | undefined;
   if (scope === 'selection' && paragraphs.length) {
     // The marking is read BEFORE the whole document: select-all replaces it.
     const whole = readToParagraphs(gdocsWholeDocumentNow());
-    const range = markedRange(whole.paragraphs, paragraphs);
-    awaLog('docs.marked', { markedLines: paragraphs.length, wholeLines: whole.paragraphs.length, range });
+    const range = markedRange(whole, paragraphs);
+    awaLog('docs.marked', { markedLines: paragraphs.length, wholeLines: whole.length, range });
     if (range) {
-      ({ paragraphs, cells } = whole);
+      paragraphs = whole;
       marked = range;
     }
   }
@@ -402,9 +435,9 @@ async function pickDocsSource(scope: 'document' | 'selection'): Promise<Question
   // which read as "empty document" and sent the whole run down the
   // nothing-found path.
   const probeText = paragraphs.find((p) => p.text.trim())?.text;
-  if (!probeText) return new GDocsFindSource(paragraphs, cells, marked);
+  if (!probeText) return new GDocsFindSource(paragraphs, marked);
 
   const probe = await findAndPlaceCursor(probeText);
-  if (probe.ok) return new GDocsFindSource(paragraphs, cells, marked);
+  if (probe.ok) return new GDocsFindSource(paragraphs, marked);
   return new GDocsPasteSource(paragraphs, pasteReasonForFindFailure(probe.reason));
 }
