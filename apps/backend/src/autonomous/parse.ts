@@ -60,6 +60,34 @@ export function validateParagraphs(paragraphs: unknown): AutonomousParagraph[] |
 }
 
 /**
+ * Bold, gone before the answer leaves the server.
+ *
+ * The operator's rule (2026-09-09): nothing this product writes is ever bold.
+ * The prompt says so; this is the promise behind it, and it holds for every
+ * extension already installed the moment the backend is deployed. The two
+ * shapes are the ones the extension's own strippers recognise (plaintext.ts,
+ * richsteps.ts), so a lone asterisk or a snake_case word survives unchanged.
+ */
+export function stripBold(text: string): string {
+  return text
+    .replace(/(\*{2})(?=\S)([\s\S]*?\S)\1/g, '$2')
+    .replace(/(?<![\w\\])(_{2})(?=\S)([^\n]*?\S)\1(?!\w)/g, '$2');
+}
+
+/**
+ * The paragraphs the user marked, as a range into the paragraph list: the
+ * questions to answer lie inside it, the rest of the document is context.
+ * Untrusted like everything else in the body — both ends must be integers
+ * inside the list, in order.
+ */
+export function validateMarked(marked: unknown, paragraphCount: number): { from: number; to: number } | undefined {
+  if (!marked || typeof marked !== 'object') return undefined;
+  const { from, to } = marked as Record<string, unknown>;
+  if (!smallInt(from, 0, paragraphCount - 1) || !smallInt(to, 0, paragraphCount - 1) || to < from) return undefined;
+  return { from, to };
+}
+
+/**
  * The model's chosen place for an answer is an index into OUR paragraph list,
  * so it is checked against that list, never trusted: it must be an empty
  * cell or list item, after the question, and claimed by one question only.
@@ -113,8 +141,18 @@ function extractJsonArray(raw: string): unknown[] | null {
  * it is, quoted from the paragraph. `paragraphIndex` is validated against
  * `paragraphCount` — the length of the paragraph array WE built and sent —
  * never trusted as an offset into anything else (RESEARCH.md Pitfall 3).
+ *
+ * With a `marked` range ("Besvar markeringen"), a question outside it is
+ * dropped here whatever the model thought: the user marked what they wanted
+ * answered, and the rest of the document was sent so the model could see the
+ * boxes, not so it could fill them.
  */
-export function parseDetection(raw: string, paragraphCount: number, paragraphs?: AutonomousParagraph[]): DetectedQuestion[] {
+export function parseDetection(
+  raw: string,
+  paragraphCount: number,
+  paragraphs?: AutonomousParagraph[],
+  marked?: { from: number; to: number },
+): DetectedQuestion[] {
   const items = extractJsonArray(raw);
   if (!items) return [];
 
@@ -128,6 +166,7 @@ export function parseDetection(raw: string, paragraphCount: number, paragraphs?:
     const paragraphIndex = rec.paragraphIndex;
     if (!Number.isInteger(paragraphIndex)) continue;
     if ((paragraphIndex as number) < 0 || (paragraphIndex as number) >= paragraphCount) continue;
+    if (marked && ((paragraphIndex as number) < marked.from || (paragraphIndex as number) > marked.to)) continue;
 
     const questionText = rec.questionText;
     if (typeof questionText !== 'string' || !questionText.trim()) continue;
@@ -179,7 +218,7 @@ function positionalFallback(
       paragraphIndex: asked[i].paragraphIndex,
       questionText: asked[i].questionText,
       ...(asked[i].answerAt !== undefined ? { answerAt: asked[i].answerAt } : {}),
-      answer: typeof rec.answer === 'string' ? rec.answer : '',
+      answer: typeof rec.answer === 'string' ? stripBold(rec.answer) : '',
       grounded: typeof rec.grounded === 'boolean' ? rec.grounded : true,
     }))
     .filter((a) => a.answer.trim().length > 0);
@@ -217,7 +256,7 @@ export function parseAnswers(raw: string, askedQuestions: DetectedQuestion[]): A
     if (!asked) continue;
     if (seen.has(paragraphIndex as number)) continue;
 
-    const answer = typeof rec.answer === 'string' ? rec.answer : '';
+    const answer = typeof rec.answer === 'string' ? stripBold(rec.answer) : '';
     // An empty answer is not an answer. Writing it puts a blank line into the
     // user's document under their question, which reads as a bug they caused
     // — measured happening to 5 of 10 questions in one live run. Dropping it

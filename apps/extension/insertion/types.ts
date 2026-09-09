@@ -9,7 +9,7 @@ export type EditorKind = 'plain' | 'contenteditable' | 'gdocs';
  * edge, which Docs trims (scripts/probe-docs-space.mjs — `beforeinput` puts a
  * real U+0020 there).
  */
-export type FormatKey = 'bold' | 'italic' | 'h1' | 'h2' | 'h3' | 'normal' | 'bullets' | 'numbered' | 'enter' | 'space';
+export type FormatKey = 'italic' | 'h1' | 'h2' | 'h3' | 'normal' | 'bullets' | 'numbered' | 'enter' | 'space';
 
 export interface InsertResult {
   ok: boolean;
@@ -30,16 +30,16 @@ export interface InsertionAdapter {
   /** Insert one chunk at the current position. Must verify when possible. */
   insert(chunk: string): InsertResult;
   /**
-   * Insert the whole text as REAL formatting — headings, bold, actual list
-   * items — instead of characters that merely look like them.
+   * Insert the whole text as REAL formatting — headings, actual list items —
+   * instead of characters that merely look like them. Never bold (richtext.ts).
    *
    * Present only on adapters whose editor can hold structure at all. A
    * <textarea> physically cannot, so PlainAdapter omits it and nothing
    * changes there.
    *
    * Only "Indsæt straks" uses it, and that is not a temporary limitation:
-   * paced mode types one code point at a time, and half a bold sentence is
-   * not a thing that can be inserted. `plain` is carried alongside so the
+   * paced mode types one code point at a time, and half a formatted sentence
+   * is not a thing that can be inserted. `plain` is carried alongside so the
    * adapter can hand the editor both flavours in one paste and let it choose.
    */
   insertRich?(html: string, plain: string): InsertResult;
@@ -47,7 +47,7 @@ export interface InsertionAdapter {
    * Press one formatting shortcut, or one of the two keys the paste channel
    * cannot deliver. This is how paced mode carries formatting at all: the
    * engine keeps typing characters and, between them, does what a person
-   * does — Cmd+B, type the word, Cmd+B again.
+   * does — Cmd+I, type the word, Cmd+I again.
    *
    * Measured against a live document 2026-09-08 (scripts/probe-docs-typing-format.mjs):
    * every key below produced the real thing in Docs, 8 of 8. Only editors that

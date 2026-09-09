@@ -22,11 +22,10 @@ type WindowLike = { setTimeout: typeof setTimeout; clearTimeout: typeof clearTim
  *   - a block key sets the current line's kind; `normal` resets it
  *   - a toggle flips a mark; Backspace removes the last character
  */
-type Char = { c: string; b: boolean; i: boolean };
+type Char = { c: string; i: boolean };
 
 class DocModel {
   lines: { kind: string; text: Char[] }[] = [{ kind: 'p', text: [] }];
-  bold = false;
   italic = false;
   private inList: 'ul' | 'ol' | null = null;
 
@@ -34,13 +33,10 @@ class DocModel {
     return this.lines[this.lines.length - 1];
   }
   type(t: string) {
-    for (const c of t) this.cur().text.push({ c, b: this.bold, i: this.italic });
+    for (const c of t) this.cur().text.push({ c, i: this.italic });
   }
   press(key: FormatKey) {
     switch (key) {
-      case 'bold':
-        this.bold = !this.bold;
-        return;
       case 'italic':
         this.italic = !this.italic;
         return;
@@ -78,13 +74,8 @@ class DocModel {
     return this.lines
       .map((l) => {
         let out = '';
-        let b = false;
         let it = false;
         for (const ch of l.text) {
-          if (ch.b !== b) {
-            out += ch.b ? '<b>' : '</b>';
-            b = ch.b;
-          }
           if (ch.i !== it) {
             out += ch.i ? '<i>' : '</i>';
             it = ch.i;
@@ -92,7 +83,6 @@ class DocModel {
           out += ch.c;
         }
         if (it) out += '</i>';
-        if (b) out += '</b>';
         return `${l.kind}:${out}`;
       })
       .join('\n');
@@ -174,8 +164,17 @@ const keys = (md: string) => richPieces(md).filter((p): p is Extract<RichPiece, 
 // The keys, as a person would press them.
 // ---------------------------------------------------------------------------
 
-test('bold is Cmd+B before the phrase and Cmd+B after it — and the spaces beside it go through the key channel', () => {
-  assert.deepEqual(keys('Det er **vigtigt** her.'), ['space', 'bold', 'bold', 'space']);
+test('bold is never pressed: the markers vanish and the words are typed plain, in one run', () => {
+  assert.deepEqual(keys('Det er **vigtigt** her.'), []);
+  assert.deepEqual(keys('Det er __vigtigt__ her.'), []);
+  const typed = richPieces('Det er **vigtigt** her.')
+    .filter((p): p is Extract<RichPiece, { kind: 'type' }> => p.kind === 'type')
+    .map((p) => p.text);
+  assert.deepEqual(typed, ['Det er vigtigt her.']);
+});
+
+test('italic is Cmd+I before the word and Cmd+I after it — and the spaces beside it go through the key channel', () => {
+  assert.deepEqual(keys('Det er *vigtigt* her.'), ['space', 'italic', 'italic', 'space']);
 });
 
 test('a bullet list is entered once, continued with Enter, and left with an extra Enter', () => {
@@ -202,8 +201,8 @@ test('the leading newline the run uses for "below the question" is exactly one E
 // The document, replayed. This is the check that matters.
 // ---------------------------------------------------------------------------
 
-test('bold lands on exactly the right words, and the spaces around it survive', async () => {
-  assert.equal(await replay('Normal tekst med **fede ord** og *kursiv*.'), 'p:Normal tekst med <b>fede ord</b> og <i>kursiv</i>.');
+test('a bold request lands as plain words with the spaces around them intact; italic lands on exactly the right word', async () => {
+  assert.equal(await replay('Normal tekst med **fede ord** og *kursiv*.'), 'p:Normal tekst med fede ord og <i>kursiv</i>.');
 });
 
 test('a numbered list of three, then a closing line', async () => {
@@ -227,7 +226,7 @@ test('a heading, a paragraph, a bullet list', async () => {
 
 test('with "Skriv som et menneske" on, the finished document is still exactly the draft — slips never cross a toggle', async () => {
   const md = 'Vi har **arbejdet** rigtig meget med *kvaliteten* i år.\n- Første resultat\n- Andet resultat';
-  const want = 'p:Vi har <b>arbejdet</b> rigtig meget med <i>kvaliteten</i> i år.\nul:Første resultat\nul:Andet resultat';
+  const want = 'p:Vi har arbejdet rigtig meget med <i>kvaliteten</i> i år.\nul:Første resultat\nul:Andet resultat';
   for (let seed = 1; seed <= 25; seed++) {
     assert.equal(await replay(md, { human: true, seed }), want, `seed ${seed}`);
   }

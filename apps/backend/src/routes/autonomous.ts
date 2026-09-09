@@ -4,7 +4,7 @@ import { verifyUser, rpc, danishTime, anonRpc } from '../supabase.js';
 import { getEntitlement } from '../billing.js';
 import { collect } from '../autonomous/complete.js';
 import { detectionMessages, answerMessages } from '../autonomous/prompt.js';
-import { parseDetection, parseAnswers, validateParagraphs, type DetectedQuestion } from '../autonomous/parse.js';
+import { parseDetection, parseAnswers, validateMarked, validateParagraphs, type DetectedQuestion } from '../autonomous/parse.js';
 import { NoModelsError, PolicyError } from '../openrouter.js';
 import { needsWebSearch } from '../websearch.js';
 
@@ -72,9 +72,11 @@ export function autonomousRoutes(app: FastifyInstance): void {
       });
     }
 
+    const marked = validateMarked(body?.marked, paragraphs.length);
     const autoReq: AutonomousRequest = {
       scope: body?.scope === 'selection' ? 'selection' : 'document',
       paragraphs,
+      ...(marked ? { marked } : {}),
       documentTitle: typeof body?.documentTitle === 'string' ? body.documentTitle : undefined,
       context: Array.isArray(body?.context) ? body.context : undefined,
       prefs: body?.prefs,
@@ -122,6 +124,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
     req.log.info(
       {
         scope: autoReq.scope,
+        marked: marked ?? null,
         paragraphs: paragraphs.length,
         docChars: totalChars,
         contextItems: autoReq.context?.length ?? 0,
@@ -137,7 +140,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       if (detection.failures.length) {
         req.log.warn({ served: detection.model, failures: detection.failures }, 'model chain fallback');
       }
-      const detected = parseDetection(detection.text, paragraphs.length, paragraphs);
+      const detected = parseDetection(detection.text, paragraphs.length, paragraphs, marked);
       // The plan, as validated: which questions got a place and which did
       // not. A run where every place is null and the raw reply never says
       // "answerAt" means the model ignored the field, not that the form had

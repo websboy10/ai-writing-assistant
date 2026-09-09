@@ -5,7 +5,7 @@ import { gdocsEventTarget, gdocsSelectionNow, gdocsWholeDocumentNow, pressGdocsK
 import { GDocsAdapter } from '../adapters/gdocs';
 import { findAndPlaceCursor } from './docs-find';
 import { answerCellFor, boxBelowFor, slotPlanFor, type SlotPlan } from './docs-tables';
-import { parseDocsHtml } from './docs-structure';
+import { markedRange, parseDocsHtml } from './docs-structure';
 import type { QuestionSource } from './locator';
 import { awaLog } from '../debug';
 
@@ -147,6 +147,8 @@ class GDocsFindSource implements QuestionSource {
   constructor(
     private paragraphs: AutonomousParagraph[],
     private tableCells: string[] = [],
+    /** "Besvar markeringen": where in `paragraphs` (the whole document) the marking sits. See QuestionSource. */
+    readonly marked?: { from: number; to: number },
   ) {}
 
   async read(): Promise<AutonomousParagraph[]> {
@@ -333,10 +335,17 @@ function pasteReasonForFindFailure(findReason: string | undefined): string {
  *    needs is broken; no source can work, so this throws (matching the
  *    pre-07-05 refusal `sourceFor` already made for a gdocs target) and the
  *    caller shows the existing INST-13 message + clipboard fallback.
- * 2. The document's text is read from Docs itself — select-all + copy for the
- *    whole document, the selection mirror for a marked one. Both are the
- *    user's own document coming back through the user's own browser; no
- *    Google account, no permission, nothing to verify.
+ * 2. The document's text is read from Docs itself — select-all + copy. Both
+ *    scopes read the WHOLE document, so the model sees the same boxes either
+ *    way; a marked run reads the marking first (the selection mirror) and
+ *    finds it in the whole read (docs-structure.ts markedRange), and only
+ *    the questions inside it are answered. Until 2026-09-09 a marked run
+ *    sent the marked lines alone, and a question marked without its box was
+ *    answered under the question because the box was never in view. When the
+ *    marking cannot be found in the whole read, the marked lines alone are
+ *    sent, as before. All of it is the user's own document coming back
+ *    through the user's own browser; no Google account, no permission,
+ *    nothing to verify.
  * 3. A LIVE Find probe (one Ctrl/Cmd+F + Escape, no insert() call, so a failed
  *    probe leaves nothing behind to undo) decides between placing each answer
  *    under its own question and falling back to one block at the cursor.
@@ -363,7 +372,18 @@ async function pickDocsSource(scope: 'document' | 'selection'): Promise<Question
     throw new Error(selfTest.reason ?? 'Google Docs-indsættelse virker ikke lige nu.');
   }
 
-  const { paragraphs, cells } = readToParagraphs(scope === 'selection' ? markedMirror() : gdocsWholeDocumentNow());
+  let { paragraphs, cells } = readToParagraphs(scope === 'selection' ? markedMirror() : gdocsWholeDocumentNow());
+  let marked: { from: number; to: number } | undefined;
+  if (scope === 'selection' && paragraphs.length) {
+    // The marking is read BEFORE the whole document: select-all replaces it.
+    const whole = readToParagraphs(gdocsWholeDocumentNow());
+    const range = markedRange(whole.paragraphs, paragraphs);
+    awaLog('docs.marked', { markedLines: paragraphs.length, wholeLines: whole.paragraphs.length, range });
+    if (range) {
+      ({ paragraphs, cells } = whole);
+      marked = range;
+    }
+  }
 
   // An empty read is Docs refusing to hand the text over, NOT an empty
   // document — the same '' comes back either way, so it must never be reported
@@ -382,9 +402,9 @@ async function pickDocsSource(scope: 'document' | 'selection'): Promise<Question
   // which read as "empty document" and sent the whole run down the
   // nothing-found path.
   const probeText = paragraphs.find((p) => p.text.trim())?.text;
-  if (!probeText) return new GDocsFindSource(paragraphs, cells);
+  if (!probeText) return new GDocsFindSource(paragraphs, cells, marked);
 
   const probe = await findAndPlaceCursor(probeText);
-  if (probe.ok) return new GDocsFindSource(paragraphs, cells);
+  if (probe.ok) return new GDocsFindSource(paragraphs, cells, marked);
   return new GDocsPasteSource(paragraphs, pasteReasonForFindFailure(probe.reason));
 }

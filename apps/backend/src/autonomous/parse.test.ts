@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDetection, parseAnswers, validateParagraphs, type DetectedQuestion } from './parse.js';
+import { parseDetection, parseAnswers, stripBold, validateMarked, validateParagraphs, type DetectedQuestion } from './parse.js';
 
 // ---- parseDetection ----
 
@@ -276,4 +276,40 @@ test('answerAt survives end to end: the extension paragraphs, validated, let the
   ]);
   const out = parseDetection('[{"paragraphIndex": 0, "questionText": "Hvad er hovedstaden i Danmark?", "answerAt": 1}]', 2, paragraphs ?? undefined);
   assert.equal(out[0].answerAt, 1);
+});
+
+// ---- no bold, ever (the operator's rule, 2026-09-09) ----
+
+test('stripBold: ** and __ markers go, the words stay; a lone asterisk and snake_case survive', () => {
+  assert.equal(stripBold('Det er **vigtigt** og __også dette__.'), 'Det er vigtigt og også dette.');
+  assert.equal(stripBold('Se note * nederst, i file_name_2.'), 'Se note * nederst, i file_name_2.');
+  assert.equal(stripBold('- **Punkt et**\n- *kursiv*'), '- Punkt et\n- *kursiv*');
+});
+
+test('an answer with bold in it leaves the server without it, on both parse paths', () => {
+  const asked: DetectedQuestion[] = [{ paragraphIndex: 0, questionText: 'Hvad?' }];
+  const main = parseAnswers(JSON.stringify([{ paragraphIndex: 0, answer: '**Vigtigt** i dag.' }]), asked);
+  assert.equal(main[0].answer, 'Vigtigt i dag.');
+  const positional = parseAnswers(JSON.stringify([{ paragraphIndex: -1, answer: '__Vigtigt__ i dag.' }]), asked);
+  assert.equal(positional[0].answer, 'Vigtigt i dag.');
+});
+
+// ---- "Besvar markeringen": the marked range ----
+
+test('validateMarked accepts an in-range ordered pair and rejects everything else', () => {
+  assert.deepEqual(validateMarked({ from: 1, to: 3 }, 5), { from: 1, to: 3 });
+  assert.deepEqual(validateMarked({ from: 2, to: 2 }, 5), { from: 2, to: 2 });
+  for (const bad of [undefined, null, 'x', {}, { from: 3, to: 1 }, { from: -1, to: 1 }, { from: 0, to: 5 }, { from: 0.5, to: 1 }]) {
+    assert.equal(validateMarked(bad, 5), undefined, JSON.stringify(bad));
+  }
+});
+
+test('with a marked range, a question outside it is dropped even when the model found it; a place outside the range is still allowed', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: 0, questionText: 'Hvad er status?', answerAt: 1 },
+    { paragraphIndex: 2, questionText: 'Beskriv dine resultater', answerAt: 4 },
+  ]);
+  assert.deepEqual(parseDetection(raw, PARAGRAPHS.length, PARAGRAPHS, { from: 2, to: 3 }), [
+    { paragraphIndex: 2, questionText: 'Beskriv dine resultater', answerAt: 4 },
+  ]);
 });

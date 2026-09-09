@@ -8,10 +8,14 @@
  * and genuine lists — measured against a live document 2026-09-08, where a
  * pasted <h1>/<b>/<ul>/<ol> came back out of Docs' own export as exactly that.
  *
- * Scope is deliberately narrow: headings, bold, bullet lists, numbered lists,
+ * Scope is deliberately narrow: headings, bullet lists, numbered lists,
  * paragraphs. That is what carries MEANING. Italic, strikethrough, code spans
  * and horizontal rules are decoration, and every construct added here is one
  * more way something can land wrong in somebody's real document.
+ *
+ * Bold was in that list until 2026-09-09 and is now forbidden outright, on
+ * the operator's rule: nothing this product writes is ever bold. `**x**`
+ * arrives as the plain word x — the markers go, the words stay.
  *
  * Two rules this file must never break:
  *
@@ -41,17 +45,17 @@ const NUMBERED = /^\s*\d+[.)][ \t]+(.*)$/;
 const HEADING = /^\s*(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/;
 
 /**
- * Inline emphasis, on already-escaped text.
- *
- * Only bold. Both sides must hug a non-space and the run must be non-empty, so
- * a lone footnote asterisk survives; the underscore form additionally refuses
- * when a word character sits outside it, which is what keeps snake_case whole.
- * These are the same shapes plaintext.ts's stripInline() requires.
+ * Inline markers, on already-escaped text: bold markers are removed and the
+ * words kept plain — never <strong>. Both sides must hug a non-space and the
+ * run must be non-empty, so a lone footnote asterisk survives; the underscore
+ * form additionally refuses when a word character sits outside it, which is
+ * what keeps snake_case whole. These are the same shapes plaintext.ts's
+ * stripInline() requires.
  */
 function inline(escaped: string): string {
   return link(escaped)
-    .replace(/(\*{2})(?=\S)([\s\S]*?\S)\1/g, '<strong>$2</strong>')
-    .replace(/(?<![\w\\])(_{2})(?=\S)([^\n]*?\S)\1(?!\w)/g, '<strong>$2</strong>');
+    .replace(/(\*{2})(?=\S)([\s\S]*?\S)\1/g, '$2')
+    .replace(/(?<![\w\\])(_{2})(?=\S)([^\n]*?\S)\1(?!\w)/g, '$2');
 }
 
 /**

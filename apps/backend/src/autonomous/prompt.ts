@@ -86,6 +86,19 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
         'document has no empty place for this answer and it simply goes under the question. An empty place ' +
         'belongs to ONE question: the nearest question above it, unless the layout plainly says otherwise ' +
         '(a row of boxes beside a row of questions). Never give two questions the same place.',
+      // "Besvar markeringen": the whole document is sent, as for "Besvar
+      // alle", so the model sees the box under the marked question exactly
+      // as it would see it for the whole form. Until 2026-09-09 only the
+      // marked lines were sent, and a question marked without its box got
+      // its answer on the line beneath it — the box was never in view.
+      ...(req.marked
+        ? [
+            `The user MARKED lines [${req.marked.from}] to [${req.marked.to}] and asked for ONLY those to be answered. ` +
+              'Find questions within that range and nowhere else. The rest of the document is there so you can see ' +
+              'where each answer belongs and what shape it takes: "answerAt" may well point at an empty place just ' +
+              'outside the marking, such as the empty box directly under the last marked line.',
+          ]
+        : []),
       'Output ONLY a bare JSON array, no prose before or after it and no markdown code fence, of objects ' +
         'shaped { "paragraphIndex": number, "questionText": string, "answerAt": number | null }. ' +
         '"paragraphIndex" is the bracketed number shown before each paragraph. "questionText" must be quoted ' +
@@ -95,7 +108,10 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
 
   const user: ChatMessage = {
     role: 'user',
-    content: `DOCUMENT${req.documentTitle ? `: ${req.documentTitle}` : ''} (scope: ${req.scope})\n${paragraphLines(req)}`,
+    content:
+      `DOCUMENT${req.documentTitle ? `: ${req.documentTitle}` : ''} (scope: ${req.scope})` +
+      (req.marked ? `\nMARKED: lines [${req.marked.from}] to [${req.marked.to}]` : '') +
+      `\n${paragraphLines(req)}`,
   };
 
   return [system, user];
@@ -195,8 +211,8 @@ export function answerMessages(
       'numbered list "1. ", "2. "; one followed by an empty bullet point, (punkt, TOM), gets a bullet list ' +
       '"- "; a question that asks for several things gets exactly that many items, one per line; a question ' +
       'in a table cell with an empty box beside or beneath it gets a plain answer that fits a box, one or two ' +
-      'short paragraphs at most; a question with room beneath it gets paragraphs. When a question asks for ' +
-      'a word or phrase in bold, write it as **bold**. Never write a heading.\n\n' +
+      'short paragraphs at most; a question with room beneath it gets paragraphs. A question that asks for ' +
+      'a word in bold still gets that word plain: nothing is ever written in bold. Never write a heading.\n\n' +
       VOICE_RULES,
   );
 

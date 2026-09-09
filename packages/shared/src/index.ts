@@ -263,6 +263,14 @@ export interface AutonomousParagraph {
 export interface AutonomousRequest {
   scope: 'document' | 'selection';
   paragraphs: AutonomousParagraph[];
+  /**
+   * "Besvar markeringen" on Google Docs: `paragraphs` is the WHOLE document,
+   * read the same way "Besvar alle" reads it, and this is where in it the
+   * user's marking sits (both ends inclusive). Only questions inside the
+   * range are answered; the rest is there so the model can see the box under
+   * the last marked line, which the marking alone never showed it.
+   */
+  marked?: { from: number; to: number };
   documentTitle?: string;
   context?: ContextItem[];
   prefs?: OutputPrefs;
@@ -283,11 +291,12 @@ export interface AutonomousAnswer {
   answerAt?: number;
   /**
    * The answer as the model wrote it: plain prose, with the markdown subset
-   * the paced engine can type as real formatting — paragraphs, **bold**,
-   * *italic*, "- " bullets and "1. " numbers. The extension flattens it for
-   * editors that cannot hold structure and compiles it to keystrokes for
-   * Google Docs (insertion/richsteps.ts). Never headings: an answer sits
-   * under a question, it does not become a section.
+   * the paced engine can type as real formatting — paragraphs, *italic*,
+   * "- " bullets and "1. " numbers. The extension flattens it for editors
+   * that cannot hold structure and compiles it to keystrokes for Google Docs
+   * (insertion/richsteps.ts). Never headings: an answer sits under a
+   * question, it does not become a section. Never bold, anywhere: the
+   * operator's rule of 2026-09-09, stripped server-side before it gets here.
    */
   answer: string;
   /** false = nothing in the document or attached context grounded this answer (D-12). */

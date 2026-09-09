@@ -46,15 +46,26 @@ in view, and the extension carries it out. 22/23 live plus the corrected
 checker; regressions re-run with the plan active.
 
 **"Besvar markeringen" and "Brug som kontekst" are back (2026-09-09),** on
-the new machinery: the marking's structure is read, the model plans the
-places, answers are typed formatted — only for what is marked. Verified
-live (scripts/verify-answer-selection.mjs).
+the new machinery: the model plans the places, answers are typed formatted —
+only for what is marked. The operator's first test showed the box under a
+marked question was never in view (only the marked lines were sent), so a
+marked run now reads the WHOLE document like "Besvar alle" and sends the
+marking as a range (07-FINDINGS-docs.md F-8). Verified live with the
+question alone marked, 14/14 (scripts/verify-answer-selection.mjs).
 
-**Backend deployed 2026-09-09** (plan, structure reaching the model, the
-prompts from the 8th). The extension half is still flagged OUT of the store
-build; that is the operator's switch (wxt.config.ts, answerAllEnabled), so
-nothing a store user can reach changes until a new package ships with it on.
-The operator's Desktop test build is the current code with the feature on.
+**NO BOLD, EVER (operator's rule, 2026-09-09).** Nothing the product writes
+is bold: both prompts forbid it, the server strips `**`/`__` from every
+answer (parse.ts stripBold), the typing compiler never presses Cmd+B (the key
+is gone from FormatKey), and the paste path no longer emits <strong>. Proven
+live on the worksheet whose question ASKS for bold: the word arrived plain,
+nothing the run wrote was bold, no asterisk (verify-formatted-answers.mjs,
+23/24 — the 24th is the open invisible-character observation, F-8's tail).
+
+**Backend deployed 2026-09-09 08:25** (no-bold rule and strip, the marked
+range). The extension half is still flagged OUT of the store build; that is
+the operator's switch (wxt.config.ts, answerAllEnabled), so nothing a store
+user can reach changes until a new package ships with it on. The operator's
+Desktop test build (08:28) is the current code with the feature on.
 
 ### Where this stood (2026-09-04)
 

@@ -39,11 +39,14 @@ Removed with the old autonomous mode on 2026-09-03; reinstated on the new
 machinery. A bar appears in the panel the moment text is marked on the page:
 
 - **Besvar markeringen** — "Besvar alle spørgsmål" scoped to the marking:
-  the same structure read (Docs' copy of the marked text carries its
-  tables and lists), the same model plan for where each answer goes, the
-  same formatted slow typing. Mark two questions and their boxes out of a
-  long form and only those are answered. Behind the same flag as Besvar
-  alle.
+  the WHOLE document is read exactly as Besvar alle reads it, the marking is
+  found in it (docs-structure.ts markedRange) and sent as a range, the model
+  plans where each answer goes with every box in view, and only questions
+  inside the range are answered. Mark a question — just the question, the
+  way a person marks — and the answer lands in the box under it. Behind the
+  same flag as Besvar alle. (Until 2026-09-09 mid-morning only the marked
+  lines were sent, and a question marked without its box got its answer on
+  the line beneath it: the operator's first test, 07-FINDINGS-docs.md F-8.)
 - **Brug som kontekst** — attaches the marked text as a context chip,
   never starts a run. Not behind the flag.
 
@@ -54,13 +57,24 @@ trap found on the way: on a Docs page the target tracker had captured Docs'
 own Find bar as a plain input, so the gate read that field's selection
 instead of the document's; Docs now wins, as it does for the write target.
 
-Observed (scripts/verify-answer-selection.mjs, 2026-09-09): two questions
-with a box each; the first marked with its box; "Besvar markeringen" →
-Straks answered it INTO its box by the model's plan (a walk), the second
-question and its box untouched, the run's source logged as scope
-"selection"; then the second question marked and "Brug som kontekst"
-attached a "Markeret tekst (…)" chip with no run. 11 checks, the last a
-checker nit fixed after the run.
+Observed (scripts/verify-answer-selection.mjs, 2026-09-09 08:10): two
+questions with a box each; the first question marked ALONE; "Besvar
+markeringen" → Straks read the marking, then the whole document (4 lines),
+found the marking at line 0, and answered INTO the box at line 1 by the
+model's plan (a walk); the second question and its box untouched; then the
+second question marked and "Brug som kontekst" attached a "Markeret tekst
+(…)" chip with no run. 14 of 14.
+
+## No bold, ever (2026-09-09)
+
+The operator's rule, after seeing bold in a run: "NO BOLD TEXT EVER, strictly
+forbidden." Row E below used to prove bold survived slow typing; it now
+proves the opposite. Four layers, so no one of them has to hold alone: both
+prompts forbid bold even when the form asks for it; the server strips the
+markers from every answer before it leaves (parse.ts stripBold, so installed
+extensions got it on deploy); the typing compiler drops the markers and has
+no bold key any more; the "Indsæt straks" paste path emits plain words where
+it emitted <strong>. Italic, lists and headings are untouched.
 
 ## Observed (scripts/verify-formatted-answers.mjs, Langsomt + human)
 
@@ -82,18 +96,22 @@ them wanting — see below):
 | a plain-text question with a box drawn below | answer in the box |
 | a question with two bullet hints and the box under THOSE | answer in the box; nothing between question and hints |
 | a two-column table, question beside an empty cell | answer in the cell; question cell untouched |
-| "skriv Vigtigt med fed" | **Vigtigt** in real bold, a real space after it, typed slowly with slips |
+| "skriv Vigtigt med fed" | "Vigtigt" typed PLAIN — the form asked for bold and did not get it; nothing the run wrote is bold (2026-09-09, the operator's rule) |
 | whole document | not one asterisk; nothing reported unplaced |
 | a question, a BLANK LINE, then the box (the operator's own form) | answer in the box; nothing on the blank line |
 | a question, a plain note ("Skriv kun årstallet."), then the box | answer in the box, the note untouched — the model's plan, walked from the note |
 | every deletion of the human-typing mode (20–36 per run) | verified by reading the selection back before anything was replaced; every one first try |
 | the answers, read back from the document | letter for letter what the model wrote — no slip left behind, no letter eaten |
 
-Open observation: one run (2026-09-09, 01:30) read back the bold word as
+Open observation: one run (2026-09-09, 01:30) read back the word as
 "V<zw><zw>gtigt" — the second letter replaced by two zero-width spaces. Not
-reproduced in 20 tries under load (scripts/probe-docs-bold-start.mjs) and
-clean in the runs before and after; the verify now keeps the whole adapter
-log (test-results/formatted-awa.log) so the next occurrence can be traced.
+reproduced in 20 tries under load (scripts/probe-docs-bold-start.mjs).
+Second occurrence 08:15, same worksheet, same answer, now with the adapter
+log kept: "me<zw>get", right where the run's one unverified deletion fell
+back to plain Backspace (07-FINDINGS-docs.md, "Open"). Every verified
+deletion has been clean; the glitch rides on the fallback path.
+
+Unit: 137 extension tests, 31 backend, typecheck clean (2026-09-09).
 
 Regressions, same session: `verify-answer-all` 9/9, `verify-table-answers`
 7/7, `verify-box-below` 2/2 — the last on BOTH layouts, including the one

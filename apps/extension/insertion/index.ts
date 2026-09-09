@@ -13,7 +13,7 @@ export { pacedDurationText } from './duration';
 // markdown literally — see plaintext.ts for the measurement.
 export { stripMarkdown } from './plaintext';
 // The other half of that decision: an editor that CAN hold structure gets real
-// headings, bold and lists instead of characters shaped like them.
+// headings and lists instead of characters shaped like them. Never bold.
 export { markdownToHtml } from './richtext';
 export type { PacingConfig, InsertionState } from './types';
 export type { SavedTarget } from './target';

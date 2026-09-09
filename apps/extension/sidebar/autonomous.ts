@@ -56,6 +56,7 @@ class Autonomous {
     const body: AutonomousRequest = {
       scope,
       paragraphs,
+      ...(source.marked ? { marked: source.marked } : {}),
       context: store.context.length ? store.context : undefined,
       prefs: store.prefs,
     };

@@ -10,15 +10,20 @@ import type { FormatKey } from './types';
  * again — and hands the engine an ordinary piece list with key presses in it.
  *
  * The subset is deliberately the one the engine can type and the answer prompt
- * is allowed to produce: paragraphs, **bold**, *italic*, "- " bullets and
- * "1. " numbers, headings # to ###. Anything else is typed as its characters,
+ * is allowed to produce: paragraphs, *italic*, "- " bullets and "1. "
+ * numbers, headings # to ###. Anything else is typed as its characters,
  * which is what plain mode always did with it.
+ *
+ * Bold is NOT in it, on the operator's rule (2026-09-09): nothing this
+ * product writes is ever bold. `**` and `__` markers are dropped and the words
+ * between them typed plain — a backstop, since the prompt forbids them and
+ * the server strips them first.
  *
  * Three rules the output keeps, and the tests hold it to:
  *
  *   1. A slip never crosses a toggle. `humanScript` runs INSIDE each text run,
  *      so a typo and its correction happen in one formatting state and the
- *      finished text is exactly the draft, bold in the right places.
+ *      finished text is exactly the draft, italic in the right places.
  *   2. A space next to a toggle is a `space` key, never the edge of a paste
  *      (Docs trims those — adapters/gdocs.ts). Interior spaces stay in the
  *      text, where the adapter's chunker already protects them.
@@ -31,7 +36,6 @@ export type RichPiece = Piece | { kind: 'key'; key: FormatKey };
 
 interface Run {
   text: string;
-  bold: boolean;
   italic: boolean;
 }
 
@@ -47,30 +51,31 @@ const HEADING = /^\s*(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/;
 const BULLET = /^\s*[-*+][ \t]+(.*)$/;
 const NUMBERED = /^\s*\d+[.)][ \t]+(.*)$/;
 /** The same shapes plaintext.ts and richtext.ts require, so all three agree on what is emphasis. */
-const BOLD = /(\*{2})(?=\S)([\s\S]*?\S)\1/;
+const BOLD_STAR = /(\*{2})(?=\S)([\s\S]*?\S)\1/g;
+const BOLD_UNDERSCORE = /(?<![\w\\])(_{2})(?=\S)([^\n]*?\S)\1(?!\w)/g;
 const ITALIC = /(?<![\w*\\])\*(?=\S)([^*\n]*?\S)\*(?![\w*])/;
+
+/** Bold markers off, words kept. Never a bold key: see the header. */
+function unbold(text: string): string {
+  return text.replace(BOLD_STAR, '$2').replace(BOLD_UNDERSCORE, '$2');
+}
 
 function inlineRuns(text: string): Run[] {
   const runs: Run[] = [];
-  const emit = (t: string, bold: boolean, italic: boolean) => {
+  const emit = (t: string, italic: boolean) => {
     if (!t) return;
     const last = runs[runs.length - 1];
-    if (last && last.bold === bold && last.italic === italic) last.text += t;
-    else runs.push({ text: t, bold, italic });
+    if (last && last.italic === italic) last.text += t;
+    else runs.push({ text: t, italic });
   };
-  const walk = (s: string, bold: boolean, italic: boolean) => {
-    const b = bold ? null : BOLD.exec(s);
-    const i = italic ? null : ITALIC.exec(s);
-    // Whichever mark comes first wins; the rest of the string is walked again.
-    const first = b && (!i || b.index <= i.index) ? { m: b, kind: 'bold' as const } : i ? { m: i, kind: 'italic' as const } : null;
-    if (!first) return emit(s, bold, italic);
-    const { m, kind } = first;
-    emit(s.slice(0, m.index), bold, italic);
-    const inner = kind === 'bold' ? m[2] : m[1];
-    walk(inner, bold || kind === 'bold', italic || kind === 'italic');
-    walk(s.slice(m.index + m[0].length), bold, italic);
+  const walk = (s: string) => {
+    const m = ITALIC.exec(s);
+    if (!m) return emit(s, false);
+    emit(s.slice(0, m.index), false);
+    emit(m[1], true);
+    walk(s.slice(m.index + m[0].length));
   };
-  walk(text, false, false);
+  walk(unbold(text));
   return runs;
 }
 
@@ -130,15 +135,10 @@ export function richPieces(markdown: string, opts: RichOptions = {}): RichPiece[
       b.kind = opts.startInList;
     }
   }
-  let bold = false;
   let italic = false;
   let inList: 'bullet' | 'numbered' | null = opts.startInList ?? null;
 
-  const setMarks = (b: boolean, i: boolean) => {
-    if (b !== bold) {
-      key('bold');
-      bold = b;
-    }
+  const setItalic = (i: boolean) => {
     if (i !== italic) {
       key('italic');
       italic = i;
@@ -174,7 +174,7 @@ export function richPieces(markdown: string, opts: RichOptions = {}): RichPiece[
     }
 
     block.runs.forEach((run, ri) => {
-      setMarks(run.bold, run.italic);
+      setItalic(run.italic);
       let text = run.text;
       // A space that would sit at a paste edge beside a toggle goes through
       // the key channel instead. Only at run edges that ARE toggles: the very
@@ -190,7 +190,7 @@ export function richPieces(markdown: string, opts: RichOptions = {}): RichPiece[
       typeText(text);
       for (let n = 0; n < trail; n++) key('space');
     });
-    setMarks(false, false);
+    setItalic(false);
   });
 
   return out;

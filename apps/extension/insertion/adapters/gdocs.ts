@@ -298,7 +298,7 @@ export class GDocsAdapter implements InsertionAdapter {
    *
    * Every chord below was measured against a live document on 2026-09-08
    * (scripts/probe-docs-typing-format.mjs, 8 of 8): Docs treats a synthetic
-   * Cmd+B exactly as it treats the real one. `space` is a `beforeinput`
+   * Cmd+I exactly as it treats the real one. `space` is a `beforeinput`
    * rather than a keystroke because a synthetic Space keydown types nothing,
    * and a pasted lone space is trimmed — `beforeinput insertText` is the one
    * channel that measured a real U+0020 (scripts/probe-docs-space.mjs).
@@ -324,7 +324,6 @@ export class GDocsAdapter implements InsertionAdapter {
     }
     const cmd = gdocsCommandKey();
     const CHORDS: Record<Exclude<FormatKey, 'space'>, KeyboardEventInit> = {
-      bold: { key: 'b', code: 'KeyB', keyCode: 66, which: 66, ...cmd },
       italic: { key: 'i', code: 'KeyI', keyCode: 73, which: 73, ...cmd },
       h1: { key: '1', code: 'Digit1', keyCode: 49, which: 49, ...cmd, altKey: true },
       h2: { key: '2', code: 'Digit2', keyCode: 50, which: 50, ...cmd, altKey: true },
@@ -340,7 +339,7 @@ export class GDocsAdapter implements InsertionAdapter {
       this.wrote('\n');
     }
     // The one write here that cannot be inferred from the text afterwards: a
-    // toggle that Docs ignored leaves no trace but missing bold.
+    // toggle that Docs ignored leaves no trace but missing italic.
     awaLog('gdocs.pressKey', { key, el: describeNode(el), docHasFocus: this.targetDoc()?.hasFocus() ?? null });
     return { ok: true, verified: false };
   }

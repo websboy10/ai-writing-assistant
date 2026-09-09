@@ -18,12 +18,12 @@ import { normalizeCellText } from './docs-tables';
  * entities — and a pattern would read the document it was written against
  * and quietly mis-read the next one (docs-tables.ts made the same call).
  *
- * There is no unit test of this file under node:test, which has no DOM and
+ * There is no unit test of the parser under node:test, which has no DOM and
  * the repo carries none. It is exercised where it actually runs, against real
  * Docs output: scripts/probe-docs-html.mjs shows the input it gets, and every
  * placement in scripts/verify-formatted-answers.mjs and verify-box-below.mjs
  * depends on its output being right. The pure logic that consumes that output
- * (docs-tables.ts) is unit-tested.
+ * (docs-tables.ts, and markedRange below) is unit-tested.
  */
 
 export interface DocsStructure {
@@ -107,4 +107,44 @@ export function parseDocsHtml(html: string): DocsStructure {
 
   visit(doc.body);
   return { paragraphs, cells };
+}
+
+const collapse = (s: string) => s.replace(/\s+/g, ' ').trim();
+
+/** A marked line is a whole paragraph, or the start or end of one when the marking begins or ends mid-line. */
+function coversLine(paragraph: string, line: string): boolean {
+  return paragraph === line || (line.length >= 2 && paragraph.includes(line));
+}
+
+/**
+ * Where the user's marking sits in the whole document, as a range of
+ * paragraph indices (both ends inclusive), or null when it cannot be told.
+ *
+ * "Besvar markeringen" used to send the model the marked lines alone, and a
+ * question marked without its box was answered on the line beneath it: the
+ * box was never in view (the operator, 2026-09-09). Now the whole document is
+ * read exactly as "Besvar alle" reads it, and the marking is found in it by
+ * its lines: the first marked line is matched to its first occurrence, then
+ * every following marked line to the next paragraph that carries it, in
+ * order. Empty marked lines (a marked empty box) say nothing about position
+ * and are skipped; a line that cannot be matched in order means the read and
+ * the marking disagree, and the caller falls back to the marked lines alone.
+ */
+export function markedRange(
+  all: AutonomousParagraph[],
+  marked: AutonomousParagraph[],
+): { from: number; to: number } | null {
+  const lines = marked.map((p) => collapse(p.text)).filter(Boolean);
+  if (!lines.length) return null;
+  const texts = all.map((p) => collapse(p.text));
+  const from = texts.findIndex((t) => coversLine(t, lines[0]));
+  if (from < 0) return null;
+  let to = from;
+  for (const line of lines.slice(1)) {
+    let j = to + 1;
+    while (j < texts.length && !coversLine(texts[j], line)) j++;
+    if (j >= texts.length) return null;
+    to = j;
+  }
+  return { from, to };
 }

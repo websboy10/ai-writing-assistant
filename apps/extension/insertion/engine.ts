@@ -48,10 +48,11 @@ export interface SessionOptions {
    * The same text as markdown, for PACED mode on an editor that honours
    * formatting shortcuts (InsertionAdapter.pressKey).
    *
-   * Until 2026-09-08 the comment above said a bold sentence could not be
-   * delivered one code point at a time. It can — by pressing Cmd+B before it
-   * and after it, which is what a person does, and what richsteps.ts compiles
-   * this into. Ignored on adapters without pressKey, which type `text`.
+   * Until 2026-09-08 the comment above said a formatted sentence could not be
+   * delivered one code point at a time. It can — by pressing the shortcut
+   * before it and after it, which is what a person does, and what
+   * richsteps.ts compiles this into. Ignored on adapters without pressKey,
+   * which type `text`.
    */
   markdown?: string;
   /**

@@ -206,6 +206,42 @@ validated plan next to the raw reply: the model said `"answerAt": 1`, the
 plan said `null`. The validator now copies kind, level, bold and cell, each
 checked, and lives in autonomous/parse.ts with tests.
 
+## F-8 — "Besvar markeringen" never saw the box under a marked question (FOUND 2026-09-09, FIXED)
+
+The marked run read the marking alone, and a person marks the question, not
+the empty box under it — so the model was handed one line and no place to
+put the answer, and typed it under the question. Now a marked run reads the
+marking first, then the WHOLE document exactly as "Besvar alle" does, finds
+the marking in it by its lines (docs-structure.ts `markedRange`, unit-tested
+for whole, partial and repeated lines) and sends everything with the range;
+the server answers only questions inside the range (parse.ts) and the
+prompt says the answer's place may sit just outside it. Verified live with
+the question alone marked: answered in its box by the model's plan, the
+other question and box untouched (scripts/verify-answer-selection.mjs,
+14/14). When the marking cannot be found in the whole read, the marked lines
+alone are sent, as before.
+
+Observation on the way, not fixed: Docs' Find is caret-relative. The run's
+`occurrence` is document-absolute (earlier identical lines + 1), and the two
+agree only because a run moves down the page and the probe leaves the caret
+on the first line. In a document holding the same question twice, a marked
+run of the first copy would land on the second (seen once, on a worksheet
+the harness had pasted twice). Unique question text is unaffected.
+
+## Open — an invisible character inside a word, twice now (2026-09-09)
+
+Second data point for 08-SUMMARY.md's open observation. Formatted run
+2026-09-09 08:15: "meget" read back as "me<zw>get". The adapter log shows
+the one unverified deletion of that run at exactly that point: a slip "het"
+was to be deleted, the selection read "eet" three times (so Docs' text was
+not what was typed — most likely a dropped "h" paste), and the fallback of
+ArrowRight + Backspace×3 ran. The first occurrence ("V<zw><zw>gtigt", 01:30)
+was in the same answer of the same worksheet, also typed under a question
+rather than in a box. Every verified deletion has been clean; the glitch
+rides on the fallback path. Next step when it matters: log the marked text
+around a failed read in `gdocs.deleteBack`, and probe whether a Backspace
+on Docs' own zero-width padding leaves it behind.
+
 ## Diagnostics available
 
 `insertion/debug.ts` — off unless the page's localStorage has `awa-debug=1`.

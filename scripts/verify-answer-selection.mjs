@@ -3,11 +3,16 @@
  * same machinery as "Besvar alle spørgsmål": structure read, the model's
  * plan for where each answer goes, formatted typing — scoped to the marking.
  *
- * Two questions, each with a box drawn under it. The FIRST question and its
- * box are marked; "Besvar markeringen" must answer that one INTO its box and
- * leave the second question and its box untouched. Then the second question
- * is marked and "Brug som kontekst" must attach it as a chip without starting
- * a run.
+ * Two questions, each with a box drawn under it. The FIRST question is marked
+ * — the question ALONE, not its box, which is how the operator marks (and how
+ * the box was missed on 2026-09-09: only the marked lines were sent, so the
+ * model never saw a box). "Besvar markeringen" must answer that one INTO its
+ * box and leave the second question and its box untouched. Then the second
+ * question is marked and "Brug som kontekst" must attach it as a chip without
+ * starting a run.
+ *
+ * AWA_MARK_BOX=1 marks the box along with the question instead (the shape the
+ * first version of this verify used).
  *
  * Read back through Docs' HTML export, outside the page.
  *
@@ -49,6 +54,15 @@ page.on('pageerror', (e) => console.log(`  [pageerror] ${String(e?.message ?? e)
 const ENTITIES = { oslash: 'ø', Oslash: 'Ø', aring: 'å', Aring: 'Å', aelig: 'æ', AElig: 'Æ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 const decode = (t) => t.replace(/&#(\d+);/g, (_m, n) => String.fromCharCode(Number(n))).replace(/&([a-zA-Z]+);/g, (m, n) => ENTITIES[n] ?? m);
 const strip = (t) => decode(t.replace(/<[^>]+>/g, '')).replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+
+/** Text runs the export marks bold — it expresses bold as classes, never inline (verify-formatted-answers.mjs). */
+function boldRunsIn(html) {
+  const boldClasses = [...html.matchAll(/\.(c\d+)\{[^}]*font-weight:\s*(?:700|bold)/g)].map((m) => m[1]);
+  return [...html.matchAll(/<span class="([^"]*)"[^>]*>([\s\S]*?)<\/span>/gi)]
+    .filter((m) => m[1].split(/\s+/).some((c) => boldClasses.includes(c)))
+    .map((m) => strip(m[2]))
+    .filter(Boolean);
+}
 
 async function readHtml(docId) {
   for (let i = 0; i < 6; i++) {
@@ -141,26 +155,32 @@ try {
 
   let before = '';
   const seeded = () => strip(before).includes(Q_B) && (before.match(/<td/g) ?? []).length >= 2;
-  for (let attempt = 1; attempt <= 4 && !seeded(); attempt++) {
+  for (let attempt = 1; attempt <= 3 && !seeded(); attempt++) {
     await clickIntoDoc(page);
     await sleep(400);
     await paste(WORKSHEET);
-    await sleep(3500);
-    before = await readHtml(docId);
+    // The export lags the paste by a few seconds. Re-read before pasting
+    // again, or the worksheet lands twice and Find has two of every line
+    // (which is exactly what happened on 2026-09-09).
+    for (let read = 0; read < 4 && !seeded(); read++) {
+      await sleep(3000);
+      before = await readHtml(docId);
+    }
   }
   if (!seeded()) throw new Error(`could not seed: ${strip(before).slice(0, 200)}`);
-  r.ok('two questions with a box each are in the document', true);
+  r.ok('two questions with a box each are in the document, once', (before.match(/<td/g) ?? []).length === 2, `${(before.match(/<td/g) ?? []).length} cells`);
 
   await openAndSignIn();
   await clickIntoDoc(page);
   await sleep(500);
   r.ok('nothing marked yet — no selection bar', (await host.locator('button', { hasText: 'Besvar markeringen' }).count()) === 0);
 
-  // Mark the first question and its box: Find selects the question, two
-  // Shift+ArrowDowns take the table in whole (probe-docs-extend-into-box.mjs).
-  const marked = await mark(Q_A, 2);
-  console.log(`  marked: ${marked}`);
-  r.ok('the first question and its box are marked', marked.startsWith('ok'));
+  // Mark the first question: Find selects it. With AWA_MARK_BOX, two
+  // Shift+ArrowDowns take the table in whole too (probe-docs-extend-into-box.mjs).
+  const withBox = process.env.AWA_MARK_BOX === '1';
+  const marked = await mark(Q_A, withBox ? 2 : 0);
+  console.log(`  marked (${withBox ? 'question + box' : 'question only'}): ${marked}`);
+  r.ok(withBox ? 'the first question and its box are marked' : 'the first question alone is marked', marked.startsWith('ok'));
   const bar = host.locator('button', { hasText: 'Besvar markeringen' });
   await bar.waitFor({ timeout: 8_000 }).catch(() => {});
   r.ok('the selection bar appears with "Besvar markeringen" and "Brug som kontekst"', (await bar.count()) > 0 && (await host.locator('button', { hasText: 'Brug som kontekst' }).count()) > 0);
@@ -179,13 +199,19 @@ try {
   const body = html.slice(html.indexOf('<body'));
   const outside = strip(body.replace(/<table[\s\S]*?<\/table>/gi, '').replace(/<\/(?:p|li|div|h[1-6])>/gi, ' '));
   console.log(`\n  cells after: ${JSON.stringify(cells)}`);
-  for (const l of awaLines.filter((l) => /docs\.source|docs\.locate|docs\.walk|autonomous\.answers/.test(l))) console.log(`  ${l.slice(0, 300)}`);
+  for (const l of awaLines.filter((l) => /docs\.source|docs\.marked|docs\.locate|docs\.walk|autonomous\.answers/.test(l))) console.log(`  ${l.slice(0, 300)}`);
   console.log('');
 
   r.ok('the marked question was answered IN its box', /k[øo]benhavn/i.test(cells[0] ?? ''), `box: ${JSON.stringify(cells[0])}`);
   r.ok('the unmarked question\'s box stayed empty', (cells[1] ?? '') === '', `box: ${JSON.stringify(cells[1])}`);
   r.ok('nothing landed outside the boxes', !/k[øo]benhavn/i.test(outside) && outside === `${Q_A} ${Q_B}`, JSON.stringify(outside));
-  r.ok('the run read the MARKING, not the document', awaLines.some((l) => /docs\.source.*"scope":"selection"/.test(l)));
+  r.ok('the run was scoped to the MARKING', awaLines.some((l) => /docs\.source.*"scope":"selection"/.test(l)));
+  // The whole document was read and the marking found in it: the first
+  // question is line [0] of the whole read, and its box [1] was in view.
+  const markedLog = awaLines.map((l) => l.match(/docs\.marked (\{.*\})/)?.[1]).filter(Boolean).map((j) => JSON.parse(j))[0];
+  r.ok('the marking was found in the WHOLE document, so its box was in view', !!markedLog?.range && markedLog.wholeLines >= 4 && markedLog.range.from === 0, JSON.stringify(markedLog));
+  r.ok("the answer went into the box by the model's plan (answerAt), not by the fallback rules", awaLines.some((l) => /docs\.locate.*"answerAt":1.*"placed":true/.test(l)));
+  r.ok('no bold anywhere in the document', boldRunsIn(html).length === 0, JSON.stringify(boldRunsIn(html)));
 
   // "Brug som kontekst": mark the second question, attach it, no run.
   await host.locator('button', { hasText: 'Skjul' }).click().catch(() => {});

@@ -35,11 +35,17 @@ export const FORMAT_PLAIN_RULES = [
  * 2026-09-08). The subset is exactly what that compiler understands — anything
  * outside it would arrive as literal characters, which is the failure the
  * plain rules above exist to prevent.
+ *
+ * Bold is not in the subset. The operator's rule, 2026-09-09: "NO BOLD TEXT
+ * EVER, strictly forbidden." Nothing this product writes is ever bold — not
+ * when the model feels like it, not when the form asks for it. The compiler
+ * and the paste path drop the markers as a backstop; this is the rule itself.
  */
 export const FORMAT_MARKDOWN_RULES = [
   'FORMAT. The answer is typed into the document with real formatting, so use this markdown and nothing else.',
-  '- Two asterisks around a word or short phrase for bold, one asterisk for italic. Bold is for a label or a',
-  '  key term, never a whole sentence.',
+  '- NEVER bold. Not one word, ever, even when the question or the form asks for a word in bold: write that',
+  '  word plainly like the rest. Never put two asterisks or two underscores around anything.',
+  '- One asterisk around a word for italic, and only where it genuinely carries meaning. Rare.',
   '- A list, where the question asks for several things or an empty list sits under it, is one item per line,',
   '  each starting "- " for bullets or "1. ", "2. " for numbered steps.',
   '- A blank line between paragraphs.',

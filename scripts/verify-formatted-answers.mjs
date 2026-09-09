@@ -12,7 +12,9 @@
  *      answer must land IN the box
  *   D  a two-column table, question beside an empty cell — the answer must
  *      land in the cell beside it
- *   E  a question asking for a bold label — bold must survive slow typing
+ *   E  a question asking for a bold label — the word must arrive PLAIN. Bold
+ *      is forbidden outright since 2026-09-09 (the operator's rule), even
+ *      when the form asks for it, and no asterisk may reach the document
  *   F  the form's own instruction line, in bold, under the title — it tells
  *      the reader how to fill in the form and must NOT be answered
  *   G  a question with bullet-point hints under it and the box under THOSE —
@@ -291,8 +293,12 @@ try {
   r.ok('the weekday answer landed in the cell beside its question', /\b7\b|syv/i.test(cells[2] ?? ''), `cell: ${JSON.stringify(cells[2])}`);
   r.ok('the question cell itself was not written into', (cells[1] ?? '') === Q_CELL, JSON.stringify(cells[1]));
 
-  // E — bold survived slow typing, and no asterisks reached the document.
-  r.ok('"Vigtigt" arrived in real bold', boldRuns.some((b) => /^vigtigt/i.test(b)), JSON.stringify(boldRuns));
+  // E — the form asked for bold; the product never writes it. The word is
+  // there, plain, and nothing in the document is bold but the form's own
+  // title and instruction line.
+  const answeredBold = strip(html.slice(q4 + Q_BOLD.length, html.indexOf('<p', q4 + Q_BOLD.length + 400) + 1 || undefined));
+  r.ok('the bold question was answered ("Vigtigt" in the answer)', /vigtigt/i.test(text.slice(text.indexOf(Q_BOLD) + Q_BOLD.length, text.indexOf(Q_HINTS))), JSON.stringify(answeredBold.slice(0, 120)));
+  r.ok('NOTHING the run wrote is bold — the form asked for it and did not get it', boldRuns.filter((b) => !/Opgaver til i dag|Udfyld skemaet/.test(b)).length === 0, JSON.stringify(boldRuns));
   r.ok('not a single asterisk in the document', !text.includes('*'));
 
   r.ok('nothing was reported as unplaced', unplaced === 0);

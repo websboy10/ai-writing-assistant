@@ -17,10 +17,9 @@ test('heading levels are kept, and clamped at six', () => {
   assert.match(markdownToHtml('###### Seks'), /<h6>Seks<\/h6>/);
 });
 
-test('bold becomes <strong>, not asterisks', () => {
-  const html = markdownToHtml('Der er **fed skrift** her.');
-  assert.match(html, /<strong>fed skrift<\/strong>/);
-  assert.doesNotMatch(html, /\*/);
+test('bold is never produced: the asterisks vanish and the words stay plain', () => {
+  assert.equal(markdownToHtml('Der er **fed skrift** her.'), '<p>Der er fed skrift her.</p>');
+  assert.equal(markdownToHtml('Der er __fed skrift__ her.'), '<p>Der er fed skrift her.</p>');
 });
 
 test('a bullet list becomes one <ul> with an item each', () => {
@@ -61,9 +60,8 @@ test('an ampersand is escaped', () => {
   assert.match(markdownToHtml('Ryel & Co.'), /Ryel &amp; Co\./);
 });
 
-test('escaping happens before emphasis, so markup cannot be smuggled in', () => {
-  const html = markdownToHtml('**<b>ikke fed</b>**');
-  assert.match(html, /<strong>&lt;b&gt;ikke fed&lt;\/b&gt;<\/strong>/);
+test('escaping happens before the markers are read, so markup cannot be smuggled in', () => {
+  assert.equal(markdownToHtml('**<b>ikke fed</b>**'), '<p>&lt;b&gt;ikke fed&lt;/b&gt;</p>');
 });
 
 // ---------------------------------------------------------------------------
@@ -121,7 +119,7 @@ test('a bracket that is not a link is left alone', () => {
   assert.match(markdownToHtml('Han sagde [sic] noget.'), /\[sic\]/);
 });
 
-test('bold still works inside a link label', () => {
+test('bold markers inside a link label go too, and the link survives', () => {
   const html = markdownToHtml('[**Vigtigt**](https://example.com)');
-  assert.match(html, /<a href="https:\/\/example\.com"><strong>Vigtigt<\/strong><\/a>/);
+  assert.match(html, /<a href="https:\/\/example\.com">Vigtigt<\/a>/);
 });

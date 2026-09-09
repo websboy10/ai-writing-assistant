@@ -27,6 +27,13 @@ export interface QuestionSource {
    * — the log then names the one thing it exists to identify as "Rt".
    */
   readonly sourceName: string;
+  /**
+   * "Besvar markeringen" on Google Docs: read() returns the WHOLE document and
+   * this is where the marking sits in it, so the server answers only the
+   * questions inside the range while the model sees every box around them.
+   * Absent everywhere else — a DOM source's read() is the marking itself.
+   */
+  readonly marked?: { from: number; to: number };
   read(): Promise<AutonomousParagraph[]>;
   locate(q: { paragraphIndex: number; questionText: string; answerAt?: number }): Promise<SavedTarget | null>;
   /**
