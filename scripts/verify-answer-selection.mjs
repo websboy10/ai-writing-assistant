@@ -214,7 +214,7 @@ try {
   // question is line [0] of the whole read, and its box [1] was in view.
   const markedLog = awaLines.map((l) => l.match(/docs\.marked (\{.*\})/)?.[1]).filter(Boolean).map((j) => JSON.parse(j))[0];
   r.ok('the marking was found in the WHOLE document, so its box was in view', !!markedLog?.range && markedLog.wholeLines >= 4 && markedLog.range.from === 0, JSON.stringify(markedLog));
-  r.ok("the answer went into the box by the model's plan (answerAt), not by the fallback rules", awaLines.some((l) => /docs\.locate.*"answerAt":1.*"placed":true/.test(l)));
+  r.ok("the answer went into the box by the model's plan (a fill at the box), not by the fallback rules", awaLines.some((l) => /docs\.plan.*"at":1,.*"placed":true/.test(l)));
   r.ok('no bold anywhere in the document', boldRunsIn(html).length === 0, JSON.stringify(boldRunsIn(html)));
 
   // "Brug som kontekst": mark the second question, attach it, no run.

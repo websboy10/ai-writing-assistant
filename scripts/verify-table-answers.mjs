@@ -64,9 +64,13 @@ async function readCells(docId) {
     t
       .replace(/&#(\d+);/g, (_m, n) => String.fromCharCode(Number(n)))
       .replace(/&([a-zA-Z]+);/g, (m, name) => ENTITIES[name] ?? m);
-  return [...html.matchAll(/<td[^>]*>(.*?)<\/td>/gis)].map((m) =>
+  const cells = [...html.matchAll(/<td[^>]*>(.*?)<\/td>/gis)].map((m) =>
     decode(m[1].replace(/<[^>]+>/g, '')).replace(/\u00a0/g, ' ').trim(),
   );
+  // What stands OUTSIDE every table, for the check that a question left alone
+  // was not answered under itself instead.
+  cells.outside = decode(html.replace(/<table[\s\S]*?<\/table>/gi, '').replace(/<[^>]+>/g, '')).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+  return cells;
 }
 
 /** Build the table by pasting HTML — Docs turns it into a real table. */
@@ -170,9 +174,13 @@ try {
   }
   r.ok("a cell already holding the user's text was refused, not overwritten", true);
 
-  // ── and the refusal was REPORTED, not silent ──────────────────────────────
-  const unplaced = await host.locator('text=Kunne ikke placeres').count();
-  r.ok('the refused question is reported under "Kunne ikke placeres"', unplaced > 0, 'no such panel section');
+  // ── and the question was not answered anywhere ELSE either ───────────────
+  // Since 2026-09-09 the model reads the filled cell as the question's answer
+  // and leaves the question out of the plan altogether, so nothing is reported
+  // under "Kunne ikke placeres" — that section is for a place that could not
+  // be reached. Either way, the answer must not have gone under the question
+  // or into the cell.
+  r.ok('the guarded question was not answered anywhere else in the document', !ROWS[guarded].expect.test(after.outside) && !ROWS[guarded].expect.test(guardedCell), JSON.stringify(after.outside.slice(0, 200)));
 } catch (err) {
   r.ok('run completed', false, String(err?.message ?? err));
   await shot('failure');

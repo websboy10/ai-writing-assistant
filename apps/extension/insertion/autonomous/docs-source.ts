@@ -232,7 +232,7 @@ class GDocsFindSource implements QuestionSource {
       }
       return this.placeUnderQuestion(fill);
     }
-    if (fill.at === fill.paragraphIndex) return this.placeUnderQuestion(fill);
+    if (fill.mode === 'below' && fill.at === fill.paragraphIndex) return this.placeUnderQuestion(fill);
     // "below" or "inline" at a line of the document's own text: the end of
     // that line, found by its last line when the cell has several.
     const p = this.paragraphs[fill.at];
@@ -240,7 +240,15 @@ class GDocsFindSource implements QuestionSource {
       this.reason = `Stedet til "${fill.task ?? fill.questionText}" blev ikke fundet i dokumentet.`;
       return null;
     }
-    return this.atEndOf(findLine(p), fill.at);
+    const target = await this.atEndOf(findLine(p), fill.at);
+    if (!target || fill.mode !== 'inline') return target;
+    // The space between "Navn:" and the answer is pressed here, not pasted:
+    // Docs discards a space at the edge of a paste (adapters/gdocs.ts), and
+    // the first live run read back "Navn:Christian Jensen". The caret then
+    // stands where the answer starts, like inside a box.
+    new GDocsAdapter().pressKey('space');
+    await settle(TAB_SETTLE_MS);
+    return { ...target, inBox: true };
   }
 
   /**

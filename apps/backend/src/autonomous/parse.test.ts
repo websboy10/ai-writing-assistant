@@ -19,8 +19,8 @@ test('Test 1: a question with no fills gets the one place that always exists —
     { paragraphIndex: 2, questionText: 'Beskriv dine resultater', fills: [] },
   ]);
   assert.deepEqual(parseDetection(raw, 5), [
-    { id: 1, paragraphIndex: 0, questionText: 'Hvad er status?', at: 0, mode: 'below' },
-    { id: 2, paragraphIndex: 2, questionText: 'Beskriv dine resultater', at: 2, mode: 'below' },
+    { paragraphIndex: 0, questionText: 'Hvad er status?', at: 0, mode: 'below' },
+    { paragraphIndex: 2, questionText: 'Beskriv dine resultater', at: 2, mode: 'below' },
   ]);
 });
 
@@ -76,7 +76,6 @@ test('Test 6: more than MAX_AUTONOMOUS_ANSWERS fills is truncated to the cap, in
   assert.equal(out.length, 80);
   assert.equal(out[0].paragraphIndex, 0);
   assert.equal(out[79].paragraphIndex, 79);
-  assert.equal(out[79].id, 80);
 });
 
 // ---- parseDetection: the fills ----
@@ -107,7 +106,7 @@ const SHEET = [
   { index: 17, text: '', kind: 'numbered' as const, level: 1 },
 ];
 
-test('fills: a grid gives one fill per empty cell, each with its own id and task', () => {
+test('fills: a grid gives one fill per empty cell, each with its own task', () => {
   const raw = JSON.stringify([
     {
       paragraphIndex: 7,
@@ -119,8 +118,8 @@ test('fills: a grid gives one fill per empty cell, each with its own id and task
     },
   ]);
   assert.deepEqual(parseDetection(raw, SHEET.length, SHEET), [
-    { id: 1, paragraphIndex: 7, questionText: '2) Hvad fortæller versene om køn?', at: 12, mode: 'fill', task: 'Manden? for 1. Korintherbrev 11,3' },
-    { id: 2, paragraphIndex: 7, questionText: '2) Hvad fortæller versene om køn?', at: 13, mode: 'fill', task: 'Kvinden? for 1. Korintherbrev 11,3' },
+    { paragraphIndex: 7, questionText: '2) Hvad fortæller versene om køn?', at: 12, mode: 'fill', task: 'Manden? for 1. Korintherbrev 11,3' },
+    { paragraphIndex: 7, questionText: '2) Hvad fortæller versene om køn?', at: 13, mode: 'fill', task: 'Kvinden? for 1. Korintherbrev 11,3' },
   ]);
 });
 
@@ -130,11 +129,11 @@ test('fills: "below" continues under a cell that holds text; "inline" goes after
     { paragraphIndex: 14, questionText: 'Navn:', fills: [{ at: 14, mode: 'inline' }] },
   ]);
   assert.deepEqual(
-    parseDetection(raw, SHEET.length, SHEET).map((f) => [f.id, f.at, f.mode]),
+    parseDetection(raw, SHEET.length, SHEET).map((f) => [f.at, f.mode]),
     [
-      [1, 5, 'below'],
-      [2, 6, 'below'],
-      [3, 14, 'inline'],
+      [5, 'below'],
+      [6, 'below'],
+      [14, 'inline'],
     ],
   );
 });
@@ -202,7 +201,7 @@ test('fills: an empty list is one fill at its first empty point', () => {
 
 test('fills: without the paragraph list (a client with no structure) every place is under its question', () => {
   const raw = JSON.stringify([{ paragraphIndex: 0, questionText: 'A', fills: [{ at: 1, mode: 'fill' }] }]);
-  assert.deepEqual(parseDetection(raw, 3), [{ id: 1, paragraphIndex: 0, questionText: 'A', at: 0, mode: 'below' }]);
+  assert.deepEqual(parseDetection(raw, 3), [{ paragraphIndex: 0, questionText: 'A', at: 0, mode: 'below' }]);
 });
 
 test('fills: the task is trimmed and capped, and absent when empty', () => {
@@ -230,11 +229,11 @@ test('fills survive end to end: the extension paragraphs, validated, let the pla
 // ---- batching ----
 
 test('batchFills never splits a question, and a question larger than the batch is a batch by itself', () => {
-  const fill = (id: number, q: number): DetectedFill => ({ id, paragraphIndex: q, questionText: `Q${q}`, at: 100 + id, mode: 'fill' });
+  const fill = (n: number, q: number): DetectedFill => ({ paragraphIndex: q, questionText: `Q${q}`, at: 100 + n, mode: 'fill' });
   const fills = [fill(1, 0), fill(2, 0), fill(3, 1), ...Array.from({ length: 12 }, (_, i) => fill(4 + i, 2)), fill(16, 3)];
   const batches = batchFills(fills, 5);
   assert.deepEqual(
-    batches.map((b) => b.map((f) => f.id)),
+    batches.map((b) => b.map((f) => f.at - 100)),
     [[1, 2, 3], [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], [16]],
   );
 });
@@ -242,14 +241,14 @@ test('batchFills never splits a question, and a question larger than the batch i
 // ---- parseAnswers ----
 
 const asked: DetectedFill[] = [
-  { id: 1, paragraphIndex: 0, questionText: 'Hvad er status?', at: 0, mode: 'below' },
-  { id: 2, paragraphIndex: 2, questionText: 'Beskriv dine resultater', at: 4, mode: 'fill', task: 'Kolonne to' },
+  { paragraphIndex: 0, questionText: 'Hvad er status?', at: 0, mode: 'below' },
+  { paragraphIndex: 2, questionText: 'Beskriv dine resultater', at: 4, mode: 'fill', task: 'Kolonne to' },
 ];
 
-test('Test 7: an answer for an id never asked about is dropped', () => {
+test('Test 7: an answer for a place never asked about is dropped', () => {
   const raw = JSON.stringify([
-    { id: 1, answer: 'Alt går godt', grounded: true },
-    { id: 5, answer: 'Never asked', grounded: true },
+    { at: 0, answer: 'Alt går godt', grounded: true },
+    { at: 5, answer: 'Never asked', grounded: true },
   ]);
   const out = parseAnswers(raw, asked);
   assert.equal(out.length, 1);
@@ -258,8 +257,8 @@ test('Test 7: an answer for an id never asked about is dropped', () => {
 
 test('an answer carries its fill: question, task, place, mode, and answerAt for old clients when it is a fill', () => {
   const raw = JSON.stringify([
-    { id: 1, answer: 'Alt går godt' },
-    { id: 2, answer: 'Tre ting' },
+    { at: 0, answer: 'Alt går godt' },
+    { at: 4, answer: 'Tre ting' },
   ]);
   const out = parseAnswers(raw, asked);
   assert.deepEqual(out[0], { paragraphIndex: 0, questionText: 'Hvad er status?', at: 0, mode: 'below', answer: 'Alt går godt', grounded: true });
@@ -281,18 +280,18 @@ test('an answer carries its fill: question, task, place, mode, and answerAt for 
 // draft to edit, so a missing flag must not mark an answer as unsourced.
 test('Test 8: grounded missing or not a boolean defaults to true', () => {
   const raw = JSON.stringify([
-    { id: 1, answer: 'Svar uden grounded felt' },
-    { id: 2, answer: 'Svar med streng grounded', grounded: 'yes' },
+    { at: 0, answer: 'Svar uden grounded felt' },
+    { at: 4, answer: 'Svar med streng grounded', grounded: 'yes' },
   ]);
   const out = parseAnswers(raw, asked);
   assert.equal(out.length, 2);
   assert.ok(out.every((a) => a.grounded === true));
 });
 
-test('Test 9: duplicate answers for the same id — first kept, rest dropped', () => {
+test('Test 9: duplicate answers for the same place — first kept, rest dropped', () => {
   const raw = JSON.stringify([
-    { id: 1, answer: 'Første svar', grounded: true },
-    { id: 1, answer: 'Andet svar (skal droppes)', grounded: false },
+    { at: 0, answer: 'Første svar', grounded: true },
+    { at: 0, answer: 'Andet svar (skal droppes)', grounded: false },
   ]);
   const out = parseAnswers(raw, asked);
   assert.equal(out.length, 1);
@@ -309,10 +308,10 @@ test('parseAnswers never throws on non-JSON input', () => {
 // grounding". Every answer was dropped as unaskable and the run reported that
 // nothing could be answered — after the user had waited half a minute.
 
-test('Test 10: every id unusable and one answer per fill — matched by position', () => {
+test('Test 10: every place unusable and one answer per fill — matched by position', () => {
   const raw = JSON.stringify([
-    { id: -1, answer: 'Status er god', grounded: true },
-    { id: -1, answer: 'Ikke oplyst', grounded: false },
+    { at: -1, answer: 'Status er god', grounded: true },
+    { at: -1, answer: 'Ikke oplyst', grounded: false },
   ]);
   const out = parseAnswers(raw, asked);
   assert.deepEqual(
@@ -325,12 +324,12 @@ test('Test 10: every id unusable and one answer per fill — matched by position
 });
 
 test('Test 11: a MIXED reply is never re-ordered by position — the good answer is kept, the bad one dropped', () => {
-  // One item names a real fill, so the model was using ids after all.
+  // One item names a real place, so the model was using places after all.
   // Position proves nothing here, and guessing would put an answer under the
   // wrong question in the user's document.
   const raw = JSON.stringify([
-    { id: -1, answer: 'Hører ingen steder hjemme', grounded: false },
-    { id: 2, answer: 'Rigtigt placeret svar', grounded: true },
+    { at: -1, answer: 'Hører ingen steder hjemme', grounded: false },
+    { at: 4, answer: 'Rigtigt placeret svar', grounded: true },
   ]);
   const out = parseAnswers(raw, asked);
   assert.equal(out.length, 1);
@@ -338,15 +337,15 @@ test('Test 11: a MIXED reply is never re-ordered by position — the good answer
   assert.equal(out[0].answer, 'Rigtigt placeret svar');
 });
 
-test('Test 12: a wrong-length reply with unusable ids is dropped, not guessed', () => {
-  const raw = JSON.stringify([{ id: -1, answer: 'Kun ét svar til to spørgsmål', grounded: false }]);
+test('Test 12: a wrong-length reply with unusable places is dropped, not guessed', () => {
+  const raw = JSON.stringify([{ at: -1, answer: 'Kun ét svar til to spørgsmål', grounded: false }]);
   assert.deepEqual(parseAnswers(raw, asked), []);
 });
 
 test('Test 14: an empty answer is dropped — never written as a blank line under the question', () => {
   const raw = JSON.stringify([
-    { id: 1, answer: '   ', grounded: false },
-    { id: 2, answer: 'Et rigtigt svar', grounded: true },
+    { at: 0, answer: '   ', grounded: false },
+    { at: 4, answer: 'Et rigtigt svar', grounded: true },
   ]);
   const out = parseAnswers(raw, asked);
   assert.equal(out.length, 1);
@@ -355,8 +354,8 @@ test('Test 14: an empty answer is dropped — never written as a blank line unde
 
 test('Test 15: the positional rescue drops empty answers too', () => {
   const raw = JSON.stringify([
-    { id: -1, answer: '', grounded: false },
-    { id: -1, answer: 'Svar', grounded: true },
+    { at: -1, answer: '', grounded: false },
+    { at: -1, answer: 'Svar', grounded: true },
   ]);
   const out = parseAnswers(raw, asked);
   assert.equal(out.length, 1);
@@ -369,14 +368,14 @@ test('Test 15: the positional rescue drops empty answers too', () => {
 test('an extension without fills gets one answer per question, joined, placed where the first fill went', () => {
   const answers = parseAnswers(
     JSON.stringify([
-      { id: 1, answer: 'Manden' },
-      { id: 2, answer: 'Kvinden' },
-      { id: 3, answer: 'Alene' },
+      { at: 12, answer: 'Manden' },
+      { at: 13, answer: 'Kvinden' },
+      { at: 9, answer: 'Alene' },
     ]),
     [
-      { id: 1, paragraphIndex: 7, questionText: 'Q', at: 12, mode: 'fill' },
-      { id: 2, paragraphIndex: 7, questionText: 'Q', at: 13, mode: 'fill' },
-      { id: 3, paragraphIndex: 9, questionText: 'R', at: 9, mode: 'below' },
+      { paragraphIndex: 7, questionText: 'Q', at: 12, mode: 'fill' },
+      { paragraphIndex: 7, questionText: 'Q', at: 13, mode: 'fill' },
+      { paragraphIndex: 9, questionText: 'R', at: 9, mode: 'below' },
     ],
   );
   const old = collapseForOldClients(answers);
@@ -429,10 +428,10 @@ test('stripBold: ** and __ markers go, the words stay; a lone asterisk and snake
 });
 
 test('an answer with bold in it leaves the server without it, on both parse paths', () => {
-  const one: DetectedFill[] = [{ id: 1, paragraphIndex: 0, questionText: 'Hvad?', at: 0, mode: 'below' }];
-  const main = parseAnswers(JSON.stringify([{ id: 1, answer: '**Vigtigt** i dag.' }]), one);
+  const one: DetectedFill[] = [{ paragraphIndex: 0, questionText: 'Hvad?', at: 0, mode: 'below' }];
+  const main = parseAnswers(JSON.stringify([{ at: 0, answer: '**Vigtigt** i dag.' }]), one);
   assert.equal(main[0].answer, 'Vigtigt i dag.');
-  const positional = parseAnswers(JSON.stringify([{ id: -1, answer: '__Vigtigt__ i dag.' }]), one);
+  const positional = parseAnswers(JSON.stringify([{ at: -1, answer: '__Vigtigt__ i dag.' }]), one);
   assert.equal(positional[0].answer, 'Vigtigt i dag.');
 });
 

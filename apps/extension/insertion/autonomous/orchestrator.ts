@@ -297,7 +297,8 @@ export class AutonomousRun {
       // collapsed it there) — prefixing a newline puts the answer on the
       // line below, never appended onto that line. Inside an answer box the
       // caret already stands where the answer starts, so no newline; and an
-      // inline fill ("Navn:") goes on the same line, after a space.
+      // inline fill ("Navn:") goes on the same line, after a space — which a
+      // Docs source has already pressed (a pasted space is dropped there).
       const lead = target.inBox ? '' : answer.mode === 'inline' ? ' ' : '\n';
       const text = `${lead}${answer.answer}`;
       // The formatted form, for an editor that can type formatting (Google

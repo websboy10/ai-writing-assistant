@@ -13,8 +13,6 @@ const MAX_AUTONOMOUS_ANSWERS = 80;
  * empty box. See AutonomousAnswer in packages/shared.
  */
 export interface DetectedFill {
-  /** 1-based position in the run's fill list — how the answer call names it. */
-  id: number;
   paragraphIndex: number;
   questionText: string;
   task?: string;
@@ -210,7 +208,7 @@ export function parseDetection(
     }
     for (const place of places) {
       if (out.length >= MAX_AUTONOMOUS_ANSWERS) break;
-      out.push({ id: out.length + 1, paragraphIndex: paragraphIndex as number, questionText: questionText.trim(), ...place });
+      out.push({ paragraphIndex: paragraphIndex as number, questionText: questionText.trim(), ...place });
     }
   }
   return out;
@@ -257,10 +255,10 @@ function toAnswer(fill: DetectedFill, answer: string, grounded: boolean): Autono
 
 /**
  * Rescue for the one failure mode that loses a WHOLE run: the model abandons
- * the id protocol entirely and stamps every answer with the same unusable
- * id (measured with paragraph indices: -1 on all five, used as shorthand for
- * "no grounding"). Every answer is then dropped as unaskable and the user —
- * who has waited half a minute — is told nothing could be answered.
+ * the address protocol entirely and stamps every answer with the same
+ * unusable number (measured: -1 on all five, used as shorthand for "no
+ * grounding"). Every answer is then dropped as unaskable and the user — who
+ * has waited half a minute — is told nothing could be answered.
  *
  * The prompt asks for one answer per fill in the same order, so position is
  * a real signal. It is only trusted under conditions strict enough that a
@@ -268,18 +266,18 @@ function toAnswer(fill: DetectedFill, answer: string, grounded: boolean): Autono
  * places, because a mis-assigned answer lands in the user's document:
  *
  *   - the reply holds exactly one item per fill asked, and
- *   - EVERY item is an object whose id is unusable — not one of them names a
- *     fill in this batch. A mixture means the model was addressing fills by
- *     id after all, and position proves nothing.
+ *   - EVERY item is an object whose place is unusable — not one of them names
+ *     a fill in this batch. A mixture means the model was addressing fills by
+ *     place after all, and position proves nothing.
  */
-function positionalFallback(items: unknown[], asked: DetectedFill[], askedById: Map<number, DetectedFill>): AutonomousAnswer[] | null {
+function positionalFallback(items: unknown[], asked: DetectedFill[], askedAt: Map<number, DetectedFill>): AutonomousAnswer[] | null {
   if (items.length !== asked.length || asked.length === 0) return null;
 
   const records: Record<string, unknown>[] = [];
   for (const item of items) {
     if (!item || typeof item !== 'object') return null;
     const rec = item as Record<string, unknown>;
-    if (Number.isInteger(rec.id) && askedById.has(rec.id as number)) return null;
+    if (Number.isInteger(rec.at) && askedAt.has(rec.at as number)) return null;
     records.push(rec);
   }
 
@@ -291,8 +289,14 @@ function positionalFallback(items: unknown[], asked: DetectedFill[], askedById: 
 }
 
 /**
- * Answers: only accepted for an id that was actually asked about in this
- * batch — a model cannot invent an answer for a place we never sent it.
+ * Answers, keyed by the PLACE they go: the paragraph index `at`, which is the
+ * one number a fill has. There was a separate 1-based item id for a few
+ * hours on 2026-09-09; on the operator's own worksheet the model answered
+ * with the place numbers instead ("id": 17 for the cell at paragraph 17),
+ * two of which happened to be valid ids, so five answers were dropped and
+ * two landed in the wrong cells. One identity per fill, and it is the place.
+ * Only accepted for a place actually asked about in this batch — a model
+ * cannot invent an answer for a place we never sent it.
  *
  * `grounded` is no longer asked for or acted on. The prompt now writes a
  * plausible answer for every question whether or not the sources hold one
@@ -304,9 +308,9 @@ export function parseAnswers(raw: string, asked: DetectedFill[]): AutonomousAnsw
   const items = extractJsonArray(raw);
   if (!items) return [];
 
-  const askedById = new Map(asked.map((f) => [f.id, f]));
+  const askedAt = new Map(asked.map((f) => [f.at, f]));
 
-  const positional = positionalFallback(items, asked, askedById);
+  const positional = positionalFallback(items, asked, askedAt);
   if (positional) return positional;
   const seen = new Set<number>();
   const out: AutonomousAnswer[] = [];
@@ -315,9 +319,9 @@ export function parseAnswers(raw: string, asked: DetectedFill[]): AutonomousAnsw
     if (!item || typeof item !== 'object') continue;
     const rec = item as Record<string, unknown>;
 
-    if (!Number.isInteger(rec.id)) continue;
-    const fill = askedById.get(rec.id as number);
-    if (!fill || seen.has(fill.id)) continue;
+    if (!Number.isInteger(rec.at)) continue;
+    const fill = askedAt.get(rec.at as number);
+    if (!fill || seen.has(fill.at)) continue;
 
     const answer = typeof rec.answer === 'string' ? stripBold(rec.answer) : '';
     // An empty answer is not an answer. Writing it puts a blank line into the
@@ -328,7 +332,7 @@ export function parseAnswers(raw: string, asked: DetectedFill[]): AutonomousAnsw
     // answered" path, which refunds the quota and says so plainly.
     if (!answer.trim()) continue;
 
-    seen.add(fill.id);
+    seen.add(fill.at);
     out.push(toAnswer(fill, answer, typeof rec.grounded === 'boolean' ? rec.grounded : true));
   }
   return out;

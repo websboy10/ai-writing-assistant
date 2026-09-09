@@ -146,16 +146,20 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
   return [system, user];
 }
 
-/** The place of a fill, as the answer call reads it: where the text lands, and what the model said belongs there. */
+/**
+ * One place to fill, as the answer call reads it: the PLACE first, since its
+ * number is the answer's address, then the question it serves and what the
+ * model said belongs there.
+ */
 function fillLine(req: AutonomousRequest, f: DetectedFill): string {
   const place = req.paragraphs[f.at];
   const text = (place?.text ?? '').slice(0, 80);
   let where: string;
-  if (f.mode === 'fill') where = `into the empty place [${f.at}] ${shapeTag(place).trim()}`;
-  else if (f.mode === 'inline') where = `on the same line as [${f.at}], after "${text}"`;
-  else if (f.at === f.paragraphIndex) where = 'under the question';
-  else where = `on a new line under [${f.at}] "${text}"`;
-  return `#${f.id} [${f.paragraphIndex}] ${f.questionText}\n   goes ${where}${f.task ? `: ${f.task}` : ''}`;
+  if (f.mode === 'fill') where = `the empty place [${f.at}] ${shapeTag(place).trim()}`;
+  else if (f.mode === 'inline') where = `the same line as [${f.at}], after "${text}"`;
+  else if (f.at === f.paragraphIndex) where = `a new line under the question [${f.at}]`;
+  else where = `a new line under [${f.at}] "${text}"`;
+  return `PLACE ${f.at}: ${where}. For question [${f.paragraphIndex}] "${f.questionText}".${f.task ? ` Write: ${f.task}` : ''}`;
 }
 
 /**
@@ -235,9 +239,9 @@ export function answerMessages(
       // grounding", and every answer was then dropped as unaskable — the user
       // waited 30s and was told nothing could be answered. The id is an
       // address, never a verdict; groundedness has its own field.
-      'The "id" of each answer MUST be the number of the item it answers, copied exactly. Never invent one, ' +
-      'never use -1, and never use a number that is not in the list below. An item you had to invent an ' +
-      'answer for still gets its own real id, like any other.',
+      'The "at" of each answer MUST be the PLACE number of the item it answers, copied exactly. Never invent ' +
+      'one, never use -1, and never use a number that is not a PLACE in the list below. An item you had to ' +
+      'invent an answer for still gets its own real place number, like any other.',
   );
 
   // The style rules come AFTER the contract, not before it: the shape of the
@@ -288,8 +292,8 @@ export function answerMessages(
       `DOCUMENT${req.documentTitle ? `: ${req.documentTitle}` : ''}\n${paragraphLines(req)}\n\n` +
       `PLACES TO FILL IN, one answer each\n${items}\n\n` +
       'Output ONLY a bare JSON array, no prose before or after it and no markdown code fence, of objects ' +
-      'shaped { "id": number, "answer": string }: exactly one per item above, in the SAME ORDER as the ' +
-      'items are listed, "id" copied from the item\'s number.',
+      'shaped { "at": number, "answer": string }: exactly one per PLACE above, in the SAME ORDER as the ' +
+      'places are listed, "at" copied from the PLACE number.',
   };
 
   return [system, user];

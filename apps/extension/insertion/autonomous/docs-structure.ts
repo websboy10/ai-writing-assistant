@@ -38,16 +38,26 @@ function isWholeBold(el: Element): boolean {
 const BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6';
 
 /**
- * A cell's lines, as Docs paragraphs them. Docs wraps every line of a cell
- * in its own <p>, and reading the cell's textContent glued them together:
- * the operator's worksheet (2026-09-09) read "Manden skal herskefortsæt
- * herunder…" for a cell of two lines. The lines are what Find can look for,
- * one at a time, so the last of them is kept when there are several.
+ * The lines of a block, as Docs draws them. Reading a block's textContent
+ * glued its lines together: the operator's worksheet (2026-09-09) read
+ * "Manden skal herskefortsæt herunder…" for a cell of two lines, and Find,
+ * which sees one line at a time, then found nothing. Docs writes a soft line
+ * break (Shift+Enter) as <br> inside the paragraph; parseDocsHtml turns every
+ * <br> into a newline first, so both a second <p> and a <br> are a line here.
  */
+function linesOf(el: Element): string[] {
+  return (el.textContent ?? '').split('\n').map(normalizeCellText).filter(Boolean);
+}
+
+/** A cell's lines: those of every block inside it, or of the cell itself when Docs wrapped nothing. */
 function cellLines(td: Element): string[] {
   const blocks = Array.from(td.querySelectorAll(BLOCK_SELECTOR));
-  const lines = (blocks.length ? blocks.map((b) => b.textContent ?? '') : [td.textContent ?? '']).map(normalizeCellText).filter(Boolean);
-  return lines;
+  return (blocks.length ? blocks : [td]).flatMap(linesOf);
+}
+
+/** One paragraph from its lines: the text joined, and the last line kept when there are several — the line Find is given to write below it. */
+function fromLines(lines: string[], p: Omit<AutonomousParagraph, 'index' | 'text' | 'lastLine'>): Omit<AutonomousParagraph, 'index'> {
+  return { text: lines.join(' '), ...p, ...(lines.length > 1 ? { lastLine: lines[lines.length - 1] } : {}) };
 }
 
 export function parseDocsHtml(html: string): AutonomousParagraph[] {
@@ -55,6 +65,7 @@ export function parseDocsHtml(html: string): AutonomousParagraph[] {
   if (!html) return paragraphs;
 
   const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
   let tableIndex = -1;
 
   const push = (p: Omit<AutonomousParagraph, 'index'>) => {
@@ -87,11 +98,11 @@ export function parseDocsHtml(html: string): AutonomousParagraph[] {
     for (const child of Array.from(node.children)) {
       const tag = child.tagName;
       if (/^H[1-6]$/.test(tag)) {
-        const text = normalizeCellText(child.textContent ?? '');
-        if (text) push({ text, kind: 'heading', level: Number(tag[1]) });
+        const lines = linesOf(child);
+        if (lines.length) push(fromLines(lines, { kind: 'heading', level: Number(tag[1]) }));
       } else if (tag === 'P') {
-        const text = normalizeCellText(child.textContent ?? '');
-        if (text) push({ text, kind: 'text', ...(isWholeBold(child) ? { bold: true } : {}) });
+        const lines = linesOf(child);
+        if (lines.length) push(fromLines(lines, { kind: 'text', ...(isWholeBold(child) ? { bold: true } : {}) }));
       } else if (tag === 'UL' || tag === 'OL') {
         visitList(child, tag === 'UL' ? 'bullet' : 'numbered', 1);
       } else if (tag === 'TABLE') {
@@ -100,15 +111,7 @@ export function parseDocsHtml(html: string): AutonomousParagraph[] {
         rows.forEach((tr, row) => {
           Array.from(tr.children)
             .filter((c) => c.tagName === 'TD' || c.tagName === 'TH')
-            .forEach((td, col) => {
-              const lines = cellLines(td);
-              push({
-                text: lines.join(' '),
-                kind: 'cell',
-                cell: { table: tableIndex, row, col },
-                ...(lines.length > 1 ? { lastLine: lines[lines.length - 1] } : {}),
-              });
-            });
+            .forEach((td, col) => push(fromLines(cellLines(td), { kind: 'cell', cell: { table: tableIndex, row, col } })));
         });
       } else {
         // Docs wraps the whole clip in a <b style="font-weight:normal"> — and
