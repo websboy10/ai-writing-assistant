@@ -33,6 +33,35 @@ a measured walk into a table or list below, past any blank lines
 remain as the fallback when the model gives no place or names one that
 cannot be reached safely.
 
+## "Besvar markeringen" and "Brug som kontekst", back (2026-09-09)
+
+Removed with the old autonomous mode on 2026-09-03; reinstated on the new
+machinery. A bar appears in the panel the moment text is marked on the page:
+
+- **Besvar markeringen** — "Besvar alle spørgsmål" scoped to the marking:
+  the same structure read (Docs' copy of the marked text carries its
+  tables and lists), the same model plan for where each answer goes, the
+  same formatted slow typing. Mark two questions and their boxes out of a
+  long form and only those are answered. Behind the same flag as Besvar
+  alle.
+- **Brug som kontekst** — attaches the marked text as a context chip,
+  never starts a run. Not behind the flag.
+
+The bar polls a free read once a second (on Docs the input frame's
+placeholder — never a copy dispatch, which corrupted a document when polled
+during a run in August) and is hidden while anything is being written. One
+trap found on the way: on a Docs page the target tracker had captured Docs'
+own Find bar as a plain input, so the gate read that field's selection
+instead of the document's; Docs now wins, as it does for the write target.
+
+Observed (scripts/verify-answer-selection.mjs, 2026-09-09): two questions
+with a box each; the first marked with its box; "Besvar markeringen" →
+Straks answered it INTO its box by the model's plan (a walk), the second
+question and its box untouched, the run's source logged as scope
+"selection"; then the second question marked and "Brug som kontekst"
+attached a "Markeret tekst (…)" chip with no run. 11 checks, the last a
+checker nit fixed after the run.
+
 ## Observed (scripts/verify-formatted-answers.mjs, Langsomt + human)
 
 Latest run 2026-09-09: 22 of 23 checks live, the 23rd a checker that

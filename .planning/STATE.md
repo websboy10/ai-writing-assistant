@@ -45,6 +45,11 @@ PLANS: the model names the empty place for each answer with the whole form
 in view, and the extension carries it out. 22/23 live plus the corrected
 checker; regressions re-run with the plan active.
 
+**"Besvar markeringen" and "Brug som kontekst" are back (2026-09-09),** on
+the new machinery: the marking's structure is read, the model plans the
+places, answers are typed formatted — only for what is marked. Verified
+live (scripts/verify-answer-selection.mjs).
+
 **Backend deployed 2026-09-09** (plan, structure reaching the model, the
 prompts from the 8th). The extension half is still flagged OUT of the store
 build; that is the operator's switch (wxt.config.ts, answerAllEnabled), so

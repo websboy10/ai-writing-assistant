@@ -6,6 +6,8 @@ import { MAX_WPM, MIN_WPM, type RunState } from '@/insertion';
 import { autonomous } from '../autonomous';
 import { inserter } from '../inserter';
 import { useStore, type UiMessage } from '../store';
+import { newContextId } from '../ingest';
+import { awaLog } from '@/insertion/debug';
 import { Banner } from './AuthView';
 import { ContextChips } from './ContextPanel';
 
@@ -88,6 +90,7 @@ export function ChatView() {
       {/* composer */}
       <div className="space-y-2 border-t border-hairline p-3">
         <ContextChips />
+        <SelectionBar />
 
         <AutonomousBar />
 
@@ -396,6 +399,113 @@ const isRunActive = (state?: RunState): boolean => state === 'writing' || state 
  * and the whole path is unreachable through the UI.
  */
 const ANSWER_ALL_ENABLED = __AWA_ANSWER_ALL__;
+
+/**
+ * Marked text on the page: its two jobs, offered the moment there is
+ * something to act on.
+ *
+ * "Besvar markeringen" is "Besvar alle spørgsmål" scoped to the marking — the
+ * same structure read, the same plan for where each answer goes, the same
+ * formatted slow typing — so a person can mark two questions and their boxes
+ * out of a long form and have only those answered. "Brug som kontekst"
+ * attaches the marked text as background the assistant can draw on, and
+ * never starts a run.
+ *
+ * Polled once a second through a free read (inserter.hasMarkedText): on Docs
+ * that is the input frame's placeholder, not a copy dispatch — asking Docs
+ * for the selection itself every second while it was being written to
+ * corrupted a document (2026-08-18). The text is fetched once when a marking
+ * appears, and again on a click. Paused, and hidden, while a run is writing.
+ */
+function SelectionBar() {
+  const s = useStore();
+  const [marked, setMarked] = useState('');
+  const [expanded, setExpanded] = useState(false);
+  const writing =
+    isRunActive(s.autoRun?.state) || s.insertStatus?.state === 'running' || s.insertStatus?.state === 'paused';
+
+  useEffect(() => {
+    if (writing) return;
+    const t = setInterval(() => {
+      const has = inserter.hasMarkedText();
+      const text = has ? inserter.selectionText() : '';
+      awaLog('selection.poll', { has, chars: text.length });
+      setMarked((prev) => (has ? prev || text : ''));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [writing]);
+
+  if (!marked || writing) return null;
+
+  function useAsContext() {
+    const text = inserter.selectionText() || marked;
+    if (!text) return;
+    s.addContext({
+      id: newContextId(),
+      name: `Markeret tekst (${text.length.toLocaleString('da-DK')} tegn)`,
+      kind: 'selection',
+      text,
+      chars: text.length,
+      truncated: false,
+    });
+    s.set({ notice: 'Den markerede tekst er vedhæftet som baggrundsviden.' });
+  }
+
+  return (
+    <div className="space-y-1.5 rounded-xl border border-hairline p-2.5">
+      <p className="awa-note !text-ink">
+        Du har markeret tekst · <span className="awa-num">{marked.length.toLocaleString('da-DK')}</span> tegn
+      </p>
+      <div className="flex flex-wrap gap-1.5 text-ui">
+        {ANSWER_ALL_ENABLED && !expanded && (
+          <button
+            onClick={() => setExpanded(true)}
+            className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
+            title="Finder spørgsmålene i det markerede og skriver svarene ind i deres bokse — Straks eller Langsomt"
+          >
+            Besvar markeringen
+          </button>
+        )}
+        {ANSWER_ALL_ENABLED && expanded && (
+          <>
+            <button
+              onClick={() => {
+                setExpanded(false);
+                void autonomous.run('selection', 'instant');
+              }}
+              className="rounded-full bg-ink px-3 py-1 text-paper hover:opacity-85"
+              title="Skriver alle svar på én gang"
+            >
+              Straks
+            </button>
+            <button
+              onClick={() => {
+                setExpanded(false);
+                void autonomous.run('selection', 'progressive');
+              }}
+              className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
+              title="Skriver bogstav for bogstav, ét spørgsmål ad gangen, fra toppen af markeringen"
+            >
+              Langsomt
+            </button>
+          </>
+        )}
+        <button
+          onClick={useAsContext}
+          className="rounded-full border border-hairline px-3 py-1 hover:border-ink"
+          title="Teksten vedhæftes som baggrundsviden, assistenten kan trække på"
+        >
+          Brug som kontekst
+        </button>
+      </div>
+      <p className="awa-note">
+        {ANSWER_ALL_ENABLED
+          ? 'Svar skrives ind i markeringen, i dens bokse og punkter · kontekst vedhæftes som baggrundsviden.'
+          : 'Kontekst vedhæftes som baggrundsviden.'}
+      </p>
+    </div>
+  );
+}
 
 /**
  * "Besvar alle spørgsmål" — find every question in the document the user last

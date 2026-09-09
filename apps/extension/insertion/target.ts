@@ -96,6 +96,26 @@ export function gdocsSelectionTextNow(): string {
   return gdocsSelectionNow().text;
 }
 
+/**
+ * Cheap "is anything marked at all?" gate — a DOM read, so the selection bar
+ * may poll it. The real text costs an event dispatch (gdocsSelectionNow), and
+ * dispatching that once a second while Docs was being written to corrupted a
+ * document (2026-08-18); this reads nothing but the frame's own placeholder.
+ *
+ * Measured against a live document 2026-08-18: with nothing marked the hidden
+ * input frame holds two zero-width spaces; with text marked it holds a single
+ * non-breaking space. Neither is the selection. Anything that is not
+ * zero-width therefore means "something is marked".
+ */
+export function gdocsHasMarkedText(): boolean {
+  try {
+    const doc = document.querySelector<HTMLIFrameElement>(GDOCS_IFRAME)?.contentDocument;
+    return (doc?.body?.textContent ?? '').replace(ZERO_WIDTH, '').length > 0;
+  } catch {
+    return false; // cross-origin means the mechanism changed
+  }
+}
+
 /** Both flavours of one synthetic copy: what the marked text says, and how it is built. */
 export interface GDocsRead {
   text: string;
@@ -220,6 +240,38 @@ function contentEditableRoot(el: HTMLElement): HTMLElement {
  */
 export class TargetTracker {
   private saved: SavedTarget | null = null;
+
+  /**
+   * The text marked on the page right now — for "Besvar markeringen" and
+   * "Brug som kontekst". A plain field's own selection, Docs' selection
+   * through its copy mirror (one dispatch, so call it on a click or once per
+   * new marking, never on a bare poll — gdocsHasMarkedText is the poll), or
+   * the page's own selection anywhere else.
+   */
+  selectionText(): string {
+    // Docs first, as get() does: on a Docs page the saved target may be a
+    // plain input the page owns — Docs' own Find bar — never the document.
+    if (isGoogleDocs()) return gdocsHasMarkedText() ? gdocsSelectionTextNow() : '';
+    const s = this.saved;
+    if (s?.kind === 'plain') {
+      const el = s.element as HTMLInputElement | HTMLTextAreaElement;
+      const a = el.selectionStart ?? 0;
+      const b = el.selectionEnd ?? 0;
+      if (b > a) return el.value.slice(a, b);
+    }
+    return document.getSelection()?.toString() ?? '';
+  }
+
+  /** Free on every editor: the gate the selection bar polls. */
+  hasMarkedText(): boolean {
+    if (isGoogleDocs()) return gdocsHasMarkedText();
+    const s = this.saved;
+    if (s?.kind === 'plain') {
+      const el = s.element as HTMLInputElement | HTMLTextAreaElement;
+      return (el.selectionEnd ?? 0) > (el.selectionStart ?? 0);
+    }
+    return !!document.getSelection()?.toString();
+  }
 
   constructor(private shadowHost: () => Element | null) {
     document.addEventListener('focusin', this.onFocus, true);
