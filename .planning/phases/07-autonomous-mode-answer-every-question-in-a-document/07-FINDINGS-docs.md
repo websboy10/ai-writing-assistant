@@ -261,6 +261,83 @@ drives the chain against a fake OpenRouter (4 tests). Live: a marked
 question about a named novella went through web research (1,162 characters
 found) and into its box (scripts/verify-answer-selection.mjs with AWA_Q_A).
 
+## F-10 — Docs' Find lands on typing; Enter moves one on; the counter is absolute (MEASURED 2026-09-09, FIXED)
+
+F-8's open observation ("a marked run of the first copy would land on the
+second") had the wrong explanation. Measured with markers pasted after each
+landing (scratchpad `probe-find-tab.mjs`, a document with "fortsæt
+herunder…" twice):
+
+- **Typing the query already selects a match: the first one after the
+  caret**, wrapping to the top when none follows. With the caret between the
+  two copies, the bar read "2 af 2" and the marker went into the second.
+- **Every Enter moves one match on.** The old code pressed Enter once per
+  wanted occurrence, so it always landed one match PAST the one it meant —
+  invisible on unique text (one match wraps to itself), wrong on any
+  repeated line.
+- **The counter's first number is the match's position in the document**,
+  wherever the caret was.
+
+**Fix (docs-find.ts):** read "current af total" after typing, press Enter
+`(wanted - current + total) % total` times, confirm the counter shows
+`wanted` before the bar closes. The caller (docs-source.ts `occurrenceOf`)
+supplies `wanted` as the count of the query in every paragraph AND every
+answer the run has already typed before the anchor — by the tenth cell of a
+grid, nine answers stand between the top of the document and its anchor.
+Proven on the operator's own worksheet: both "fortsæt herunder…" cells
+continued under their own line, 25 grid cells anchored on one repeated word
+("negativt") every time.
+
+## F-11 — Tab crosses filled cells and row ends (MEASURED 2026-09-09)
+
+Five Tabs from A1 of a 3×3 table landed in B3, across four filled cells and
+a row end; one more landed in C1; five from B1 crossed cells this run had
+just filled. So any empty cell in a table is reachable from the last line of
+ORIGINAL text before it in the same table, by Tab as many times as cells lie
+between — whatever was typed into the cells on the way. That is how a
+five-column table with five empty rows is filled (docs-tables.ts
+`slotPlanFor`, kind `tab` with `times`), with every Find anchored on
+original text and never on the run's own words.
+
+## F-12 — A soft line break is glued into the line before it (FOUND 2026-09-09, FIXED)
+
+The operator's worksheet breaks "Manden skal herske / fortsæt herunder…"
+with Shift+Enter, which Docs' copy html writes as `<span><br /></span>`
+inside one `<p>`. Read as textContent that is "Manden skal herskefortsæt
+herunder…" — one line that exists nowhere in the document, so Find found
+nothing and the fill was reported unplaced. Every `<br>` is now a newline
+before the structure is read (docs-structure.ts), a paragraph's `text` is its
+lines joined by a space, and `lastLine` carries the line Find is given when
+an answer goes below the paragraph.
+
+## F-13 — A selection made and collapsed in one task never reaches the screen (MEASURED 2026-09-09, deleteBack rewritten)
+
+The operator saw the humanizer MARK a slip before deleting it: F-5's fix
+(2026-09-08) selected the slip with Shift+ArrowLeft and let the next paste
+replace it, and the marking stood on screen for as long as the pause before
+the next write — up to half a second, on every third word.
+
+Measured with scripts/probe-docs-backspace-verify.mjs, main thread half busy,
+the canvas tile read back on every animation frame for 350 ms after each
+deletion, on the caret's line (remembered from before the deletion — Docs
+hides the caret while text is marked), counting the selection's light-blue
+wash (166,199,251) and nothing else (a grammar squiggle is a saturated blue
+and fooled the first version):
+
+- A control that leaves three letters marked: wash on screen for the whole
+  window, +154 to +170 px.
+- The new deletion — Backspace × n, then Shift+ArrowLeft over the last few
+  characters, copy, ArrowRight, all in one synchronous task: 0 ms of wash in
+  48 of 48 reps (n = 1, 3, 7; with and without text after the caret), and
+  every line read back exactly. Over four runs, 190 deletions: two dropped
+  Backspaces, both caught by the read and repaired with one more press; one
+  dropped arrow, retried.
+
+So Docs applies a keydown to its model synchronously and paints on a later
+frame, which is what makes the check invisible. `gdocs.deleteBack` is now
+Backspaces plus that check; the `marked` state and the "left standing for
+the next paste" design are gone.
+
 ## Open — an invisible character inside a word, twice now (2026-09-09)
 
 Second data point for 08-SUMMARY.md's open observation. Formatted run

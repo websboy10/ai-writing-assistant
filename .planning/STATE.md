@@ -24,7 +24,29 @@ See: .planning/PROJECT.md (updated 2026-08-05)
 in, arriving at a pace they can read along with and stop mid-flow.
 **Current focus:** Operator walkthrough (UAT) of the full v1 build
 
-## Where this stands (2026-09-08)
+## Where this stands (2026-09-09, evening)
+
+**"Skriv som et menneske" deletes with Backspace again, and nothing is ever
+shown as marked.** The 2026-09-08 fix for Docs dropping a Backspace (one in
+fifty under load) marked the slip and typed over it, and the marking was on
+screen on every third word — the operator's "one huge mistake". Now:
+Backspaces, then a same-task read of what is left that the screen never sees
+(07-FINDINGS-docs.md F-13, quick task 260909-h4m). Two regressions from the
+fills work closed in the same task: a filled answer cell is the user's answer
+and its question is left alone (backend guard), and verify-answer-all keeps
+the extension log.
+
+**A run now fills EVERY place in a worksheet, not one box per question.**
+The operator's own form (a table whose answer cells say "fortsæt
+herunder…", a grid of verses × Manden?/Kvinden?, a five-column table with
+five empty rows, and a question already answered) put three answers on the
+line under three questions before; now it fills all 32 places and skips the
+answered one, observed on a real Doc through the export (quick task
+260909-g7z, SUMMARY.md). The model plans fills (`at` + `mode`); the
+extension Tabs through tables from original text, drives Find by Docs' own
+match counter (07-FINDINGS-docs.md F-10/F-11/F-12), and old extensions get
+one joined answer per question until they are rebuilt.
+
 
 **Phase 8 complete: "Besvar alle spørgsmål" reads a Google Doc's structure and
 answers into it — the right box, real formatting, typed slowly — with no API
@@ -367,6 +389,8 @@ five.
 |---|---|---|
 | 2026-09-04 | `20260903-focus-on-ask-and-insert` — strip autonomous mode and the selection actions; add a tempo slider and a human typing style | Done. 6,602 lines deleted, 128 added. 44/44 in a real browser; Google Docs left to the operator |
 | 2026-09-08 | `20260908-kort-svar-kortere` — "Kort" cut from 40–70 words / four sentences to one or two sentences | Done. Observed against the local backend: 5 of 5 Danish prompts came back at exactly 2 sentences, 23–36 words, voice slips intact |
+| 2026-09-09 | `260909-g7z-besvar-alle-genkend-alle-formater-udfyld` — every place in a worksheet gets its own answer: grids, tables with empty rows, "fortsæt herunder…" cells, labels, answered questions skipped | Done. The operator's own worksheet: 32 places filled, nothing unplaced, read back through Docs' export; synthetic sheet 29/29 |
+| 2026-09-09 | `260909-h4m-menneske-sletter-med-backspace-aldrig-markering` — the humanizer deletes with Backspace, checked in a way the screen never shows; a filled answer cell means the question is answered | Done. Probe 48/48 with 0 ms marked; Langsomt worksheet 26/26 twice, screen read every frame; whole chain green; backend deployed; store zip built, upload pending |
 
 ## Decisions
 
