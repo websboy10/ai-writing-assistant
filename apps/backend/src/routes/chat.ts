@@ -101,6 +101,8 @@ export function chatRoutes(app: FastifyInstance): void {
     let servedBy = '';
     let sources: WebSource[] = [];
     const startedAt = Date.now();
+    // Decided inside the try, read by the failure log in the catch.
+    let webSearch = false;
 
     try {
       const conversationId = await ensureConversation(user, body);
@@ -111,7 +113,7 @@ export function chatRoutes(app: FastifyInstance): void {
       // own questions the model is shaky on — that is why they are asking it.
       // Costs nothing on the operations that act on the user's own text, which
       // are most of them; see websearch.ts.
-      const webSearch = await needsWebSearch(body, abort.signal);
+      webSearch = await needsWebSearch(body, abort.signal);
       // Said before the search starts, not after: this is the longest silence
       // in the whole request (2-4s) and the only one the user would otherwise
       // have no explanation for.
@@ -243,6 +245,7 @@ export function chatRoutes(app: FastifyInstance): void {
               'Assistenten kan ikke svare lige nu. Det er en fejl hos os, ikke hos dig, og den går ikke væk af sig selv — vi er på sagen. Din kvote er ikke blevet brugt.',
           });
         } else {
+          req.log.error({ attempts: err.attempts, webSearch }, 'all models failed');
           send({
             type: 'error',
             code: 'all_models_failed',

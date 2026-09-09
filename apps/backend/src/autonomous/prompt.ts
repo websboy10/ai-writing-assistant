@@ -226,6 +226,13 @@ export function answerMessages(
 
   const system: ChatMessage = { role: 'system', content: sections.join('\n\n') };
 
+  // The document stays in the USER message, next to the question list. It
+  // was moved into the system message for an hour on 2026-09-09 (to keep the
+  // user message under the web plugin's length limit, websearch.ts) and the
+  // model promptly answered every question in the form instead of the ones
+  // listed, on two runs out of two. The web is consulted in its own short
+  // call instead (websearch.ts webResearch) and this call never carries the
+  // plugin.
   const questionLines = batch.map((q) => `[${q.paragraphIndex}] ${q.questionText}`).join('\n');
   const user: ChatMessage = {
     role: 'user',

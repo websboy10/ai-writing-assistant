@@ -175,6 +175,20 @@ export function pickChain(messages: ChatMessage[], hint: RouteHint): string[] {
 }
 
 /**
+ * A refusal that will not repeat: the request itself was rejected (a 400, a
+ * 404 for a withdrawn model, a 402 for the wallet). Everything else — a 5xx,
+ * a 429, a dropped connection, a first-byte timeout — is the kind of thing
+ * that clears in a second, and the kind a second pass through the chain is
+ * for.
+ */
+function isTransient(reason: string): boolean {
+  return !/HTTP [34]\d\d/.test(reason) || /HTTP 429/.test(reason);
+}
+
+const RETRY_PAUSE_MS = 1_000;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
  * Stream a completion, falling back through an ordered model chain.
  *
  * Policy gate (QUOT-05): contentClass 'real' → paid chain with provider data
@@ -185,6 +199,21 @@ export function pickChain(messages: ChatMessage[], hint: RouteHint): string[] {
  * Fallback rule: a model only counts as failed if it failed BEFORE emitting
  * any token — once tokens have reached the client we cannot switch models
  * without producing a stitched-together response.
+ *
+ * Two more rules, both from the operator's question of 2026-09-09 ("how do
+ * we prevent that from happening ever") after every model in the chain
+ * "was unavailable" on a real run:
+ *
+ *   - Web search never takes the chain down. The failure that day was the
+ *     search plugin, not a model: OpenRouter answers HTTP 500 for EVERY
+ *     model when the plugin is attached to a long user message, in under a
+ *     second each (measured, see websearch.ts). A model that fails with the
+ *     plugin on is tried again at once without it, before the next model:
+ *     an answer written from memory is a draft to edit, an error is nothing.
+ *   - One more pass when everything looked transient. A 5xx, a 429 or a
+ *     dropped connection on all three models in the same second is far more
+ *     often OpenRouter having a moment than three providers failing at
+ *     once, and a second later it is usually gone.
  */
 export async function streamChat(
   messages: ChatMessage[],
@@ -206,26 +235,42 @@ export async function streamChat(
   const affordable = chain.filter((m) => (outOfCreditUntil.get(m) ?? 0) <= now);
   const order = affordable.length ? affordable : [chain[chain.length - 1]];
 
-  for (const model of order) {
-    let emitted = false;
-    try {
-      await streamOne(model, messages, isSynthetic, hint.webSearch === true, signal, {
-        ...handlers,
-        onToken: (t) => {
-          emitted = true;
-          handlers.onToken(t);
-        },
-      });
-      return;
-    } catch (err) {
+  for (let pass = 0; pass < 2; pass++) {
+    if (pass === 1) {
+      if (!attempts.every((a) => isTransient(a.reason))) break;
+      await sleep(RETRY_PAUSE_MS);
       if (signal.aborted) return;
-      const reason = err instanceof Error ? err.message : String(err);
-      attempts.push({ model, reason });
-      if (isCreditRefusal(reason)) outOfCreditUntil.set(model, Date.now() + CREDIT_COOLDOWN_MS);
-      handlers.onModelFailed?.(model, reason);
-      if (emitted) {
-        // Mid-stream failure after tokens went out: surface it, don't stitch.
-        throw new Error(`Model ${model} failed mid-response: ${reason}`);
+    }
+    for (const model of order) {
+      // With the plugin first, then the same model bare. A wallet refusal is
+      // not the plugin's doing, so it is not retried without it.
+      const variants = hint.webSearch === true ? [true, false] : [false];
+      for (const webSearch of variants) {
+        let emitted = false;
+        try {
+          await streamOne(model, messages, isSynthetic, webSearch, signal, {
+            ...handlers,
+            onToken: (t) => {
+              emitted = true;
+              handlers.onToken(t);
+            },
+          });
+          return;
+        } catch (err) {
+          if (signal.aborted) return;
+          const message = err instanceof Error ? err.message : String(err);
+          const reason = webSearch ? `with web search: ${message}` : message;
+          attempts.push({ model, reason });
+          handlers.onModelFailed?.(model, reason);
+          if (emitted) {
+            // Mid-stream failure after tokens went out: surface it, don't stitch.
+            throw new Error(`Model ${model} failed mid-response: ${reason}`);
+          }
+          if (isCreditRefusal(message)) {
+            outOfCreditUntil.set(model, Date.now() + CREDIT_COOLDOWN_MS);
+            break;
+          }
+        }
       }
     }
   }

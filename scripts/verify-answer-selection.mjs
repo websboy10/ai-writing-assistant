@@ -28,7 +28,11 @@ const KEEP = process.argv.includes('--keep');
 const TEST_EMAIL = process.env.AWA_TEST_EMAIL ?? 'modestlyeu+awatest@gmail.com';
 const TEST_PASSWORD = process.env.AWA_TEST_PASSWORD ?? 'awa-test-2026-xK9';
 
-const Q_A = 'Hvad er hovedstaden i Danmark?';
+// AWA_Q_A / AWA_EXPECT_A swap the marked question and what its answer must
+// contain — e.g. a question about a named novella, which sends the run
+// through web search (the path that died on 2026-09-09).
+const Q_A = process.env.AWA_Q_A ?? 'Hvad er hovedstaden i Danmark?';
+const EXPECT_A = new RegExp(process.env.AWA_EXPECT_A ?? 'k[øo]benhavn', 'i');
 const Q_B = 'Hvad hedder Danmarks længste å?';
 const WORKSHEET = `
 <p>${Q_A}</p>
@@ -51,7 +55,7 @@ page.on('console', (msg) => {
 });
 page.on('pageerror', (e) => console.log(`  [pageerror] ${String(e?.message ?? e).slice(0, 200)}`));
 
-const ENTITIES = { oslash: 'ø', Oslash: 'Ø', aring: 'å', Aring: 'Å', aelig: 'æ', AElig: 'Æ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+const ENTITIES = { oslash: 'ø', Oslash: 'Ø', aring: 'å', Aring: 'Å', aelig: 'æ', AElig: 'Æ', eacute: 'é', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 const decode = (t) => t.replace(/&#(\d+);/g, (_m, n) => String.fromCharCode(Number(n))).replace(/&([a-zA-Z]+);/g, (m, n) => ENTITIES[n] ?? m);
 const strip = (t) => decode(t.replace(/<[^>]+>/g, '')).replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -202,9 +206,9 @@ try {
   for (const l of awaLines.filter((l) => /docs\.source|docs\.marked|docs\.locate|docs\.walk|autonomous\.answers/.test(l))) console.log(`  ${l.slice(0, 300)}`);
   console.log('');
 
-  r.ok('the marked question was answered IN its box', /k[øo]benhavn/i.test(cells[0] ?? ''), `box: ${JSON.stringify(cells[0])}`);
+  r.ok('the marked question was answered IN its box', EXPECT_A.test(cells[0] ?? ''), `box: ${JSON.stringify(cells[0])}`);
   r.ok('the unmarked question\'s box stayed empty', (cells[1] ?? '') === '', `box: ${JSON.stringify(cells[1])}`);
-  r.ok('nothing landed outside the boxes', !/k[øo]benhavn/i.test(outside) && outside === `${Q_A} ${Q_B}`, JSON.stringify(outside));
+  r.ok('nothing landed outside the boxes', !EXPECT_A.test(outside) && outside === `${Q_A} ${Q_B}`, JSON.stringify(outside));
   r.ok('the run was scoped to the MARKING', awaLines.some((l) => /docs\.source.*"scope":"selection"/.test(l)));
   // The whole document was read and the marking found in it: the first
   // question is line [0] of the whole read, and its box [1] was in view.

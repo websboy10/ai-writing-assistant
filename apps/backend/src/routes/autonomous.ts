@@ -6,7 +6,7 @@ import { collect } from '../autonomous/complete.js';
 import { detectionMessages, answerMessages } from '../autonomous/prompt.js';
 import { parseDetection, parseAnswers, validateMarked, validateParagraphs, type DetectedQuestion } from '../autonomous/parse.js';
 import { NoModelsError, PolicyError } from '../openrouter.js';
-import { needsWebSearch } from '../websearch.js';
+import { needsWebSearch, webResearch } from '../websearch.js';
 
 // Kept in sync with packages/shared/src/index.ts. Values (not types) must be
 // local: @awa/shared ships TS source, which Node can't load in the deployed
@@ -133,6 +133,8 @@ export function autonomousRoutes(app: FastifyInstance): void {
       'autonomous run input',
     );
 
+    // Decided inside the try, read by the failure log in the catch.
+    let webSearch = false;
     try {
       const detection = await collect(detectionMessages(autoReq), contentClass, abort.signal);
       // Which model answered, and which ones we burned getting there. Silent
@@ -180,7 +182,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       // about a named novel or this year's tax rules gets looked up, a form
       // about the user's own year at work does not. An attached file settles
       // it as NO before any call is made — the attachment IS the grounding.
-      const webSearch = await needsWebSearch(
+      webSearch = await needsWebSearch(
         {
           messages: [{ role: 'user', content: detected.map((q) => q.questionText).join('\n') }],
           operation: 'chat',
@@ -189,6 +191,23 @@ export function autonomousRoutes(app: FastifyInstance): void {
         },
         abort.signal,
       );
+      // The lookup is its own short call, and its findings ride into every
+      // batch as attached context. The answer call itself never carries the
+      // search plugin — see websearch.ts webResearch for the measured reason.
+      if (webSearch) {
+        const note = await webResearch(
+          detected.map((q) => q.questionText),
+          contentClass,
+          abort.signal,
+        );
+        req.log.info({ chars: note.length }, 'web research');
+        if (note) {
+          autoReq.context = [
+            ...(autoReq.context ?? []),
+            { id: 'web-research', name: 'Websøgning', kind: 'text', text: note, chars: note.length, truncated: false },
+          ];
+        }
+      }
 
       // Batches are independent — each carries the whole document as context
       // and only its own questions — so running them one after another just
@@ -198,7 +217,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       const perBatch = await Promise.all(
         batches.map(async (batch) => {
           const run = async (insist: boolean) => {
-            const completion = await collect(answerMessages(autoReq, batch, insist), contentClass, abort.signal, { webSearch });
+            const completion = await collect(answerMessages(autoReq, batch, insist), contentClass, abort.signal);
             if (completion.failures.length) {
               req.log.warn({ served: completion.model, failures: completion.failures }, 'model chain fallback');
             }
@@ -268,6 +287,9 @@ export function autonomousRoutes(app: FastifyInstance): void {
         });
       }
       if (err instanceof NoModelsError) {
+        // The reasons, or the next one of these is undiagnosable: on
+        // 2026-09-09 two runs died here and the log held only the 503.
+        req.log.error({ attempts: err.attempts, webSearch }, 'all models failed');
         return reply.code(503).send({
           error: `Alle modeller i kæden er utilgængelige lige nu (${err.attempts
             .map((a) => a.model.split('/').pop())

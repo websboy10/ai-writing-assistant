@@ -228,6 +228,39 @@ on the first line. In a document holding the same question twice, a marked
 run of the first copy would land on the second (seen once, on a worksheet
 the harness had pasted twice). Unique question text is unaffected.
 
+## F-9 — "Alle modeller i kæden er utilgængelige" on a real Besvar run (FOUND 2026-09-09, FIXED)
+
+Two runs at 08:33 and 08:34 (production log): the question found, the box
+planned, then a 503 within two seconds. The reasons were not logged — only
+the status — so the cause had to be reproduced: OpenRouter's web-search
+plugin (engine parallel, mode turbo) answers HTTP 500 for EVERY model, in
+half a second each, once the user message passes roughly 4,500 characters
+(4,079 fine, 5,079 dead; scratchpad probes against the live API). A Besvar
+answer call put the whole form in the user message, and the decider had
+said "search" because the question named a novella. Not transient: it
+would have failed every time for every form of that size with any named
+work in it. Three layers now, so no one of them has to hold:
+
+1. **Web search never takes the chain down** (openrouter.ts streamChat): a
+   model that fails with the plugin attached is retried at once without it,
+   before the next model. Proven on the exact request shape: plugin 500,
+   same model bare, answer in 2.3s, the failure recorded.
+2. **A Besvar run looks things up in its own short call** (websearch.ts
+   webResearch): the questions alone go to the plugin, and what it found
+   rides into every batch as attached context; the answer call never
+   carries the plugin. One search per run instead of one per batch. Moving
+   the form into the system message was tried first and reverted within
+   the hour: the model then answered every question in the form instead of
+   the ones listed, two runs of two.
+3. **One more pass through the chain** when every failure looked transient
+   (5xx, 429, a dropped connection), a second later.
+
+Plus the reasons are logged on every "all models failed" (both routes), so
+the next one is diagnosable from the log alone. Unit: openrouter.test.ts
+drives the chain against a fake OpenRouter (4 tests). Live: a marked
+question about a named novella went through web research (1,162 characters
+found) and into its box (scripts/verify-answer-selection.mjs with AWA_Q_A).
+
 ## Open — an invisible character inside a word, twice now (2026-09-09)
 
 Second data point for 08-SUMMARY.md's open observation. Formatted run

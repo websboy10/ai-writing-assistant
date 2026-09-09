@@ -61,6 +61,15 @@ live on the worksheet whose question ASKS for bold: the word arrived plain,
 nothing the run wrote was bold, no asterisk (verify-formatted-answers.mjs,
 23/24 — the 24th is the open invisible-character observation, F-8's tail).
 
+**"Alle modeller utilgængelige" on the operator's run (2026-09-09 08:33)
+was the web-search plugin, not the models** — it 500s on every model once
+the user message passes ~4,500 characters, and the answer call carried the
+whole form (07-FINDINGS-docs.md F-9). Fixed in three layers: a model that
+fails with the plugin is retried bare at once; a Besvar run does its web
+lookup in a separate short call and never attaches the plugin to the answer
+call; one more pass through the chain on transient failures. Reasons now
+logged on every such failure. Deployed 09:15.
+
 **Backend deployed 2026-09-09 08:25** (no-bold rule and strip, the marked
 range). The extension half is still flagged OUT of the store build; that is
 the operator's switch (wxt.config.ts, answerAllEnabled), so nothing a store

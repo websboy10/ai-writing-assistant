@@ -1,5 +1,6 @@
-import type { ChatRequest, PromptOperation } from '@awa/shared';
+import type { ChatMessage, ChatRequest, ContentClass, PromptOperation } from '@awa/shared';
 import { env } from './env.js';
+import { collect } from './autonomous/complete.js';
 
 /**
  * Whether this request should look something up before answering.
@@ -89,6 +90,15 @@ export async function needsWebSearch(req: ChatRequest, signal: AbortSignal): Pro
   const text = lastUserText(req).trim();
   // Nothing to judge, or so long that it is plainly a pasted document rather
   // than a question. Either way the web has nothing to add.
+  //
+  // The 4,000 also keeps the request under a limit the plugin does not
+  // document. Measured 2026-09-09 against the live API, engine parallel,
+  // mode turbo: a user message of 4,079 characters searched fine, one of
+  // 5,079 answered HTTP 500 "Internal Server Error" for every model in the
+  // chain, in half a second each. That is what "all models unavailable"
+  // was on a real "Besvar" run, whose user message carried the whole form
+  // (autonomous/prompt.ts now keeps the form in the system message). Raise
+  // this and the chat path walks into the same wall.
   if (text.length < 8 || text.length > 4_000) return false;
 
   const timer = new AbortController();
@@ -135,5 +145,42 @@ export async function needsWebSearch(req: ChatRequest, signal: AbortSignal): Pro
     return false;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+const RESEARCH_RULE = [
+  'You look things up before someone fills in a form. Below are the questions from the form.',
+  'Search the web and write down the facts a person needs to answer them correctly: what the named',
+  'work, person, company, law or event actually is — names, dates, plot, figures, key points.',
+  'Plain prose in the language of the questions, at most 250 words. No citations, no URLs, no',
+  'markdown, no headings. A question that needs no facts from the web is simply skipped.',
+].join(' ');
+
+/**
+ * A "Besvar" run's web lookup, in its own short call.
+ *
+ * The answer call cannot carry the plugin: its user message holds the whole
+ * form, and OpenRouter's search plugin answers HTTP 500 for every model once
+ * that message passes roughly 4,500 characters (measured 2026-09-09, see
+ * needsWebSearch). That was "all models unavailable" on a real run. So the
+ * web is asked about the QUESTIONS alone — a short message, and the better
+ * search query anyway — and what it found is handed to the answer call as
+ * attached context. One search per run rather than one per batch of five.
+ *
+ * Empty when nothing usable came back, including when the plugin failed and
+ * the chain answered from memory (streamChat's bare retry): a note written
+ * from memory must not be labelled as found on the web.
+ */
+export async function webResearch(questions: string[], contentClass: ContentClass, signal: AbortSignal): Promise<string> {
+  const messages: ChatMessage[] = [
+    { role: 'system', content: RESEARCH_RULE },
+    { role: 'user', content: questions.join('\n') },
+  ];
+  try {
+    const { text, model, failures } = await collect(messages, contentClass, signal, { webSearch: true });
+    if (failures.some((f) => f.model === model && f.reason.startsWith('with web search:'))) return '';
+    return text.trim();
+  } catch {
+    return '';
   }
 }
