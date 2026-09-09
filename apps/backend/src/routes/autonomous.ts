@@ -1,10 +1,17 @@
 import type { FastifyInstance } from 'fastify';
-import type { AutonomousAnswer, AutonomousParagraph, AutonomousRequest, AutonomousResponse, ContentClass } from '@awa/shared';
+import type { AutonomousAnswer, AutonomousRequest, AutonomousResponse, ContentClass } from '@awa/shared';
 import { verifyUser, rpc, danishTime, anonRpc } from '../supabase.js';
 import { getEntitlement } from '../billing.js';
 import { collect } from '../autonomous/complete.js';
 import { detectionMessages, answerMessages } from '../autonomous/prompt.js';
-import { parseDetection, parseAnswers, validateMarked, validateParagraphs, type DetectedQuestion } from '../autonomous/parse.js';
+import {
+  batchFills,
+  collapseForOldClients,
+  parseDetection,
+  parseAnswers,
+  validateMarked,
+  validateParagraphs,
+} from '../autonomous/parse.js';
 import { NoModelsError, PolicyError } from '../openrouter.js';
 import { needsWebSearch, webResearch } from '../websearch.js';
 
@@ -13,7 +20,7 @@ import { needsWebSearch, webResearch } from '../websearch.js';
 // serverless bundle — the backend's shared imports are type-only by contract
 // (see apps/backend/src/routes/files.ts for the established pattern).
 const MAX_AUTONOMOUS_DOC_CHARS = 60_000;
-const ANSWER_BATCH_SIZE = 5;
+const ANSWER_BATCH_SIZE = 10;
 
 interface QuotaResult {
   ok: boolean;
@@ -80,6 +87,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       documentTitle: typeof body?.documentTitle === 'string' ? body.documentTitle : undefined,
       context: Array.isArray(body?.context) ? body.context : undefined,
       prefs: body?.prefs,
+      fills: body?.fills === true,
     };
 
     // Quota is consumed atomically BEFORE any AI call (QUOT-01): a run costs
@@ -143,14 +151,14 @@ export function autonomousRoutes(app: FastifyInstance): void {
         req.log.warn({ served: detection.model, failures: detection.failures }, 'model chain fallback');
       }
       const detected = parseDetection(detection.text, paragraphs.length, paragraphs, marked);
-      // The plan, as validated: which questions got a place and which did
-      // not. A run where every place is null and the raw reply never says
-      // "answerAt" means the model ignored the field, not that the form had
-      // no boxes.
+      // The plan, as validated: every fill, as question → mode@place. A run
+      // where every fill is "below" at its own question and the raw reply
+      // never says "fills" means the model ignored the field, not that the
+      // form had no boxes.
       req.log.info(
         {
-          plan: detected.map((q) => ({ i: q.paragraphIndex, at: q.answerAt ?? null })),
-          rawMentionsPlan: /answerAt/.test(detection.text),
+          plan: detected.map((f) => `${f.paragraphIndex}→${f.mode}@${f.at}`),
+          rawMentionsPlan: /"fills"/.test(detection.text),
           rawHead: detection.text.slice(0, 500),
         },
         'detection plan',
@@ -173,10 +181,11 @@ export function autonomousRoutes(app: FastifyInstance): void {
         return reply.send(response);
       }
 
-      const batches: DetectedQuestion[][] = [];
-      for (let i = 0; i < detected.length; i += ANSWER_BATCH_SIZE) {
-        batches.push(detected.slice(i, i + ANSWER_BATCH_SIZE));
-      }
+      const batches = batchFills(detected, ANSWER_BATCH_SIZE);
+      // A question's fills all quote the same question; the web is asked about
+      // the questions, once each, and the tasks that say more than they do.
+      const questions = [...new Set(detected.map((f) => f.questionText))];
+      const lookups = [...new Set(detected.map((f) => f.task ?? f.questionText))];
 
       // The same rule the chat route uses, once for the whole run: a form
       // about a named novel or this year's tax rules gets looked up, a form
@@ -184,7 +193,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       // it as NO before any call is made — the attachment IS the grounding.
       webSearch = await needsWebSearch(
         {
-          messages: [{ role: 'user', content: detected.map((q) => q.questionText).join('\n') }],
+          messages: [{ role: 'user', content: questions.join('\n') }],
           operation: 'chat',
           contentClass,
           context: autoReq.context,
@@ -195,11 +204,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       // batch as attached context. The answer call itself never carries the
       // search plugin — see websearch.ts webResearch for the measured reason.
       if (webSearch) {
-        const note = await webResearch(
-          detected.map((q) => q.questionText),
-          contentClass,
-          abort.signal,
-        );
+        const note = await webResearch(lookups, contentClass, abort.signal);
         req.log.info({ chars: note.length }, 'web research');
         if (note) {
           autoReq.context = [
@@ -262,7 +267,8 @@ export function autonomousRoutes(app: FastifyInstance): void {
           return parsed;
         }),
       );
-      const answers: AutonomousAnswer[] = perBatch.flat();
+      const all: AutonomousAnswer[] = perBatch.flat();
+      const answers = autoReq.fills ? all : collapseForOldClients(all);
 
       if (answers.length === 0) {
         await anonRpc('refund_quota_for', { p_user_id: user.id, p_cost: 2 }).catch((refundErr) =>
@@ -270,7 +276,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
         );
       }
 
-      const response: AutonomousResponse = { answers, detected: detected.length };
+      const response: AutonomousResponse = { answers, detected: questions.length };
       return reply.send(response);
     } catch (err) {
       if (abort.signal.aborted) return; // client disconnected — nothing to send

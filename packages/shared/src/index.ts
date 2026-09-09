@@ -258,7 +258,24 @@ export interface AutonomousParagraph {
   bold?: boolean;
   /** Where in which table. `text === ''` in a cell means an empty answer box. */
   cell?: { table: number; row: number; col: number };
+  /**
+   * A cell of several lines ("Manden skal herske" / "fortsæt herunder…")
+   * reads as one paragraph, and `text` is its lines joined. This is the last
+   * of them: the line Docs' Find is given when an answer is to go BELOW the
+   * cell's text, since Find matches within one line only. Absent for a
+   * one-line cell, where `text` is that line.
+   */
+  lastLine?: string;
 }
+
+/**
+ * Where a fill lands relative to its paragraph `at`:
+ * - `fill`: `at` is an EMPTY box or list item and the answer starts in it.
+ * - `below`: a new line under `at`'s text — the question itself when the
+ *   document draws nothing for it, or a cell that asks to be continued.
+ * - `inline`: on `at`'s own line, after a label ("Navn:").
+ */
+export type FillMode = 'fill' | 'below' | 'inline';
 
 export interface AutonomousRequest {
   scope: 'document' | 'selection';
@@ -274,20 +291,35 @@ export interface AutonomousRequest {
   documentTitle?: string;
   context?: ContextItem[];
   prefs?: OutputPrefs;
+  /**
+   * The client places every fill on its own (2026-09-09 and later). Without
+   * it the server hands back ONE answer per question, its fills joined, with
+   * `answerAt` as before: an extension built earlier would otherwise type a
+   * grid's twenty-five cells one under the other beneath the question.
+   */
+  fills?: boolean;
 }
 
+/**
+ * One place in the document and the text that goes there.
+ *
+ * Until 2026-09-09 a question had one answer and one optional place. A real
+ * worksheet — a grid of verses × "Manden?"/"Kvinden?", a five-column table
+ * with five empty rows, a cell that says "fortsæt herunder…" — has many
+ * places for one question, and text to continue under rather than an empty
+ * box. So the unit is the fill: the model plans every place with the whole
+ * document in view, and the extension carries each out in document order.
+ */
 export interface AutonomousAnswer {
+  /** The question this fill answers — the paragraph the fill is FOR. */
   paragraphIndex: number;
   questionText: string;
-  /**
-   * The model's plan for WHERE this answer goes: the index of the empty
-   * paragraph it belongs in — an empty table cell, an empty list item — chosen
-   * with the whole document in view. Absent when the answer simply goes on the
-   * line under the question. Validated server-side against the paragraphs the
-   * extension sent (empty, after the question, claimed once); the extension
-   * checks again and falls back to its own placement rules when it cannot reach
-   * the place safely.
-   */
+  /** What belongs at this place, in a few words, when the question alone does not say ("Manden? for 1. Korintherbrev 11,3"). */
+  task?: string;
+  /** The paragraph the fill lands at or under — see FillMode. Validated server-side against the paragraphs the extension sent; the extension checks again. */
+  at: number;
+  mode: FillMode;
+  /** `at` when `mode` is `fill`, for extensions built before fills existed; never read by the current client. */
   answerAt?: number;
   /**
    * The answer as the model wrote it: plain prose, with the markdown subset
@@ -314,6 +346,8 @@ export interface AutonomousResponse {
   detected: number;
 }
 
-export const MAX_AUTONOMOUS_QUESTIONS = 40;
+/** Fills per run. A five-column table with five empty rows is twenty-five on its own. */
+export const MAX_AUTONOMOUS_ANSWERS = 80;
 export const MAX_AUTONOMOUS_DOC_CHARS = 60_000;
-export const ANSWER_BATCH_SIZE = 5;
+/** Fills per answer call. A question's fills always travel together, so a group larger than this is one batch by itself. */
+export const ANSWER_BATCH_SIZE = 10;

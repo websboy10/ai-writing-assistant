@@ -1,10 +1,10 @@
 import type { AutonomousParagraph, AutonomousRequest, ChatMessage } from '@awa/shared';
-import type { DetectedQuestion } from './parse.js';
+import type { DetectedFill } from './parse.js';
 import { FORMAT_MARKDOWN_RULES, VOICE_RULES } from '../prompt.js';
 
 /**
  * Structured prompt assembly for autonomous mode (mirrors PROM-03's
- * discrete-section style in ../prompt.ts): detection and answering are two
+ * discrete-section style in ../prompt.ts): planning and answering are two
  * separate single-shot calls, each built from named sections rather than one
  * concatenated string.
  */
@@ -17,8 +17,10 @@ import { FORMAT_MARKDOWN_RULES, VOICE_RULES } from '../prompt.js';
  * away before sending. Now every line carries its shape (docs-structure.ts on
  * the extension side), and the two things this feature was failing at — what
  * counts as a question, and what shape its answer should take — are both
- * decided with that in view. Lines with no structure (a textarea, a
- * contenteditable) print exactly as they always did.
+ * decided with that in view. A cell carries its table, row and column since
+ * 2026-09-09: a grid of verses × "Manden?"/"Kvinden?" is only a grid to a
+ * reader who can tell which empty cell is in which row. Lines with no
+ * structure (a textarea, a contenteditable) print exactly as they always did.
  */
 function shapeTag(p: AutonomousParagraph): string {
   switch (p.kind) {
@@ -28,8 +30,10 @@ function shapeTag(p: AutonomousParagraph): string {
       return p.text ? '(punkt) ' : '(punkt, TOM)';
     case 'numbered':
       return p.text ? '(nummereret punkt) ' : '(nummereret punkt, TOM)';
-    case 'cell':
-      return p.text ? '(tabelcelle) ' : '(tabelcelle, TOM svarboks)';
+    case 'cell': {
+      const where = p.cell ? `tabel ${p.cell.table + 1}, række ${p.cell.row + 1}, kolonne ${p.cell.col + 1}` : 'tabelcelle';
+      return p.text ? `(${where}) ` : `(${where}, TOM svarboks)`;
+    }
     default:
       return p.bold ? '(fed) ' : '';
   }
@@ -54,7 +58,8 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
   const system: ChatMessage = {
     role: 'system',
     content: [
-      'You read a document (Danish or English) and find every question in it.',
+      'You read a document (Danish or English) and plan how to fill it in: you find every question, and for ' +
+        'each one you name the exact place or places its answer goes.',
       'A question mark is NOT required. Numbered fields ("2. Hvilke områder vil du gerne udvikle?"), ' +
         'imperative prompts ("Beskriv dine tre vigtigste resultater i år"), and headings with blank space ' +
         'left beneath them all count as things a person is expected to answer. A plain statement of fact ' +
@@ -65,27 +70,50 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
       'An instruction about HOW to fill in the form is not a question either: "Udfyld skemaet nedenfor", ' +
         '"Svar så konkret som muligt", "Brug gerne eksempler", "Sæt kryds", "Skriv med blokbogstaver". ' +
         'It addresses the reader about the form itself and asks for nothing that could be written under it. ' +
-        'A line in bold at the top of a form or a section is usually such an instruction or a label.',
-      'Each line is prefixed with what kind of line it is. A line marked (tabelcelle, TOM svarboks) is an ' +
-        'empty answer box: it is never a question itself, and it belongs to the question in the cell before ' +
-        'it or on the line above its table — that question IS one to answer. A heading is a section title, not ' +
-        'a question, unless it is itself phrased as a task. A bullet or numbered point under a question is ' +
-        'usually guidance for the answer, not a separate question — unless it is itself a question or task. ' +
-        'An EMPTY point, marked (punkt, TOM) or (nummereret punkt, TOM), is an answer slot like an empty box: ' +
-        'never a question, and it belongs to the line above it. ' +
-        'Table header cells such as "Spørgsmål" or "Dit svar" are labels, not questions.',
-      // The plan. The operator's own test form (2026-09-08): every question
-      // had a box drawn under it and the answers went on the line under the
-      // question instead, because the box was matched by a rule that could not
-      // see a blank line. The model sees the whole form at once — every box,
-      // every empty point, which belongs to what — so it names the place.
-      'For each question also decide WHERE its answer belongs, reading the whole document first: ' +
-        '"answerAt" is the bracketed number of the EMPTY place meant for that answer — the empty answer box ' +
-        'beside it in its table row or below it, or the empty point (punkt, TOM / nummereret punkt, TOM) under ' +
-        'it — even when guidance lines or a note sit between the question and that place. It is null when the ' +
-        'document has no empty place for this answer and it simply goes under the question. An empty place ' +
-        'belongs to ONE question: the nearest question above it, unless the layout plainly says otherwise ' +
-        '(a row of boxes beside a row of questions). Never give two questions the same place.',
+        'A line in bold at the top of a form or a section is usually such an instruction or a label; a ' +
+        'numbered task in bold is still a task.',
+      'Each line is prefixed with what kind of line it is. A line marked "tabel N, række R, kolonne K" is a ' +
+        'table cell, and "TOM svarboks" after it means the cell is empty. An empty cell is never a question ' +
+        'itself; it belongs to a question: the cell before it in its row, the header over its column, the ' +
+        'label at the start of its row, or the line above its table. A heading is a section title, not a ' +
+        'question, unless it is itself phrased as a task. A bullet or numbered point under a question is ' +
+        'usually guidance for the answer, not a separate question, unless it is itself a question or task. ' +
+        'An EMPTY point, marked (punkt, TOM) or (nummereret punkt, TOM), is an answer slot like an empty box. ' +
+        'Table header cells such as "Spørgsmål", "Dit svar", "Mand", "Kvinde" are labels, not questions, ' +
+        'even when they end with a question mark like "Manden?" over a column.',
+      // The operator's own worksheet (2026-09-09): the first question had
+      // its answer written under it already, and a table's answer cells held
+      // a starter with "fortsæt herunder…" beneath. The first was answered a
+      // second time; the second was refused as occupied.
+      'A question that is ALREADY ANSWERED is left out entirely: its answer stands in the paragraph under it, ' +
+        'or in the box beside or below it, written the way a person filling in the form writes. Text that ' +
+        'only STARTS an answer and asks for more ("fortsæt herunder…", "uddyb", "skriv videre", a sentence ' +
+        'that stops mid-thought) is not answered yet: it is continued.',
+      // The plan. The operator's test form (2026-09-08): every question had a
+      // box drawn under it and the answers went on the line under the
+      // question instead, because the box was matched by a rule that could
+      // not see a blank line. The model sees the whole form at once, so it
+      // names the places. Since 2026-09-09 a question may have MANY places:
+      // a grid, a table with empty rows, and places that are text to continue
+      // under rather than empty boxes.
+      'For each question, list its "fills": every place in the document that gets text for it, decided ' +
+        'after reading the whole document. Each fill has "at", the bracketed number of a paragraph, and a ' +
+        '"mode". "fill": [at] is an EMPTY place, an empty cell or an empty point, and the answer starts in ' +
+        'it. "below": the answer goes on a new line under the text of [at]; that is the question itself when ' +
+        'the document draws no empty place for it, or a cell whose text asks to be continued under it. ' +
+        '"inline": the answer goes on the same line as [at], after a label that ends with a colon and has ' +
+        'nothing after it ("Navn:", "Dato:", "Svar:").',
+      'A table row with several empty cells is several fills, one per cell. A table with a header row and ' +
+        'empty rows beneath it wants EVERY empty cell filled, row by row, each row one example of what the ' +
+        'header asks for. A grid with labels down the side and headers across the top is one fill per empty ' +
+        'cell. An empty list under a question is ONE fill at its first empty point; the whole list goes in ' +
+        'that one answer. An empty place belongs to ONE question, the nearest above it unless the layout ' +
+        'plainly says otherwise. One fill per place, never two.',
+      'Every fill may carry "task": what belongs at that place, in a few words in the document\'s language, ' +
+        '"Manden? for 1. Korintherbrev 11,3" or "Række 2: et nyt bibelcitat om køn". Leave it out when the ' +
+        'question alone says it. Never give a question a "below" fill at itself when its answers go into ' +
+        'boxes. When the document has no place at all for a question, its one fill is "below" at the ' +
+        'question itself.',
       // "Besvar markeringen": the whole document is sent, as for "Besvar
       // alle", so the model sees the box under the marked question exactly
       // as it would see it for the whole form. Until 2026-09-09 only the
@@ -95,14 +123,15 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
         ? [
             `The user MARKED lines [${req.marked.from}] to [${req.marked.to}] and asked for ONLY those to be answered. ` +
               'Find questions within that range and nowhere else. The rest of the document is there so you can see ' +
-              'where each answer belongs and what shape it takes: "answerAt" may well point at an empty place just ' +
+              'where each answer belongs and what shape it takes: a fill may well point at an empty place just ' +
               'outside the marking, such as the empty box directly under the last marked line.',
           ]
         : []),
       'Output ONLY a bare JSON array, no prose before or after it and no markdown code fence, of objects ' +
-        'shaped { "paragraphIndex": number, "questionText": string, "answerAt": number | null }. ' +
-        '"paragraphIndex" is the bracketed number shown before each paragraph. "questionText" must be quoted ' +
-        'VERBATIM from that paragraph, never paraphrased. If the document contains no questions, output [].',
+        'shaped { "paragraphIndex": number, "questionText": string, "fills": [ { "at": number, ' +
+        '"mode": "fill" | "below" | "inline", "task": string } ] }. "paragraphIndex" is the bracketed number ' +
+        'of the question. "questionText" must be quoted VERBATIM from that paragraph, never paraphrased. ' +
+        'If the document contains no questions, output [].',
     ].join(' '),
   };
 
@@ -117,6 +146,18 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
   return [system, user];
 }
 
+/** The place of a fill, as the answer call reads it: where the text lands, and what the model said belongs there. */
+function fillLine(req: AutonomousRequest, f: DetectedFill): string {
+  const place = req.paragraphs[f.at];
+  const text = (place?.text ?? '').slice(0, 80);
+  let where: string;
+  if (f.mode === 'fill') where = `into the empty place [${f.at}] ${shapeTag(place).trim()}`;
+  else if (f.mode === 'inline') where = `on the same line as [${f.at}], after "${text}"`;
+  else if (f.at === f.paragraphIndex) where = 'under the question';
+  else where = `on a new line under [${f.at}] "${text}"`;
+  return `#${f.id} [${f.paragraphIndex}] ${f.questionText}\n   goes ${where}${f.task ? `: ${f.task}` : ''}`;
+}
+
 /**
  * D-11: answers are grounded in the document plus whatever files are already
  * attached in the panel, in the same "ATTACHED CONTEXT" shape as
@@ -126,7 +167,7 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
  */
 export function answerMessages(
   req: AutonomousRequest,
-  batch: DetectedQuestion[],
+  batch: DetectedFill[],
   /** Second attempt after a reply whose answers were all empty — say so plainly. */
   insist = false,
 ): ChatMessage[] {
@@ -142,8 +183,8 @@ export function answerMessages(
   }
 
   sections.push(
-    'You fill in a document on the user\'s behalf. Every question below gets a real, usable, specific answer. ' +
-      'Answer EVERY question you are given. Never skip one. ' +
+    'You fill in a document on the user\'s behalf. Every item below is one PLACE in the document and gets a ' +
+      'real, usable, specific answer. Answer EVERY item you are given. Never skip one. ' +
       'Where the document or the ATTACHED CONTEXT holds the answer, use it: the user attached that material ' +
       'BECAUSE it holds the answers, so read it properly before writing anything of your own. ' +
       // The operator's call, 2026-08-26, and the right one for this product:
@@ -192,11 +233,11 @@ export function answerMessages(
       // Measured 2026-08-25: asked for an index "in any order", the model
       // answered every question with paragraphIndex -1 as a stand-in for "no
       // grounding", and every answer was then dropped as unaskable — the user
-      // waited 30s and was told nothing could be answered. The index is an
+      // waited 30s and was told nothing could be answered. The id is an
       // address, never a verdict; groundedness has its own field.
-      'The "paragraphIndex" of each answer MUST be copied exactly from the bracketed number of the question ' +
-      'it answers. Never invent an index, never use -1, and never use an index that is not in the list below. ' +
-      'A question you had to invent an answer for still gets its own real index, like any other.',
+      'The "id" of each answer MUST be the number of the item it answers, copied exactly. Never invent one, ' +
+      'never use -1, and never use a number that is not in the list below. An item you had to invent an ' +
+      'answer for still gets its own real id, like any other.',
   );
 
   // The style rules come AFTER the contract, not before it: the shape of the
@@ -206,13 +247,20 @@ export function answerMessages(
   // model is allowed here can arrive as a literal asterisk.
   sections.push(
     `How to write the text inside each "answer":\n\n${FORMAT_MARKDOWN_RULES}\n\n` +
-      'SHAPE. Each question in the document list carries what kind of line it is and what follows it. ' +
-      'Match that shape. A question followed by an empty numbered point, (nummereret punkt, TOM), gets a ' +
-      'numbered list "1. ", "2. "; one followed by an empty bullet point, (punkt, TOM), gets a bullet list ' +
-      '"- "; a question that asks for several things gets exactly that many items, one per line; a question ' +
-      'in a table cell with an empty box beside or beneath it gets a plain answer that fits a box, one or two ' +
-      'short paragraphs at most; a question with room beneath it gets paragraphs. A question that asks for ' +
-      'a word in bold still gets that word plain: nothing is ever written in bold. Never write a heading.\n\n' +
+      'SHAPE. Each item names the PLACE its answer goes, and the answer must fit that place. ' +
+      'Into an empty table cell: short, like the filled cells around it. If the filled row above holds a ' +
+      'phrase or one sentence per cell, write a phrase or one sentence; never more than three short sentences ' +
+      'in a cell, and never a list. The cells of one table row belong together: the quote or example in the ' +
+      'first cell is what the other cells in that row describe, so write a row as one consistent whole, and ' +
+      'make every row different from the rows already in the table. ' +
+      'On a new line under a cell that asks to be continued ("fortsæt herunder…"): continue the thought that ' +
+      'was started, without repeating it, in a few sentences. ' +
+      'On the same line after a label: a few words, no sentence. ' +
+      'Into an empty numbered point: a numbered list "1. ", "2. "; into an empty bullet point: a bullet ' +
+      'list "- "; a question that asks for several things gets exactly that many items, one per line. ' +
+      'Under a question with room beneath it: paragraphs. ' +
+      'A question that asks for a word in bold still gets that word plain: nothing is ever written in bold. ' +
+      'Never write a heading.\n\n' +
       VOICE_RULES,
   );
 
@@ -226,22 +274,22 @@ export function answerMessages(
 
   const system: ChatMessage = { role: 'system', content: sections.join('\n\n') };
 
-  // The document stays in the USER message, next to the question list. It
-  // was moved into the system message for an hour on 2026-09-09 (to keep the
+  // The document stays in the USER message, next to the item list. It was
+  // moved into the system message for an hour on 2026-09-09 (to keep the
   // user message under the web plugin's length limit, websearch.ts) and the
   // model promptly answered every question in the form instead of the ones
   // listed, on two runs out of two. The web is consulted in its own short
   // call instead (websearch.ts webResearch) and this call never carries the
   // plugin.
-  const questionLines = batch.map((q) => `[${q.paragraphIndex}] ${q.questionText}`).join('\n');
+  const items = batch.map((f) => fillLine(req, f)).join('\n');
   const user: ChatMessage = {
     role: 'user',
     content:
       `DOCUMENT${req.documentTitle ? `: ${req.documentTitle}` : ''}\n${paragraphLines(req)}\n\n` +
-      `QUESTIONS TO ANSWER\n${questionLines}\n\n` +
+      `PLACES TO FILL IN, one answer each\n${items}\n\n` +
       'Output ONLY a bare JSON array, no prose before or after it and no markdown code fence, of objects ' +
-      'shaped { "paragraphIndex": number, "answer": string }: exactly one per question ' +
-      'above, in the SAME ORDER as the questions are listed.',
+      'shaped { "id": number, "answer": string }: exactly one per item above, in the SAME ORDER as the ' +
+      'items are listed, "id" copied from the item\'s number.',
   };
 
   return [system, user];

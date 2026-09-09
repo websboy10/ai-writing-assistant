@@ -1,22 +1,33 @@
-import type { AutonomousAnswer, AutonomousParagraph } from '@awa/shared';
+import type { AutonomousAnswer, AutonomousParagraph, FillMode } from '@awa/shared';
 
 // Kept in sync with packages/shared/src/index.ts. Values (not types) must be
 // local: @awa/shared ships TS source, which Node can't load in the deployed
 // serverless bundle — the backend's shared imports are type-only by contract
 // (see apps/backend/src/routes/files.ts for the established pattern).
-const MAX_AUTONOMOUS_QUESTIONS = 40;
+const MAX_AUTONOMOUS_ANSWERS = 80;
 
-export interface DetectedQuestion {
+/**
+ * One place the model chose, with the question it answers. The unit of a run
+ * since 2026-09-09: a question may have many of these (a grid, a table with
+ * empty rows), and a place may be text to continue under rather than an
+ * empty box. See AutonomousAnswer in packages/shared.
+ */
+export interface DetectedFill {
+  /** 1-based position in the run's fill list — how the answer call names it. */
+  id: number;
   paragraphIndex: number;
   questionText: string;
-  /** The empty paragraph the model chose for the answer — see AutonomousAnswer.answerAt. */
-  answerAt?: number;
+  task?: string;
+  at: number;
+  mode: FillMode;
 }
 
-/** What may hold an answer: an empty cell or an empty list item. A blank text line is not sent at all (Docs' copy leaves it out). */
+/** What may hold a `fill`: an empty cell or an empty list item. A blank text line is not sent at all (Docs' copy leaves it out). */
 const SLOT_KINDS = new Set(['cell', 'bullet', 'numbered']);
 /** ParagraphKind, as values — see the note at the top of this file. */
 const PARAGRAPH_KINDS = new Set(['heading', 'text', 'bullet', 'numbered', 'cell']);
+const FILL_MODES = new Set<FillMode>(['fill', 'below', 'inline']);
+const TASK_MAX_LEN = 200;
 
 const smallInt = (v: unknown, min: number, max: number): v is number => Number.isInteger(v) && (v as number) >= min && (v as number) <= max;
 
@@ -29,9 +40,9 @@ const smallInt = (v: unknown, min: number, max: number): v is number => Number.i
  *
  * The paragraph handed downstream is built here, never the caller's own
  * object, so a field the client invents cannot ride along into the prompt.
- * The structure the extension reads off Docs — kind, level, bold, cell — is
- * copied only when well-formed, and dropped otherwise: a client without it
- * still gets its questions answered, just placed by the old rules.
+ * The structure the extension reads off Docs — kind, level, bold, cell,
+ * lastLine — is copied only when well-formed, and dropped otherwise: a client
+ * without it still gets its questions answered, just placed by the old rules.
  *
  * Until 2026-09-09 only index and text were copied, and the structure tags
  * the detection prompt was written around had never once reached the model:
@@ -54,6 +65,7 @@ export function validateParagraphs(paragraphs: unknown): AutonomousParagraph[] |
     if (cell && typeof cell === 'object' && smallInt(cell.table, 0, 999) && smallInt(cell.row, 0, 999) && smallInt(cell.col, 0, 99)) {
       clean.cell = { table: cell.table, row: cell.row, col: cell.col };
     }
+    if (typeof rec.lastLine === 'string' && rec.lastLine.trim()) clean.lastLine = rec.lastLine;
     out.push(clean);
   }
   return out;
@@ -88,26 +100,35 @@ export function validateMarked(marked: unknown, paragraphCount: number): { from:
 }
 
 /**
- * The model's chosen place for an answer is an index into OUR paragraph list,
- * so it is checked against that list, never trusted: it must be an empty
- * cell or list item, after the question, and claimed by one question only.
- * Anything else means "no plan", and the extension places the answer by its
- * own rules — exactly as it did before the model had a say.
+ * One place the model named, checked against OUR paragraph list and never
+ * trusted: a `fill` must be an empty cell or list item after the question; a
+ * `below` or `inline` must be a paragraph with text, the question itself or
+ * one after it. A missing mode is read off the paragraph — empty means fill,
+ * text means below — so a model that drops the field still places well.
+ * One fill per paragraph across the whole run.
  */
-function validAnswerAt(
+function validFill(
   value: unknown,
   questionIndex: number,
   paragraphs: AutonomousParagraph[] | undefined,
   claimed: Set<number>,
-): number | undefined {
-  if (!paragraphs || !Number.isInteger(value)) return undefined;
-  const at = value as number;
-  const slot = paragraphs[at];
-  if (!slot || at <= questionIndex) return undefined;
-  if (slot.text.trim() !== '' || !SLOT_KINDS.has(slot.kind ?? '')) return undefined;
-  if (claimed.has(at)) return undefined;
+): { at: number; mode: FillMode; task?: string } | null {
+  if (!paragraphs || !value || typeof value !== 'object') return null;
+  const rec = value as Record<string, unknown>;
+  if (!Number.isInteger(rec.at)) return null;
+  const at = rec.at as number;
+  const place = paragraphs[at];
+  if (!place || claimed.has(at)) return null;
+  const empty = place.text.trim() === '';
+  const mode: FillMode = FILL_MODES.has(rec.mode as FillMode) ? (rec.mode as FillMode) : empty ? 'fill' : 'below';
+  if (mode === 'fill') {
+    if (!empty || !SLOT_KINDS.has(place.kind ?? '') || at <= questionIndex) return null;
+  } else if (empty || at < questionIndex) {
+    return null;
+  }
   claimed.add(at);
-  return at;
+  const task = typeof rec.task === 'string' && rec.task.trim() ? rec.task.trim().slice(0, TASK_MAX_LEN) : undefined;
+  return { at, mode, ...(task ? { task } : {}) };
 }
 
 /**
@@ -137,10 +158,14 @@ function extractJsonArray(raw: string): unknown[] | null {
 }
 
 /**
- * Detection: the model tells us which paragraphs contain a question and what
- * it is, quoted from the paragraph. `paragraphIndex` is validated against
- * `paragraphCount` — the length of the paragraph array WE built and sent —
- * never trusted as an offset into anything else (RESEARCH.md Pitfall 3).
+ * Detection: the model tells us which paragraphs hold a question, quoted from
+ * the paragraph, and where each answer goes. `paragraphIndex` is validated
+ * against `paragraphCount` — the length of the paragraph array WE built and
+ * sent — never trusted as an offset into anything else (RESEARCH.md Pitfall
+ * 3). A question the model gives no usable place gets the one place that
+ * always exists: under the question itself — unless the model DID name
+ * boxes for it, in which case a `below` at the question is dropped, since an
+ * answer that also sits under the question would double what is in the boxes.
  *
  * With a `marked` range ("Besvar markeringen"), a question outside it is
  * dropped here whatever the model thought: the user marked what they wanted
@@ -152,14 +177,14 @@ export function parseDetection(
   paragraphCount: number,
   paragraphs?: AutonomousParagraph[],
   marked?: { from: number; to: number },
-): DetectedQuestion[] {
+): DetectedFill[] {
   const items = extractJsonArray(raw);
   if (!items) return [];
 
-  const out: DetectedQuestion[] = [];
+  const out: DetectedFill[] = [];
   const claimed = new Set<number>();
   for (const item of items) {
-    if (out.length >= MAX_AUTONOMOUS_QUESTIONS) break;
+    if (out.length >= MAX_AUTONOMOUS_ANSWERS) break;
     if (!item || typeof item !== 'object') continue;
     const rec = item as Record<string, unknown>;
 
@@ -171,63 +196,103 @@ export function parseDetection(
     const questionText = rec.questionText;
     if (typeof questionText !== 'string' || !questionText.trim()) continue;
 
-    const answerAt = validAnswerAt(rec.answerAt, paragraphIndex as number, paragraphs, claimed);
-    out.push({
-      paragraphIndex: paragraphIndex as number,
-      questionText: questionText.trim(),
-      ...(answerAt !== undefined ? { answerAt } : {}),
-    });
+    const wanted = Array.isArray(rec.fills) ? rec.fills : [];
+    let places = wanted
+      .map((f) => validFill(f, paragraphIndex as number, paragraphs, claimed))
+      .filter((f): f is NonNullable<typeof f> => f !== null);
+    if (places.some((f) => f.mode === 'fill')) {
+      places = places.filter((f) => !(f.mode === 'below' && f.at === paragraphIndex));
+    }
+    if (places.length === 0) {
+      if (claimed.has(paragraphIndex as number)) continue;
+      claimed.add(paragraphIndex as number);
+      places = [{ at: paragraphIndex as number, mode: 'below' }];
+    }
+    for (const place of places) {
+      if (out.length >= MAX_AUTONOMOUS_ANSWERS) break;
+      out.push({ id: out.length + 1, paragraphIndex: paragraphIndex as number, questionText: questionText.trim(), ...place });
+    }
   }
   return out;
 }
 
 /**
- * Rescue for the one failure mode that loses a WHOLE run: the model abandons
- * the index protocol entirely and stamps every answer with the same unusable
- * index (measured: -1 on all five, used as shorthand for "no grounding").
- * Every answer is then dropped as unaskable and the user — who has waited
- * half a minute — is told nothing could be answered.
- *
- * The prompt asks for one answer per question in the same order, so position
- * is a real signal. It is only trusted under conditions strict enough that a
- * partially-correct reply can never be silently re-ordered onto the wrong
- * questions, because a mis-assigned answer lands in the user's document:
- *
- *   - the reply holds exactly one item per question asked, and
- *   - EVERY item is an object whose index is unusable — not one of them names
- *     a question in this batch. A mixture means the model was addressing
- *     questions by index after all, and position proves nothing.
+ * Fills into answer calls. A question's fills always travel together — the
+ * cells of one table row must agree with each other, and only a model that
+ * sees the whole row can make them — so a group is never split, and a group
+ * larger than `size` is a batch by itself.
  */
-function positionalFallback(
-  items: unknown[],
-  asked: DetectedQuestion[],
-  askedByIndex: Map<number, DetectedQuestion>,
-): AutonomousAnswer[] | null {
+export function batchFills(fills: DetectedFill[], size: number): DetectedFill[][] {
+  const groups = new Map<number, DetectedFill[]>();
+  for (const f of fills) {
+    const group = groups.get(f.paragraphIndex);
+    if (group) group.push(f);
+    else groups.set(f.paragraphIndex, [f]);
+  }
+  const batches: DetectedFill[][] = [];
+  let current: DetectedFill[] = [];
+  for (const group of groups.values()) {
+    if (current.length && current.length + group.length > size) {
+      batches.push(current);
+      current = [];
+    }
+    current.push(...group);
+  }
+  if (current.length) batches.push(current);
+  return batches;
+}
+
+function toAnswer(fill: DetectedFill, answer: string, grounded: boolean): AutonomousAnswer {
+  return {
+    paragraphIndex: fill.paragraphIndex,
+    questionText: fill.questionText,
+    ...(fill.task ? { task: fill.task } : {}),
+    at: fill.at,
+    mode: fill.mode,
+    ...(fill.mode === 'fill' ? { answerAt: fill.at } : {}),
+    answer,
+    grounded,
+  };
+}
+
+/**
+ * Rescue for the one failure mode that loses a WHOLE run: the model abandons
+ * the id protocol entirely and stamps every answer with the same unusable
+ * id (measured with paragraph indices: -1 on all five, used as shorthand for
+ * "no grounding"). Every answer is then dropped as unaskable and the user —
+ * who has waited half a minute — is told nothing could be answered.
+ *
+ * The prompt asks for one answer per fill in the same order, so position is
+ * a real signal. It is only trusted under conditions strict enough that a
+ * partially-correct reply can never be silently re-ordered onto the wrong
+ * places, because a mis-assigned answer lands in the user's document:
+ *
+ *   - the reply holds exactly one item per fill asked, and
+ *   - EVERY item is an object whose id is unusable — not one of them names a
+ *     fill in this batch. A mixture means the model was addressing fills by
+ *     id after all, and position proves nothing.
+ */
+function positionalFallback(items: unknown[], asked: DetectedFill[], askedById: Map<number, DetectedFill>): AutonomousAnswer[] | null {
   if (items.length !== asked.length || asked.length === 0) return null;
 
   const records: Record<string, unknown>[] = [];
   for (const item of items) {
     if (!item || typeof item !== 'object') return null;
     const rec = item as Record<string, unknown>;
-    if (Number.isInteger(rec.paragraphIndex) && askedByIndex.has(rec.paragraphIndex as number)) return null;
+    if (Number.isInteger(rec.id) && askedById.has(rec.id as number)) return null;
     records.push(rec);
   }
 
   return records
-    .map((rec, i) => ({
-      paragraphIndex: asked[i].paragraphIndex,
-      questionText: asked[i].questionText,
-      ...(asked[i].answerAt !== undefined ? { answerAt: asked[i].answerAt } : {}),
-      answer: typeof rec.answer === 'string' ? stripBold(rec.answer) : '',
-      grounded: typeof rec.grounded === 'boolean' ? rec.grounded : true,
-    }))
+    .map((rec, i) =>
+      toAnswer(asked[i], typeof rec.answer === 'string' ? stripBold(rec.answer) : '', typeof rec.grounded === 'boolean' ? rec.grounded : true),
+    )
     .filter((a) => a.answer.trim().length > 0);
 }
 
 /**
- * Answers: only accepted for a paragraphIndex that was actually asked about
- * in this batch — a model cannot invent an answer for a question we never
- * sent it.
+ * Answers: only accepted for an id that was actually asked about in this
+ * batch — a model cannot invent an answer for a place we never sent it.
  *
  * `grounded` is no longer asked for or acted on. The prompt now writes a
  * plausible answer for every question whether or not the sources hold one
@@ -235,13 +300,13 @@ function positionalFallback(
  * and the panel no longer reports it. It survives in the type only so the
  * shape stays stable, and defaults to true.
  */
-export function parseAnswers(raw: string, askedQuestions: DetectedQuestion[]): AutonomousAnswer[] {
+export function parseAnswers(raw: string, asked: DetectedFill[]): AutonomousAnswer[] {
   const items = extractJsonArray(raw);
   if (!items) return [];
 
-  const askedByIndex = new Map(askedQuestions.map((q) => [q.paragraphIndex, q]));
+  const askedById = new Map(asked.map((f) => [f.id, f]));
 
-  const positional = positionalFallback(items, askedQuestions, askedByIndex);
+  const positional = positionalFallback(items, asked, askedById);
   if (positional) return positional;
   const seen = new Set<number>();
   const out: AutonomousAnswer[] = [];
@@ -250,30 +315,37 @@ export function parseAnswers(raw: string, askedQuestions: DetectedQuestion[]): A
     if (!item || typeof item !== 'object') continue;
     const rec = item as Record<string, unknown>;
 
-    const paragraphIndex = rec.paragraphIndex;
-    if (!Number.isInteger(paragraphIndex)) continue;
-    const asked = askedByIndex.get(paragraphIndex as number);
-    if (!asked) continue;
-    if (seen.has(paragraphIndex as number)) continue;
+    if (!Number.isInteger(rec.id)) continue;
+    const fill = askedById.get(rec.id as number);
+    if (!fill || seen.has(fill.id)) continue;
 
     const answer = typeof rec.answer === 'string' ? stripBold(rec.answer) : '';
     // An empty answer is not an answer. Writing it puts a blank line into the
     // user's document under their question, which reads as a bug they caused
     // — measured happening to 5 of 10 questions in one live run. Dropping it
-    // here means the question is simply left alone, and a run where EVERY
+    // here means the place is simply left alone, and a run where EVERY
     // answer came back empty falls into the existing "nothing could be
     // answered" path, which refunds the quota and says so plainly.
     if (!answer.trim()) continue;
-    const grounded = typeof rec.grounded === 'boolean' ? rec.grounded : true;
 
-    seen.add(paragraphIndex as number);
-    out.push({
-      paragraphIndex: paragraphIndex as number,
-      questionText: asked.questionText,
-      ...(asked.answerAt !== undefined ? { answerAt: asked.answerAt } : {}),
-      answer,
-      grounded,
-    });
+    seen.add(fill.id);
+    out.push(toAnswer(fill, answer, typeof rec.grounded === 'boolean' ? rec.grounded : true));
   }
   return out;
+}
+
+/**
+ * One answer per question for an extension built before fills existed: it
+ * types every answer it is given under that answer's question, so a grid's
+ * twenty-five cells would land one under the other beneath the question.
+ * Its fills are joined into one answer, placed where the first of them went.
+ */
+export function collapseForOldClients(answers: AutonomousAnswer[]): AutonomousAnswer[] {
+  const byQuestion = new Map<number, AutonomousAnswer>();
+  for (const a of answers) {
+    const first = byQuestion.get(a.paragraphIndex);
+    if (!first) byQuestion.set(a.paragraphIndex, { ...a });
+    else first.answer = `${first.answer}\n\n${a.answer}`;
+  }
+  return [...byQuestion.values()];
 }
