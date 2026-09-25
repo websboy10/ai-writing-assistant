@@ -38,7 +38,9 @@ function page({ title, description, urlPath, head = "", body }) {
   <meta property="og:description" content="${esc(description)}">
   <meta property="og:url" content="${SITE}${urlPath}">
   <meta property="og:image" content="${SITE}/icon-128.png">
-  <link rel="icon" type="image/png" href="/icon-128.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png">
   <link rel="stylesheet" href="/styles.css">
   ${head}
 </head>
@@ -279,7 +281,7 @@ function withHomeData(html) {
 rmSync(DIST, { recursive: true, force: true });
 mkdirSync(DIST);
 for (const f of readdirSync(ROOT)) {
-  if (STATIC_PAGES.includes(f) || /\.(css|png|txt)$/.test(f)) copyFileSync(path.join(ROOT, f), path.join(DIST, f));
+  if (STATIC_PAGES.includes(f) || /\.(css|png|ico|txt)$/.test(f)) copyFileSync(path.join(ROOT, f), path.join(DIST, f));
 }
 writeFileSync(path.join(DIST, "index.html"), withHomeData(readFileSync(path.join(ROOT, "index.html"), "utf8")));
 for (const a of articles) writeFileSync(path.join(DIST, `${a.slug}.html`), articlePage(a));
