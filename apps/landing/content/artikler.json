@@ -62,5 +62,94 @@
     "a": "Det afhænger af værktøjet. Tjek, hvor data opbevares, om dine tekster bruges til at træne modellen, og om du kan få dem slettet. Vælg en løsning med data i EU og træning slået fra, hvis dokumentet indeholder personoplysninger."
    }
   ]
+ },
+ {
+  "slug": "hvilken-ai-er-bedst-til-at-skrive-paa-dansk",
+  "questionId": "hvilken-ai-er-bedst-til-at-skrive-paa-dansk",
+  "topic": "ai-dansk",
+  "datePublished": "2026-09-25",
+  "h1": "Hvilken AI er bedst til at skrive på dansk?",
+  "metaTitle": "Hvilken AI skriver bedst dansk? | ChatBot Skriv",
+  "metaDescription": "ChatGPT, Claude og Gemini skriver alle godt dansk. Se forskellene, hvornår et dansk korrekturværktøj er bedre, og hvordan teksten kommer ind, hvor du skriver.",
+  "answer": "De store sprogmodeller, ChatGPT, Claude og Gemini, skriver i dag alle et flydende og korrekt dansk, så forskellen ligger mest i, hvordan du bruger dem. Giv tydelig besked om tone, modtager og længde, og læs altid teksten igennem. Til ren stavning og grammatik er et dansk korrekturværktøj ofte et bedre valg. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Mange har prøvet at bede en AI om en dansk tekst og fået noget, der er grammatisk korrekt, men lyder en smule oversat. Det er ikke fordi dansk er et lille sprog, som modellerne ikke kan. De bedste modeller skriver faktisk rigtig godt dansk. Det handler oftere om, hvad du beder om, og hvad du giver dem at arbejde med.\n\nHer er et ærligt overblik over de mest brugte muligheder, hvad de hver især er gode til, og hvordan du får en dansk tekst, der lyder som dig og ikke som en maskine.",
+  "examples": {
+   "heading": "Hvad folk typisk bruger AI til på dansk",
+   "items": [
+    "En mail til en kunde, kollega eller myndighed, der skal lyde høflig, men ikke stiv",
+    "Et udkast til en rapport, et referat eller en medarbejdervurdering ud fra stikord",
+    "En kortere og klarere version af en tekst, der er blevet for lang",
+    "En oversættelse fra engelsk til naturligt dansk",
+    "Korrektur af stavning, kommaer og ordvalg i en tekst, du selv har skrevet"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "De store modeller: ChatGPT, Claude og Gemini",
+    "body": "ChatGPT er den mest udbredte og skriver et naturligt dansk til mails, opslag og korte tekster. Claude er kendt for at holde tråden i lange tekster og for en rolig, nuanceret tone. Gemini fra Google ligger tæt på de andre og er især praktisk, hvis du i forvejen arbejder i Gmail og Google Docs. Microsofts Copilot bygger på den samme type model og findes i Outlook og Word.\n\nForskellen mellem dem er mindre, end mange tror, og den flytter sig hver gang en ny version kommer. Prøv gerne to af dem på den samme opgave og vælg den, hvis tone du bedst kan lide."
+   },
+   {
+    "heading": "Når du har brug for korrektur, ikke en ny tekst",
+    "body": "Har du allerede skrevet teksten og vil bare have fanget fejl, er en stor chatbot ikke altid det bedste værktøj. Den har en tendens til at omskrive mere end nødvendigt, så din egen stemme forsvinder. Et værktøj bygget til dansk korrektur, for eksempel SkrivSikkert, peger på de konkrete fejl i stavning, kommatering og grammatik og lader resten være.\n\nGrammarly og lignende engelske værktøjer er stærke på engelsk, men deres danske understøttelse er begrænset. Skriver du mest på dansk, så vælg et værktøj, der er bygget til det, eller bed chatbotten udtrykkeligt om kun at rette fejl og ikke ændre formuleringer."
+   },
+   {
+    "heading": "Sådan får du bedre dansk ud af enhver AI",
+    "body": "Den største forskel kommer fra din besked. Skriv, hvem teksten er til, hvad den skal opnå, og hvilken tone du vil have, for eksempel venlig og direkte eller formel. Bed om en bestemt længde, så du ikke får tre afsnit, hvor du ville have tre linjer. Giv den dine egne noter eller en vedhæftet fil, så den ikke skal gætte på indholdet.\n\nBagefter gælder det om at få teksten det rigtige sted hen. Hvis du kopierer fra en chatbot, følger der ofte mærkelig formatering med. En Chrome-udvidelse som ChatBot Skriv lader dig vælge kort, middel eller lang og skriver teksten direkte ind i din mail, dit dokument eller din formular."
+   }
+  ],
+  "table": {
+   "caption": "Overblik over mulighederne til dansk tekst",
+   "head": [
+    "",
+    "ChatGPT, Claude, Gemini",
+    "Dansk korrekturværktøj",
+    "Chrome-udvidelse til at skrive"
+   ],
+   "rows": [
+    [
+     "Skriver nye tekster ud fra stikord",
+     "Ja",
+     "Nej, retter eksisterende tekst",
+     "Ja"
+    ],
+    [
+     "Retter stavning og komma præcist",
+     "Ja, men omskriver ofte",
+     "Ja, det er formålet",
+     "Afhænger af værktøjet"
+    ],
+    [
+     "Kan læse vedhæftede filer",
+     "Ja",
+     "Sjældent",
+     "Afhænger af udvidelsen"
+    ],
+    [
+     "Teksten lander direkte, hvor du skriver",
+     "Nej, du kopierer",
+     "Delvist",
+     "Ja"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der skriver nye tekster en gang imellem: ChatGPT, Claude eller Gemini i en fane er gratis at prøve og skriver godt dansk.",
+   "Bedst til dig, der skriver meget i Google Docs, mail og webformularer: en udvidelse som ChatBot Skriv sparer kopieringen og skriver teksten ind, hvor du arbejder.",
+   "Bedst til dig, der kun vil have fanget fejl i din egen tekst: så er et dansk korrekturværktøj et bedre valg end ChatBot Skriv."
+  ],
+  "faq": [
+   {
+    "q": "Skriver de gratis udgaver af AI-chatbots også godt dansk?",
+    "a": "Ja, de gratis udgaver af ChatGPT, Claude og Gemini skriver alle brugbart dansk. De betalte udgaver giver typisk adgang til nyere modeller og flere beskeder om dagen, men til en mail eller et kort udkast er gratis ofte nok."
+   },
+   {
+    "q": "Hvorfor lyder AI-tekst på dansk nogle gange oversat?",
+    "a": "Modellerne har lært mest fra engelsk tekst, så de kan finde på engelske vendinger og en lidt stiv tone. Du får et mere naturligt resultat ved at bede om almindeligt dansk hverdagssprog, give et eksempel på din egen stil og læse teksten højt, før du sender den."
+   },
+   {
+    "q": "Kan jeg bruge AI på dansk med personoplysninger?",
+    "a": "Det afhænger af værktøjet. Tjek, hvor dine data opbevares, om dine tekster bruges til at træne modellen, og om du kan få dem slettet. Er der personoplysninger i teksten, så vælg en løsning med data i EU og træning slået fra."
+   }
+  ]
  }
 ]
