@@ -391,6 +391,7 @@ five.
 | 2026-09-08 | `20260908-kort-svar-kortere` — "Kort" cut from 40–70 words / four sentences to one or two sentences | Done. Observed against the local backend: 5 of 5 Danish prompts came back at exactly 2 sentences, 23–36 words, voice slips intact |
 | 2026-09-09 | `260909-g7z-besvar-alle-genkend-alle-formater-udfyld` — every place in a worksheet gets its own answer: grids, tables with empty rows, "fortsæt herunder…" cells, labels, answered questions skipped | Done. The operator's own worksheet: 32 places filled, nothing unplaced, read back through Docs' export; synthetic sheet 29/29 |
 | 2026-09-09 | `260909-h4m-menneske-sletter-med-backspace-aldrig-markering` — the humanizer deletes with Backspace, checked in a way the screen never shows; a filled answer cell means the question is answered | Done. Probe 48/48 with 0 ms marked; Langsomt worksheet 26/26 twice, screen read every frame; whole chain green; backend deployed; store zip built, upload pending |
+| 2026-09-25 | `260925-j9r-landing-favicon` — chatbotskriv.dk gets a favicon Google can use (favicon.ico + 48/96px, same logo) | Done. Live: all three files 200, all 6 sitemap pages link them (commit e4fece0) |
 
 ## Decisions
 
