@@ -118,6 +118,16 @@ form .btn{padding:11px;background:var(--ink);color:#fff;border-color:var(--ink)}
   <div class="grid" id="product"></div>
   <p class="err" id="productErr"></p>
 
+  <h2>Hjemmesiden (chatbotskriv.dk)</h2>
+  <div class="grid" id="site"></div>
+  <div class="two">
+    <div class="chart"><h3>Besøgende pr. dag</h3><p class="cap" id="siteCap"></p><div id="siteChart"></div></div>
+    <div class="chart"><h3>Hvor de kom fra</h3><p class="cap">Besøgende, seneste 30 dage</p><div class="rows" id="siteSources"></div></div>
+  </div>
+  <div id="sitePages"></div>
+  <p class="muted">Uden cookies: en besøgende er en person pr. dag, så samme person to dage tæller to gange. Vores egne besøg er med.</p>
+  <p class="err" id="siteErr"></p>
+
   <h2>Aktivitet</h2>
   <div class="two">
     <div class="chart"><h3>Svar pr. dag</h3><p class="cap" id="reqCap"></p><div id="reqChart"></div></div>
@@ -347,6 +357,32 @@ async function load() {
     $('reqCap').textContent = (p.daily_requests || []).length
       ? 'Fra kvotetælleren, som ikke kan miste en linje · peg på en søjle'
       : 'Ingen svar endnu.';
+  }
+
+  // ---- website ----
+  const st = d.site;
+  if (!st || st.error) { $('siteErr').textContent = st ? st.error : ''; $('site').innerHTML = ''; }
+  else {
+    const [views, views7, visitors, clicks, clicks7] = st.totals;
+    const signups = p && !p.error ? p.accounts_7d : null;
+    $('site').innerHTML =
+      card('Besøgende 30 dage', nf(visitors), nf(views) + ' sidevisninger · 7 dage: ' + nf(views7)) +
+      card('Klik på Hent udvidelsen', nf(clicks), '7 dage: ' + nf(clicks7)) +
+      card('Klikrate', visitors ? Math.round(100 * clicks / visitors) + '%' : '–', 'klik pr. besøgende') +
+      card('Nye konti 7 dage', nf(signups), 'til sammenligning med klik');
+    $('siteChart').innerHTML = bars(st.daily, (v) => v + ' besøgende');
+    $('siteCap').textContent = st.daily.length ? 'Seneste 30 dage · peg på en søjle' : 'Ingen besøg endnu.';
+    // Search engines and AI assistants are what the guides are for, so they get named.
+    const kind = (h) => {
+      if (!h) return 'Direkte / ukendt';
+      const ai = ['chatgpt.com', 'openai.com', 'perplexity.ai', 'gemini.google.com', 'copilot.microsoft.com', 'claude.ai'];
+      if (ai.some((a) => h.endsWith(a))) return 'AI: ' + h;
+      if (['google.', 'bing.com', 'duckduckgo.com', 'ecosia.org', 'yahoo.'].some((g) => h.includes(g))) return 'Søgning: ' + h;
+      return h;
+    };
+    $('siteSources').innerHTML = shareRows(st.referrers.map((r) => [kind(r[0]), r[1]]));
+    $('sitePages').innerHTML = table(['Side', 'Visninger 30 dage', 'Klik på Hent'],
+      st.pages.map((r) => [r[0] || '/', nf(r[1]), nf(r[2])]), 'Ingen besøg endnu.');
   }
 
   // ---- behaviour ----

@@ -68,12 +68,13 @@ export function adminRoutes(app: FastifyInstance): void {
     // own error and never as unfiltered figures.
     const internal = anonRpc<Internal>('admin_internal');
 
-    const [money, cost, product, usage, excluded] = await Promise.allSettled([
+    const [money, cost, product, usage, excluded, site] = await Promise.allSettled([
       internal.then((i) => stripeSection(i)),
       internal.then((i) => openrouterSection(i.real_ids)),
       productSection(),
       internal.then((i) => posthogSection(i.real_ids)),
       internal,
+      siteSection(),
     ]);
 
     const unwrap = <T>(r: PromiseSettledResult<T>) =>
@@ -86,6 +87,7 @@ export function adminRoutes(app: FastifyInstance): void {
       product: unwrap(product),
       usage: unwrap(usage),
       excluded: unwrap(excluded),
+      site: unwrap(site),
     };
   });
 
@@ -384,4 +386,37 @@ async function posthogSection(realIds: string[]) {
     funnel,
     speed: speed[0] ?? [0, 0, 0],
   };
+}
+
+/**
+ * chatbotskriv.dk, from the cookieless site_* events (routes/site.ts). Visitor
+ * ids rotate daily, so a 30-day "visitors" figure is a sum of daily visitors:
+ * someone who came on three days counts three times. The page says so.
+ */
+async function siteSection() {
+  const views = `event = 'site_pageview' AND timestamp > now() - INTERVAL 30 DAY`;
+  const [totals, daily, pages, referrers] = await Promise.all([
+    hogql<[number, number, number, number, number]>(
+      `SELECT countIf(event = 'site_pageview') AS views,
+              countIf(event = 'site_pageview' AND timestamp > now() - INTERVAL 7 DAY) AS views_7d,
+              uniqIf(concat(distinct_id, toString(toDate(timestamp))), event = 'site_pageview') AS visitors,
+              countIf(event = 'site_store_click') AS clicks,
+              countIf(event = 'site_store_click' AND timestamp > now() - INTERVAL 7 DAY) AS clicks_7d
+       FROM events WHERE event IN ('site_pageview', 'site_store_click') AND timestamp > now() - INTERVAL 30 DAY`,
+    ),
+    hogql<[string, number]>(
+      `SELECT toDate(timestamp) AS d, uniq(distinct_id) AS visitors
+       FROM events WHERE ${views} GROUP BY d ORDER BY d`,
+    ),
+    hogql<[string, number, number]>(
+      `SELECT properties.path AS path, countIf(event = 'site_pageview') AS views, countIf(event = 'site_store_click') AS clicks
+       FROM events WHERE event IN ('site_pageview', 'site_store_click') AND timestamp > now() - INTERVAL 30 DAY
+       GROUP BY path ORDER BY views DESC LIMIT 15`,
+    ),
+    hogql<[string, number]>(
+      `SELECT coalesce(nullIf(properties.utm_source, ''), properties.referrer) AS source, uniq(distinct_id) AS visitors
+       FROM events WHERE ${views} GROUP BY source ORDER BY visitors DESC LIMIT 15`,
+    ),
+  ]);
+  return { totals: totals[0] ?? [0, 0, 0, 0, 0], daily, pages, referrers };
 }

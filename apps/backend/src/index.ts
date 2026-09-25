@@ -10,6 +10,7 @@ import { billingRoutes } from './routes/billing.js';
 import { chatRoutes } from './routes/chat.js';
 import { conversationRoutes } from './routes/conversations.js';
 import { fileRoutes } from './routes/files.js';
+import { siteRoutes } from './routes/site.js';
 import { templateRoutes } from './routes/templates.js';
 import { verifyUser, rpc } from './supabase.js';
 
@@ -40,6 +41,7 @@ await app.register(cors, {
       origin.startsWith('chrome-extension://') ||
       origin === env.publicUrl ||
       /^https:\/\/ai-skriveassistent(-api)?\.vercel\.app$/.test(origin) ||
+      /^https:\/\/(www\.)?chatbotskriv\.dk$/.test(origin) ||
       /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     cb(null, ok);
   },
@@ -126,6 +128,7 @@ authRoutes(app);
 autonomousRoutes(app);
 billingRoutes(app);
 chatRoutes(app);
+siteRoutes(app);
 conversationRoutes(app);
 fileRoutes(app);
 templateRoutes(app);
