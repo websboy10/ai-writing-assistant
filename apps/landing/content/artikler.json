@@ -1,0 +1,66 @@
+[
+ {
+  "slug": "hvordan-bruger-man-ai-i-google-docs",
+  "questionId": "hvordan-bruger-man-ai-i-google-docs",
+  "topic": "google-docs",
+  "datePublished": "2026-09-25",
+  "h1": "Hvordan bruger man AI i Google Docs?",
+  "metaTitle": "Sådan bruger du AI i Google Docs | ChatBot Skriv",
+  "metaDescription": "Tre måder at bruge AI i Google Docs: Gemini i menuen, kopier fra ChatGPT, eller en Chrome-udvidelse der skriver direkte i dokumentet. Fordele og ulemper.",
+  "answer": "Der er tre veje: Googles egen Gemini, som på mange konti ligger direkte i Docs, en chatbot som ChatGPT, hvor du kopierer teksten over, eller en Chrome-udvidelse, der skriver ind i dokumentet for dig. Den rigtige vej afhænger af, om du vil have AI i selve Docs eller i alle de felter, du skriver i. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Google Docs er der, hvor rigtig mange skriver rapporter, referater, ansøgninger og breve. Derfor er det også der, man savner hjælp, når siden er tom. Det gode er, at du ikke behøver at skifte program for at få AI med. Det mindre gode er, at de tre muligheder virker meget forskelligt, og at Docs er en usædvanligt svær editor at skrive i for værktøjer udefra.\n\nHer er de tre veje, hvad de hver især er gode til, og hvor de halter.",
+  "examples": {
+   "heading": "Typiske opgaver, hvor AI hjælper i Docs",
+   "items": [
+    "Et første udkast til en rapport eller et afsnit, når du ved hvad du vil sige, men ikke hvordan",
+    "Et referat skrevet ud fra dine stikord eller en vedhæftet fil",
+    "En kortere og klarere version af en tekst, der er blevet for lang",
+    "En ansøgning eller et følgebrev, tilpasset et bestemt opslag",
+    "En oversættelse eller en mere formel udgave af et afsnit"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Vej 1: Gemini, som er bygget ind i Docs",
+    "body": "Google har bygget sin egen AI, Gemini, ind i Docs. Afhængigt af din konto finder du den som en knap eller et sidepanel, hvor du kan bede om et udkast, en omskrivning eller et resumé. Fordelen er, at den ligger lige der og kan se dit dokument.\n\nUlempen er, at den kun findes i Googles egne programmer og ikke på alle konti. Skriver du også i webmail, et CMS eller et formular-felt, har du ikke den samme hjælp der. Nogle oplever også, at dansk tekst fra den kan lyde lidt stiv og oversat."
+   },
+   {
+    "heading": "Vej 2: ChatGPT eller en anden chatbot i en fane ved siden af",
+    "body": "Den mest udbredte løsning er at have ChatGPT, Claude eller Copilot åben i en anden fane, skrive sin opgave der og kopiere svaret over i Docs. Det virker med alle konti og giver adgang til stærke modeller.\n\nPrisen er friktion. Du skal hoppe frem og tilbage, forklare sammenhængen igen hver gang, og når teksten sættes ind, følger der ofte forkert formatering med, som skal ryddes op bagefter. Til en enkelt tekst er det fint. Til daglig brug bliver det hurtigt trættende."
+   },
+   {
+    "heading": "Vej 3: En Chrome-udvidelse, der skriver direkte i dokumentet",
+    "body": "En skriveassistent som Chrome-udvidelse lægger et panel i kanten af browseren. Du beskriver hvad du vil have, vedhæfter eventuelt en fil, og teksten skrives direkte ind, dér hvor markøren står. Det gælder i Docs, men også i mail, CMS og almindelige formularer.\n\nDocs er svær for udvidelser, fordi den ikke bruger et almindeligt tekstfelt. Mange værktøjer kan derfor læse med, men ikke skrive. Vælger du den vej, så afprøv den i et rigtigt dokument i prøveperioden, før du betaler. ChatBot Skriv er bygget netop til det og kan skrive med det samme eller i et roligt, menneskeligt tempo."
+   }
+  ],
+  "table": {
+   "caption": "De tre veje sammenlignet",
+   "head": ["", "Gemini i Docs", "Chatbot i en fane", "Chrome-udvidelse"],
+   "rows": [
+    ["Skriver direkte i dokumentet", "Ja", "Nej, du kopierer", "Ja"],
+    ["Virker uden for Google", "Nej", "Ja, via kopiering", "Ja"],
+    ["Kræver en bestemt Google-konto", "Ofte", "Nej", "Nej"],
+    ["Kan læse vedhæftede filer", "Filer i Drev", "Ja", "Afhænger af udvidelsen"]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der skriver meget i Docs og også i mail og formularer: en udvidelse, der skriver direkte, sparer flest skift.",
+   "Bedst til dig, der kun skriver i Googles programmer og har Gemini på kontoen: så er den indbyggede hjælp oplagt.",
+   "Ikke nødvendigt, hvis du kun skriver en AI-tekst en gang imellem: så er en chatbot i en fane og lidt kopiering helt fint."
+  ],
+  "faq": [
+   {
+    "q": "Har alle adgang til Gemini i Google Docs?",
+    "a": "Nej. Det afhænger af, hvilken slags Google-konto du har, og om din arbejdsplads har slået det til. Kig efter Gemini-ikonet øverst i Docs. Er det der ikke, har din konto det ikke."
+   },
+   {
+    "q": "Hvorfor bliver formateringen mærkelig, når jeg kopierer fra ChatGPT til Docs?",
+    "a": "Chatbots skriver ofte med markdown, altså stjerner og skråstreger til fed og kursiv, og Docs forstår ikke altid den formatering. Brug Indsæt uden formatering, eller lad et værktøj skrive teksten direkte ind som almindelig tekst."
+   },
+   {
+    "q": "Er det sikkert at bruge AI på dokumenter med personoplysninger?",
+    "a": "Det afhænger af værktøjet. Tjek, hvor data opbevares, om dine tekster bruges til at træne modellen, og om du kan få dem slettet. Vælg en løsning med data i EU og træning slået fra, hvis dokumentet indeholder personoplysninger."
+   }
+  ]
+ }
+]

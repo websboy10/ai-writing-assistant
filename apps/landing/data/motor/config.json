@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "measurePerRun": 8,
+  "entityPhrase": "ChatBot Skriv",
+  "entitySentence": "ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "bannedTerms": []
+}

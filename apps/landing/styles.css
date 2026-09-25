@@ -434,3 +434,21 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.015
 .legal li + li { margin-top: 8px; }
 .legal strong { color: var(--ink); font-weight: 600; }
 .legal a { color: var(--ink); }
+
+/* Guides (built by scripts/build.mjs) reuse .legal and add these. */
+.answer-box {
+  margin: 26px 0 8px;
+  padding: 22px 24px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--card-r);
+  background: #fff;
+}
+.answer-box p { color: var(--ink) !important; }
+.legal table { width: 100%; margin-top: 16px; border-collapse: collapse; font-size: 0.95rem; }
+.legal th, .legal td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+.legal th { font-weight: 600; }
+.table-scroll { overflow-x: auto; }
+.guide-list { list-style: none; margin: 20px 0 0 !important; }
+.guide-list li + li { margin-top: 14px; }
+.guide-list a { font-family: var(--serif); font-size: 1.2rem; }
+.guide-cta { margin-top: 40px; }

@@ -1,0 +1,170 @@
+[
+ {
+  "id": "hvordan-skriver-man-en-god-mail-med-ai",
+  "q": "Hvordan skriver man en god mail med AI?",
+  "topic": "mail",
+  "volume": 3
+ },
+ {
+  "id": "hvilken-ai-er-bedst-til-at-skrive-paa-dansk",
+  "q": "Hvilken AI er bedst til at skrive på dansk?",
+  "topic": "ai-dansk",
+  "volume": 3
+ },
+ {
+  "id": "kan-chatgpt-skrive-godt-dansk",
+  "q": "Kan ChatGPT skrive godt dansk?",
+  "topic": "ai-dansk",
+  "volume": 3
+ },
+ {
+  "id": "hvordan-bruger-man-ai-i-google-docs",
+  "q": "Hvordan bruger man AI i Google Docs?",
+  "topic": "google-docs",
+  "volume": 3
+ },
+ {
+  "id": "findes-der-en-ai-skriveassistent-til-chrome",
+  "q": "Findes der en AI-skriveassistent til Chrome?",
+  "topic": "chrome",
+  "volume": 3
+ },
+ {
+  "id": "hvordan-skriver-man-en-jobansoegning-med-ai",
+  "q": "Hvordan skriver man en jobansøgning med AI?",
+  "topic": "ansoegning",
+  "volume": 3
+ },
+ {
+  "id": "kan-man-se-om-en-tekst-er-skrevet-af-ai",
+  "q": "Kan man se, om en tekst er skrevet af AI?",
+  "topic": "ai-dansk",
+  "volume": 3
+ },
+ {
+  "id": "hvordan-faar-man-en-ai-tekst-til-at-lyde-mere-menneskelig",
+  "q": "Hvordan får man en AI-tekst til at lyde mere menneskelig?",
+  "topic": "ai-dansk",
+  "volume": 3
+ },
+ {
+  "id": "hvordan-svarer-man-en-utilfreds-kunde-paa-mail",
+  "q": "Hvordan svarer man en utilfreds kunde på mail?",
+  "topic": "kundeservice",
+  "volume": 2
+ },
+ {
+  "id": "hvordan-skriver-man-en-klage-der-bliver-taget-alvorligt",
+  "q": "Hvordan skriver man en klage, der bliver taget alvorligt?",
+  "topic": "mail",
+  "volume": 2
+ },
+ {
+  "id": "hvordan-skriver-man-et-cv-med-ai",
+  "q": "Hvordan skriver man et CV med AI?",
+  "topic": "ansoegning",
+  "volume": 3
+ },
+ {
+  "id": "hvordan-skriver-man-en-opsigelse",
+  "q": "Hvordan skriver man en opsigelse?",
+  "topic": "mail",
+  "volume": 3
+ },
+ {
+  "id": "hvordan-laver-man-et-referat-af-et-moede-med-ai",
+  "q": "Hvordan laver man et referat af et møde med AI?",
+  "topic": "arbejde",
+  "volume": 2
+ },
+ {
+  "id": "kan-ai-laese-en-scannet-pdf-og-skrive-ud-fra-den",
+  "q": "Kan AI læse en scannet PDF og skrive ud fra den?",
+  "topic": "filer",
+  "volume": 2
+ },
+ {
+  "id": "hvad-er-det-bedste-alternativ-til-grammarly-paa-dansk",
+  "q": "Hvad er det bedste alternativ til Grammarly på dansk?",
+  "topic": "ai-dansk",
+  "volume": 2
+ },
+ {
+  "id": "er-det-sikkert-at-bruge-chatgpt-med-persondata-efter-gdpr",
+  "q": "Er det sikkert at bruge ChatGPT med persondata efter GDPR?",
+  "topic": "gdpr",
+  "volume": 3
+ },
+ {
+  "id": "hvordan-skriver-man-en-god-linkedin-profil-med-ai",
+  "q": "Hvordan skriver man en god LinkedIn-profil med AI?",
+  "topic": "ansoegning",
+  "volume": 2
+ },
+ {
+  "id": "hvordan-skriver-man-et-opslag-til-sociale-medier-med-ai",
+  "q": "Hvordan skriver man et opslag til sociale medier med AI?",
+  "topic": "arbejde",
+  "volume": 2
+ },
+ {
+  "id": "hvordan-skriver-man-en-produktbeskrivelse-til-en-webshop-med-ai",
+  "q": "Hvordan skriver man en produktbeskrivelse til en webshop med AI?",
+  "topic": "arbejde",
+  "volume": 2
+ },
+ {
+  "id": "hvordan-skriver-man-en-anmeldelse-af-en-medarbejder",
+  "q": "Hvordan skriver man en anmeldelse af en medarbejder?",
+  "topic": "arbejde",
+  "volume": 2
+ },
+ {
+  "id": "hvordan-faar-man-ai-til-at-skrive-kortere",
+  "q": "Hvordan får man AI til at skrive kortere?",
+  "topic": "ai-dansk",
+  "volume": 1
+ },
+ {
+  "id": "hvad-er-en-god-prompt-til-at-skrive-en-tekst",
+  "q": "Hvad er en god prompt til at skrive en tekst?",
+  "topic": "ai-dansk",
+  "volume": 2
+ },
+ {
+  "id": "hvordan-svarer-man-paa-en-mail-fra-en-kunde-hurtigt-og-venligt",
+  "q": "Hvordan svarer man på en mail fra en kunde hurtigt og venligt?",
+  "topic": "kundeservice",
+  "volume": 2
+ },
+ {
+  "id": "hvordan-skriver-man-en-undskyldning-til-en-kunde",
+  "q": "Hvordan skriver man en undskyldning til en kunde?",
+  "topic": "kundeservice",
+  "volume": 1
+ },
+ {
+  "id": "kan-en-chrome-udvidelse-skrive-direkte-i-google-docs",
+  "q": "Kan en Chrome-udvidelse skrive direkte i Google Docs?",
+  "topic": "google-docs",
+  "volume": 2
+ },
+ {
+  "id": "hvad-koster-en-ai-skriveassistent",
+  "q": "Hvad koster en AI-skriveassistent?",
+  "topic": "chrome",
+  "volume": 2
+ },
+ {
+  "id": "hvordan-skriver-man-et-motiveret-ansoegningsbrev-uden-at-lyde-som-alle-andre",
+  "q": "Hvordan skriver man et motiveret ansøgningsbrev uden at lyde som alle andre?",
+  "topic": "ansoegning",
+  "volume": 3
+ },
+ {
+  "id": "hvordan-retter-man-stavefejl-og-grammatik-paa-dansk-med-ai",
+  "q": "Hvordan retter man stavefejl og grammatik på dansk med AI?",
+  "topic": "ai-dansk",
+  "volume": 3
+ }
+]
