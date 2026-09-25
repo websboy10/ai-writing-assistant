@@ -287,4 +287,29 @@ writeFileSync(path.join(DIST, "guider.html"), hubPage());
 writeFileSync(path.join(DIST, "sitemap.xml"), sitemap());
 writeFileSync(path.join(DIST, "robots.txt"), robots);
 writeFileSync(path.join(DIST, "llms.txt"), llms());
+// Cookieless visit counting (apps/backend/src/routes/site.ts). Only on the real
+// domain, so previews and local builds never count as visitors.
+const TRACKER = `<script>
+(function () {
+  if (!/(^|\\.)chatbotskriv\\.dk$/.test(location.hostname)) return;
+  function send(e) {
+    try {
+      var q = new URLSearchParams(location.search);
+      navigator.sendBeacon("https://ai-skriveassistent-api.vercel.app/api/site-event", JSON.stringify({
+        e: e, p: location.pathname, r: document.referrer,
+        us: q.get("utm_source"), um: q.get("utm_medium"), uc: q.get("utm_campaign")
+      }));
+    } catch (x) {}
+  }
+  send("pageview");
+  document.addEventListener("click", function (ev) {
+    if (ev.target.closest && ev.target.closest('a[href*="chromewebstore.google.com"]')) send("store_click");
+  });
+})();
+</script>
+</body>`;
+for (const f of readdirSync(DIST).filter((f) => f.endsWith(".html"))) {
+  const p = path.join(DIST, f);
+  writeFileSync(p, readFileSync(p, "utf8").replace("</body>", TRACKER));
+}
 console.log(`Built ${articles.length} guides into dist/`);
