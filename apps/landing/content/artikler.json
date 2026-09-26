@@ -151,5 +151,94 @@
     "a": "Det afhænger af værktøjet. Tjek, hvor dine data opbevares, om dine tekster bruges til at træne modellen, og om du kan få dem slettet. Er der personoplysninger i teksten, så vælg en løsning med data i EU og træning slået fra."
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-en-jobansoegning-med-ai",
+  "questionId": "hvordan-skriver-man-en-jobansoegning-med-ai",
+  "topic": "ansoegning",
+  "datePublished": "2026-09-26",
+  "h1": "Hvordan skriver man en jobansøgning med AI?",
+  "metaTitle": "Jobansøgning med AI: sådan gør du | ChatBot Skriv",
+  "metaDescription": "Brug AI til første udkast af din jobansøgning uden at lyde som alle andre. Se hvad du skal give den, hvad du selv skal skrive, og hvilke værktøjer der passer.",
+  "answer": "Giv AI'en jobopslaget, dit CV og tre konkrete eksempler på, hvad du har opnået, og bed om et kort udkast i din egen tone. Brug det som første udkast, ikke som færdig tekst: ret påstande, tilføj detaljer kun du kender, og læs det højt. ChatGPT, Gemini og Copilot kan alle hjælpe. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "En jobansøgning er en af de tekster, hvor AI kan spare mest tid, og samtidig en af dem, hvor det er lettest at se, når den har skrevet det hele alene. Rekrutterere læser mange ansøgninger, og de genkender hurtigt de pæne, generiske vendinger om at være \"passioneret\" og \"resultatorienteret\" uden noget bag.\n\nDerfor handler det ikke om at lade AI skrive ansøgningen for dig, men om at bruge den til det, den er god til: struktur, et første udkast og en skarpere formulering af det, du selv har at sige. Her er en enkel fremgangsmåde, der virker med de fleste værktøjer.",
+  "examples": {
+   "heading": "Det kan AI hjælpe dig med i en ansøgning",
+   "items": [
+    "Et første udkast ud fra jobopslaget og dit CV, som du bagefter gør til dit eget",
+    "En stærkere indledning, der går direkte til, hvorfor du søger netop dette job",
+    "En kortere version, når ansøgningen er blevet for lang",
+    "En oversættelse til engelsk, når stillingen kræver det",
+    "Et tjek af, om du faktisk svarer på de krav, der står i opslaget"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Giv AI'en det rigtige materiale",
+    "body": "Kvaliteten af udkastet afhænger næsten helt af, hvad du giver værktøjet. Sæt jobopslaget ind, og vedhæft dit CV. Skriv derefter tre konkrete eksempler med dine egne ord: en opgave du løste, et problem du fik styr på, eller noget en leder har rost dig for. Fortæl også, hvorfor du søger netop denne stilling, og hvad du ved om arbejdspladsen.\n\nBed så om et udkast på omkring en side i en venlig og direkte tone på almindeligt dansk. Skriv gerne udtrykkeligt, at den ikke må finde på erfaringer eller resultater, du ikke har nævnt. Så får du en tekst, der bygger på dine fakta i stedet for pæne påstande."
+   },
+   {
+    "heading": "Gør udkastet til din egen ansøgning",
+    "body": "Læs udkastet kritisk. Fjern alt, der kunne stå i en hvilken som helst ansøgning, og alt, der ikke er sandt eller lidt for flot. Tilføj de detaljer, som kun du kender: navnet på et projekt, en kollega der kan give en reference, eller hvorfor du blev glad, da du så opslaget.\n\nLæs derefter teksten højt. Hvis en sætning ikke lyder som noget, du selv ville sige til en samtale, så skriv den om. En ansøgning skal åbne døren til en samtale, og til samtalen er det dig, der sidder der. Derfor skal teksten lyde som dig. AI er en god sparringspartner, men det er dit navn, der står under."
+   },
+   {
+    "heading": "Hvilket værktøj skal du vælge?",
+    "body": "Til de fleste er en gratis chatbot som ChatGPT, Gemini eller Copilot rigeligt til en ansøgning. De kan læse dit CV, forstå jobopslaget og skrive et brugbart udkast på dansk. Der findes også særlige ansøgnings- og CV-tjenester med skabeloner, som kan være en hjælp, hvis du har brug for mere vejledning.\n\nSkriver du ansøgningen direkte i Google Docs, i en mail eller i en jobportals formular, kan en Chrome-udvidelse som ChatBot Skriv spare kopieringen. Du vedhæfter CV og opslag, vælger kort, middel eller lang, og teksten skrives ind dér, hvor markøren står, med det samme eller i et roligt skrivetempo, du kan stoppe."
+   }
+  ],
+  "table": {
+   "caption": "Overblik: tre måder at få hjælp til en ansøgning",
+   "head": [
+    "",
+    "Gratis chatbot (ChatGPT, Gemini, Copilot)",
+    "Ansøgnings- og CV-tjeneste",
+    "Chrome-udvidelse til at skrive"
+   ],
+   "rows": [
+    [
+     "Skriver udkast ud fra opslag og CV",
+     "Ja",
+     "Ja, ofte med skabeloner",
+     "Ja"
+    ],
+    [
+     "Læser vedhæftet CV og opslag",
+     "Ja",
+     "Ofte",
+     "Afhænger af udvidelsen"
+    ],
+    [
+     "Vejledning i opbygning af en ansøgning",
+     "Hvis du beder om det",
+     "Ja, det er formålet",
+     "Hvis du beder om det"
+    ],
+    [
+     "Teksten lander direkte i dokument eller formular",
+     "Nej, du kopierer",
+     "Delvist",
+     "Ja"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der skriver en enkelt ansøgning en gang imellem: en gratis chatbot som ChatGPT, Gemini eller Copilot er nok til et godt første udkast.",
+   "Bedst til dig, der søger mange job og skriver i Google Docs, mail eller jobportaler: ChatBot Skriv læser dit CV og skriver udkastet direkte ind, hvor du arbejder.",
+   "Bedst til dig, der har brug for hjælp til selve opbygningen af CV og ansøgning: så er en ansøgningstjeneste eller en jobkonsulent et bedre valg end ChatBot Skriv."
+  ],
+  "faq": [
+   {
+    "q": "Kan en arbejdsgiver se, at ansøgningen er skrevet med AI?",
+    "a": "Ikke med sikkerhed, men en tekst fuld af generiske vendinger og uden konkrete eksempler falder hurtigt igennem. Brug AI til udkastet, og skriv selv de detaljer og eksempler, der gør ansøgningen troværdig."
+   },
+   {
+    "q": "Må jeg bruge AI til min jobansøgning?",
+    "a": "Ja, det er helt almindeligt at få hjælp til formuleringer, ligesom man før fik en ven til at læse med. Det vigtige er, at alt i ansøgningen er sandt, og at du kan stå inde for hvert ord til samtalen."
+   },
+   {
+    "q": "Er det sikkert at give AI mit CV?",
+    "a": "Dit CV indeholder personoplysninger, så tjek hvor værktøjet opbevarer data, om teksten bruges til at træne modellen, og om du kan få den slettet. Fjern gerne dit CPR-nummer og andre oplysninger, som ansøgningen ikke har brug for."
+   }
+  ]
  }
 ]
