@@ -35,12 +35,37 @@
   ],
   "table": {
    "caption": "De tre veje sammenlignet",
-   "head": ["", "Gemini i Docs", "Chatbot i en fane", "Chrome-udvidelse"],
+   "head": [
+    "",
+    "Gemini i Docs",
+    "Chatbot i en fane",
+    "Chrome-udvidelse"
+   ],
    "rows": [
-    ["Skriver direkte i dokumentet", "Ja", "Nej, du kopierer", "Ja"],
-    ["Virker uden for Google", "Nej", "Ja, via kopiering", "Ja"],
-    ["Kræver en bestemt Google-konto", "Ofte", "Nej", "Nej"],
-    ["Kan læse vedhæftede filer", "Filer i Drev", "Ja", "Afhænger af udvidelsen"]
+    [
+     "Skriver direkte i dokumentet",
+     "Ja",
+     "Nej, du kopierer",
+     "Ja"
+    ],
+    [
+     "Virker uden for Google",
+     "Nej",
+     "Ja, via kopiering",
+     "Ja"
+    ],
+    [
+     "Kræver en bestemt Google-konto",
+     "Ofte",
+     "Nej",
+     "Nej"
+    ],
+    [
+     "Kan læse vedhæftede filer",
+     "Filer i Drev",
+     "Ja",
+     "Afhænger af udvidelsen"
+    ]
    ]
   },
   "bestFor": [
@@ -238,6 +263,95 @@
    {
     "q": "Er det sikkert at give AI mit CV?",
     "a": "Dit CV indeholder personoplysninger, så tjek hvor værktøjet opbevarer data, om teksten bruges til at træne modellen, og om du kan få den slettet. Fjern gerne dit CPR-nummer og andre oplysninger, som ansøgningen ikke har brug for."
+   }
+  ]
+ },
+ {
+  "slug": "findes-der-en-ai-skriveassistent-til-chrome",
+  "questionId": "findes-der-en-ai-skriveassistent-til-chrome",
+  "topic": "chrome",
+  "datePublished": "2026-09-27",
+  "h1": "Findes der en AI-skriveassistent til Chrome?",
+  "metaTitle": "AI-skriveassistent til Chrome: dine muligheder",
+  "metaDescription": "Ja, der findes flere AI-skriveassistenter til Chrome. Se forskellen på Gemini i Chrome, Grammarly, TextCortex og ChatBot Skriv, og find den, der passer til dig.",
+  "answer": "Ja. Chrome har selv Gemini indbygget, og i Chrome Web Store finder du udvidelser som Grammarly, TextCortex og ChatBot Skriv. Til korte spørgsmål og ret stavning er de indbyggede og gratis muligheder ofte nok. Skal teksten skrives direkte ind, hvor du arbejder, er en udvidelse mere praktisk. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Mange skriver det meste af deres arbejdsdag i browseren: mails i Gmail, dokumenter i Google Docs, sager i et CRM og svar i kundeservicesystemer. Derfor er det naturligt at spørge, om man kan få en AI-assistent direkte i Chrome i stedet for at hoppe frem og tilbage til et chatvindue.\n\nSvaret er ja, og der er flere slags. Nogle retter stavning og grammatik, mens du skriver. Andre er chatbots i et sidepanel. Og nogle skriver hele teksten ind i det felt, du står i. Her er et overblik over mulighederne, og hvad du skal kigge efter, før du vælger.",
+  "examples": {
+   "heading": "Typiske opgaver for en skriveassistent i Chrome",
+   "items": [
+    "Et svar på en kundemail skrevet direkte i Gmail eller Outlook på nettet",
+    "Et første udkast til et afsnit i Google Docs ud fra dine egne noter",
+    "En kortere og mere venlig version af en tekst, du allerede har skrevet",
+    "En tekst skrevet ud fra en vedhæftet PDF, et Word-dokument eller et billede",
+    "Et udfyldt tekstfelt i en webformular, et CMS eller en jobportal"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Tre slags AI-hjælp i Chrome",
+    "body": "Den første slags er indbygget: Google har lagt Gemini ind i Chrome, så du kan stille spørgsmål og få hjælp uden at installere noget. Den anden slags er rettehjælp som Grammarly eller LanguageTool, der markerer fejl og foreslår bedre formuleringer, mens du skriver.\n\nDen tredje slags er skriveassistenter som TextCortex og ChatBot Skriv, som skriver længere tekster for dig ud fra en besked og eventuelt vedhæftede filer. Forskellen ligger især i, hvor teksten ender: i et chatvindue, som forslag i dit felt, eller skrevet direkte ind i dokumentet."
+   },
+   {
+    "heading": "Hvad skal du kigge efter?",
+    "body": "Tjek først, om udvidelsen virker i de programmer, du faktisk bruger. Google Docs har sin egen editor, som mange udvidelser har svært ved at skrive i. Se derefter, hvor godt den skriver dansk, og om den kan læse de filer, du arbejder ud fra, også scannede dokumenter.\n\nKig også på data. En udvidelse kan se det, du skriver, så læs privatlivspolitikken: hvor opbevares dine data, bruges teksten til at træne modeller, og kan du få den slettet? Til sidst kan det betyde meget, at du selv styrer, hvor lang teksten bliver, og at du kan stoppe den undervejs."
+   },
+   {
+    "heading": "Hvornår er ChatBot Skriv et godt valg?",
+    "body": "ChatBot Skriv er en lille rund knap i kanten af hver webside. Du chatter med assistenten, vedhæfter PDF, Word, tekst eller billeder, og vælger kort, middel eller lang. Teksten skrives direkte ind dér, hvor din markør står, i Google Docs, webmail, CMS'er og almindelige tekstfelter.\n\nDu kan få teksten ind med det samme eller i et roligt skrivetempo, hvor du kan læse med, sætte på pause, stoppe og fortryde. Scannede dokumenter læses med OCR, og dansk er fuldt understøttet. Har du mest brug for stave- og grammatikrettelser, er en rettehjælp dog et mere oplagt valg."
+   }
+  ],
+  "table": {
+   "caption": "Overblik: typer af AI-skrivehjælp i Chrome",
+   "head": [
+    "",
+    "Gemini i Chrome",
+    "Rettehjælp (Grammarly, LanguageTool)",
+    "Skriveassistent (TextCortex, ChatBot Skriv)"
+   ],
+   "rows": [
+    [
+     "Kræver installation",
+     "Nej, den er indbygget",
+     "Ja, en udvidelse",
+     "Ja, en udvidelse"
+    ],
+    [
+     "Retter stavning og grammatik",
+     "Hvis du beder om det",
+     "Ja, det er formålet",
+     "Hvis du beder om det"
+    ],
+    [
+     "Skriver længere tekster ud fra en besked",
+     "Ja",
+     "Begrænset",
+     "Ja"
+    ],
+    [
+     "Teksten lander direkte i dit felt eller dokument",
+     "Delvist",
+     "Som forslag",
+     "Afhænger af udvidelsen"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der kun af og til har brug for hjælp: Gemini i Chrome eller en gratis chatbot er ofte rigeligt.",
+   "Bedst til dig, der primært vil have færre stave- og grammatikfejl: en rettehjælp som Grammarly eller LanguageTool passer bedre end ChatBot Skriv.",
+   "Bedst til dig, der skriver mange tekster på dansk i Google Docs, mails og formularer: ChatBot Skriv skriver teksten direkte ind, hvor du arbejder."
+  ],
+  "faq": [
+   {
+    "q": "Er der en gratis AI-skriveassistent til Chrome?",
+    "a": "Ja. Gemini er indbygget i Chrome, og flere udvidelser har en gratis version eller en gratis prøveperiode. ChatBot Skriv kan prøves gratis i 7 dage uden kortoplysninger."
+   },
+   {
+    "q": "Virker AI-udvidelser i Google Docs?",
+    "a": "Ikke alle. Google Docs bruger sin egen editor, som mange udvidelser ikke kan skrive direkte i. Tjek derfor beskrivelsen, før du installerer. ChatBot Skriv har særlig understøttelse af Google Docs."
+   },
+   {
+    "q": "Er det sikkert at installere en AI-udvidelse i Chrome?",
+    "a": "Hent kun udvidelser fra Chrome Web Store, og læs hvilke tilladelser de beder om. Tjek privatlivspolitikken for, hvor dine data opbevares, om de bruges til træning, og om du kan få dem slettet."
    }
   ]
  }
