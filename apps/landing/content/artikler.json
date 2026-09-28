@@ -354,5 +354,94 @@
     "a": "Hent kun udvidelser fra Chrome Web Store, og læs hvilke tilladelser de beder om. Tjek privatlivspolitikken for, hvor dine data opbevares, om de bruges til træning, og om du kan få dem slettet."
    }
   ]
+ },
+ {
+  "slug": "kan-chatgpt-skrive-godt-dansk",
+  "questionId": "kan-chatgpt-skrive-godt-dansk",
+  "topic": "ai-dansk",
+  "datePublished": "2026-09-28",
+  "h1": "Kan ChatGPT skrive godt dansk?",
+  "metaTitle": "Kan ChatGPT skrive godt dansk? Styrker og svagheder",
+  "metaDescription": "Ja, ChatGPT skriver flydende og korrekt dansk til hverdagsbrug. Her er de typiske svagheder, hvordan du opdager dem, og hvordan du får mere naturligt dansk ud.",
+  "answer": "Ja. ChatGPT skriver flydende og for det meste korrekt dansk og er fint til mails, referater og udkast. Svaghederne er faste vendinger, billedsprog og en tone, der kan lyde oversat fra engelsk. Giv tydelig besked om modtager og tone, og læs altid teksten igennem, før den sendes. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "ChatGPT er for mange danskere det første sted, de prøver kunstig intelligens, og et af de første spørgsmål er, om dansken nu også holder. Det korte svar er ja: til almindelige tekster som mails, opslag, referater og første udkast skriver den et dansk, som de fleste læsere ikke vil studse over.\n\nMen der er typiske faldgruber, som går igen, og det er dem, der afslører en AI-tekst. Her gennemgår vi, hvad ChatGPT gør godt på dansk, hvor den halter, og hvordan du med få greb får en tekst, der lyder som dig selv.",
+  "examples": {
+   "heading": "Typiske tegn på, at dansken er oversat fra engelsk",
+   "items": [
+    "Vendinger som \"i slutningen af dagen\" eller \"at gøre en forskel\" brugt lidt for tit",
+    "Mange overskrifter med stort begyndelsesbogstav i hvert ord, som på engelsk",
+    "Lange opremsninger med tre tillægsord i træk, hvor ét ville være nok",
+    "En overdrevent begejstret tone, der passer bedre til en reklame end til en kollega",
+    "Ord, der er korrekte, men som ingen dansker ville vælge i en almindelig mail"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Hvad ChatGPT gør godt på dansk",
+    "body": "Stavning og grundlæggende grammatik er som regel i orden, og sætningerne hænger fint sammen. ChatGPT forstår opgaver skrevet på dansk, svarer på dansk og kan skifte mellem en formel og en mere afslappet tone, når du beder om det. Til hverdagsopgaver som en mail til en kunde, et referat ud fra stikord eller et kortere og klarere afsnit er resultatet ofte brugbart efter en hurtig gennemlæsning.\n\nDen er også god til at omskrive. Har du selv en tekst, der er blevet lang eller rodet, kan du bede den stramme op, gøre den venligere eller skrive den i et enklere sprog. Her er dansken sjældent problemet."
+   },
+   {
+    "heading": "Hvor den halter",
+    "body": "Svaghederne ligger i det, der er særligt dansk. Forskere fra Københavns Universitet har vist, at sprogmodeller kan have svært ved billedsprog og ord med flere betydninger, som bruges anderledes på dansk end på engelsk. I praksis ser du det som faste vendinger, der er oversat direkte, og en tone, der er lidt for højstemt til en dansk modtager.\n\nKommatering kan også være ujævn, og nogle gange blandes stilen, så en tekst starter formelt og ender uformelt. Ingen af delene er alvorlige i et udkast, men de gør, at teksten kan virke upersonlig. Derfor bør du altid læse den igennem, især hvis modtageren kender dig."
+   },
+   {
+    "heading": "Sådan får du bedre dansk ud af ChatGPT",
+    "body": "Fortæl hvem der skal læse teksten, og hvilken tone du vil have, for eksempel \"venlig og kortfattet til en kollega\". Bed om almindeligt, dansk hverdagssprog og om at undgå engelske vendinger. Angiv længden, så du ikke får tre afsnit, når du ville have tre linjer.\n\nGiv den gerne et eksempel på, hvordan du selv skriver. Så rammer den din stil langt bedre. Og hvis noget lyder forkert, så bed den om at skrive netop den sætning om i stedet for at starte forfra. Til sidst kan et dansk korrekturværktøj fange de sidste kommaer. Skriver du meget i Google Docs eller mail, kan en Chrome-udvidelse spare dig for at kopiere frem og tilbage."
+   }
+  ],
+  "table": {
+   "caption": "ChatGPT på dansk, opgave for opgave",
+   "head": [
+    "Opgave",
+    "Hvor godt går det",
+    "Hvad du skal holde øje med"
+   ],
+   "rows": [
+    [
+     "Mail og korte beskeder",
+     "Godt",
+     "Tonen kan blive for formel eller for begejstret"
+    ],
+    [
+     "Omskrivning af din egen tekst",
+     "Rigtig godt",
+     "At dine egne pointer ikke forsvinder"
+    ],
+    [
+     "Længere tekster og rapporter",
+     "Godt",
+     "Gentagelser og skift i stil undervejs"
+    ],
+    [
+     "Kreative tekster med ordspil",
+     "Svingende",
+     "Billedsprog og vendinger, der ikke findes på dansk"
+    ],
+    [
+     "Korrektur af kommaer",
+     "Svingende",
+     "Brug gerne et dansk korrekturværktøj bagefter"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der skal have et hurtigt udkast til en mail eller et referat: ChatGPT gratis er et godt sted at starte.",
+   "Bedst til dig, der skriver meget i Google Docs, mail og formularer: en udvidelse som ChatBot Skriv sparer dig for at kopiere teksten over.",
+   "Bedst til dig, der kun vil have rettet stavning og kommaer: her er et dansk korrekturværktøj som regel et bedre valg end både ChatGPT og ChatBot Skriv."
+  ],
+  "faq": [
+   {
+    "q": "Skriver den gratis udgave af ChatGPT lige så godt dansk?",
+    "a": "Til de fleste hverdagstekster er den gratis udgave god nok. De betalte udgaver giver typisk adgang til nyere modeller og flere beskeder, hvilket især mærkes ved lange tekster og svære opgaver."
+   },
+   {
+    "q": "Kan man se, at en tekst er skrevet af ChatGPT?",
+    "a": "Ikke altid, men oversatte vendinger, en meget ensartet rytme og en overdrevent positiv tone er typiske tegn. Læser du teksten igennem og retter den til dit eget sprog, forsvinder de fleste af dem."
+   },
+   {
+    "q": "Er det bedre at skrive sin opgave til ChatGPT på engelsk?",
+    "a": "Nej, ikke hvis teksten skal være på dansk. Skriv opgaven på dansk og bed om dansk hverdagssprog. Så undgår du, at teksten bliver tænkt på engelsk og oversat bagefter."
+   }
+  ]
  }
 ]
