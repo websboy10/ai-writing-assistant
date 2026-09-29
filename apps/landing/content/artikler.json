@@ -443,5 +443,94 @@
     "a": "Nej, ikke hvis teksten skal være på dansk. Skriv opgaven på dansk og bed om dansk hverdagssprog. Så undgår du, at teksten bliver tænkt på engelsk og oversat bagefter."
    }
   ]
+ },
+ {
+  "slug": "er-det-sikkert-at-bruge-chatgpt-med-persondata-efter-gdpr",
+  "questionId": "er-det-sikkert-at-bruge-chatgpt-med-persondata-efter-gdpr",
+  "topic": "gdpr",
+  "datePublished": "2026-09-29",
+  "h1": "Er det sikkert at bruge ChatGPT med persondata efter GDPR?",
+  "metaTitle": "ChatGPT og persondata: Hvad siger GDPR?",
+  "metaDescription": "Må du indtaste navne, helbred og personalesager i ChatGPT? Her er, hvad GDPR betyder i praksis, hvilke indstillinger der hjælper, og hvornår du skal lade være.",
+  "answer": "Det kan gøres forsvarligt, men ikke uden videre. Den private udgave af ChatGPT er ikke det rette sted til andres persondata som navne, helbred eller personalesager. Fjern navne og detaljer, slå træning fra, og brug på arbejdet kun et AI-værktøj, som din arbejdsplads har godkendt og har en databehandleraftale med. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Mange bruger allerede ChatGPT til mails, referater og notater på arbejdet, og det sker hurtigt, at en kollegas navn, en kundes adresse eller en sygemelding ryger med ind i samtalen. Så melder spørgsmålet sig: Er det overhovedet lovligt efter GDPR?\n\nSvaret afhænger mindre af ChatGPT selv og mere af, hvilken udgave du bruger, hvad du indtaster, og om din arbejdsplads har sagt god for det. Her gennemgår vi i almindeligt sprog, hvad reglerne betyder i praksis, og hvordan du kan bruge AI uden at sætte andres oplysninger på spil. Guiden er ikke juridisk rådgivning, så tjek altid din arbejdsplads' egne regler.",
+  "examples": {
+   "heading": "Eksempler på persondata, du skal være varsom med",
+   "items": [
+    "Navne, adresser, telefonnumre og mails på kunder, borgere eller kolleger",
+    "CPR-numre og andre numre, der kan føres tilbage til en bestemt person",
+    "Oplysninger om helbred, sygefravær og diagnoser",
+    "Personalesager, lønforhold og noter fra medarbejdersamtaler",
+    "Skærmbilleder og scannede dokumenter, hvor andres oplysninger står med"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Hvad GDPR betyder, når du bruger ChatGPT",
+    "body": "GDPR handler om, hvordan oplysninger om andre mennesker bliver behandlet. Når du indtaster en persons oplysninger i et AI-værktøj, sender du dem videre til en anden virksomhed. På arbejdet er det din arbejdsgiver, der har ansvaret, og derfor skal der som hovedregel være en databehandleraftale med leverandøren, et klart formål, og kun de oplysninger, der er nødvendige.\n\nBruger du din private ChatGPT-konto til arbejdsopgaver, er der typisk ingen aftale mellem din arbejdsplads og OpenAI. Så er det svært at leve op til reglerne, uanset hvor god teksten bliver. Følsomme oplysninger som helbred kræver endnu mere forsigtighed."
+   },
+   {
+    "heading": "Privat udgave eller virksomhedsudgave",
+    "body": "OpenAI tilbyder udgaver til virksomheder, hvor indholdet som udgangspunkt ikke bruges til at træne modellerne, og hvor virksomheden kan indgå en databehandleraftale. I den private udgave kan du selv slå træning fra under indstillingerne for data og bruge midlertidige samtaler, men det gør ikke kontoen til et godkendt arbejdsværktøj.\n\nDet samme gælder andre værktøjer. Microsoft Copilot og Gemini findes også i udgaver, der er knyttet til arbejdspladsens Microsoft 365 eller Google Workspace, og det er ofte dem, it-afdelingen har godkendt. Spørg derfor først, hvilket AI-værktøj din arbejdsplads har sagt ja til, før du bruger et andet."
+   },
+   {
+    "heading": "Sådan bruger du AI mere sikkert i hverdagen",
+    "body": "Den enkleste regel er at lade personen blive væk. Skriv \"medarbejderen\" i stedet for et navn, fjern CPR-numre og adresser, og beskriv situationen i generelle vendinger. AI skal sjældent kende personen for at hjælpe med formuleringen, og du kan sætte navnet ind bagefter.\n\nVær også opmærksom på vedhæftede filer. En PDF eller et skærmbillede kan indeholde langt flere oplysninger, end du lige tænker over. Vælg værktøjer, der oplyser tydeligt, hvor data opbevares, om de bruges til træning, og hvordan du får dem slettet. ChatBot Skriv opbevarer for eksempel konto og samtaler i EU og sender kun personligt indhold til betalte AI-modeller med træning slået fra."
+   }
+  ],
+  "table": {
+   "caption": "Hvad skal du tjekke, før du bruger et AI-værktøj med persondata",
+   "head": [
+    "Spørgsmål",
+    "Hvorfor det betyder noget",
+    "Hvor du finder svaret"
+   ],
+   "rows": [
+    [
+     "Har arbejdspladsen godkendt værktøjet?",
+     "Det er arbejdsgiveren, der har ansvaret for persondata",
+     "Din leder, it-afdeling eller interne AI-regler"
+    ],
+    [
+     "Findes der en databehandleraftale?",
+     "Den er som hovedregel et krav, når andre behandler data for jer",
+     "Leverandørens vilkår eller jeres jurist"
+    ],
+    [
+     "Bruges indholdet til træning?",
+     "Oplysninger bør ikke ende i fremtidige modeller",
+     "Indstillinger for data og privatlivspolitikken"
+    ],
+    [
+     "Hvor opbevares data?",
+     "Opbevaring i EU gør det enklere at overholde reglerne",
+     "Privatlivspolitikken"
+    ],
+    [
+     "Kan du få data slettet?",
+     "Du skal kunne rydde op efter dig",
+     "Kontoindstillinger eller leverandørens support"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der skriver generelle tekster uden persondata: ChatGPT og andre gratis værktøjer er fine, når du holder navne og detaljer ude.",
+   "Bedst til dig, der vil skrive direkte i Google Docs og mail med data opbevaret i EU: ChatBot Skriv sender kun personligt indhold til betalte AI-modeller med træning slået fra.",
+   "Bedst til arbejdspladser, der skal behandle persondata i stor stil: her er et værktøj, som it-afdelingen har godkendt og har en databehandleraftale med, det rigtige valg, og ChatBot Skriv er ikke nødvendigvis det."
+  ],
+  "faq": [
+   {
+    "q": "Må jeg skrive en kollegas navn i ChatGPT?",
+    "a": "Det kommer an på din arbejdsplads' regler og hvilken udgave du bruger. Det sikreste er at skrive \"kollegaen\" eller \"medarbejderen\" og sætte navnet ind bagefter i dit eget dokument."
+   },
+   {
+    "q": "Hjælper det at slå træning fra i ChatGPT?",
+    "a": "Ja, det betyder, at dine samtaler ikke bruges til at forbedre modellerne. Men oplysningerne sendes stadig til OpenAI, så det erstatter ikke en godkendelse fra din arbejdsplads, når der er persondata med."
+   },
+   {
+    "q": "Hvad er en databehandleraftale?",
+    "a": "Det er en aftale mellem en virksomhed og en leverandør, der behandler persondata på virksomhedens vegne. Den fastlægger, hvad leverandøren må bruge oplysningerne til, hvordan de beskyttes, og hvornår de slettes."
+   }
+  ]
  }
 ]
