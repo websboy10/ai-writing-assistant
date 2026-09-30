@@ -532,5 +532,89 @@
     "a": "Det er en aftale mellem en virksomhed og en leverandør, der behandler persondata på virksomhedens vegne. Den fastlægger, hvad leverandøren må bruge oplysningerne til, hvordan de beskyttes, og hvornår de slettes."
    }
   ]
+ },
+ {
+  "slug": "kan-ai-laese-en-scannet-pdf-og-skrive-ud-fra-den",
+  "questionId": "kan-ai-laese-en-scannet-pdf-og-skrive-ud-fra-den",
+  "topic": "filer",
+  "datePublished": "2026-09-30",
+  "h1": "Kan AI læse en scannet PDF og skrive ud fra den?",
+  "metaTitle": "Kan AI læse en scannet PDF og skrive ud fra den?",
+  "metaDescription": "En scannet PDF er et billede af tekst. Se hvordan AI læser den med OCR, hvilke værktøjer der kan, og hvordan du får et brugbart udkast ud af dit dokument.",
+  "answer": "Ja. En scannet PDF er et billede af en side, så værktøjet skal først aflæse teksten med OCR, før AI kan skrive ud fra den. Mange AI-værktøjer gør det i dag automatisk, men kvaliteten afhænger af scanningen. Tydelige sider giver gode resultater, mens håndskrift og slørede kopier kræver, at du tjekker teksten. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Mange dokumenter ligger stadig som scannede PDF'er: gamle kontrakter, underskrevne breve, noter fra et møde eller et referat, nogen har kørt gennem kopimaskinen. Når du vil have hjælp til at skrive ud fra dem, opdager du hurtigt, at du ikke kan markere teksten, og at nogle AI-værktøjer svarer, at de ikke kan se noget indhold.\n\nForklaringen er enkel: En scannet PDF indeholder et billede af teksten, ikke selve teksten. Her gennemgår vi, hvordan AI alligevel kan læse den, hvilke værktøjer der kan klare opgaven, og hvordan du får et brugbart udkast ud af dit dokument uden at skrive det hele af.",
+  "examples": {
+   "heading": "Eksempler på opgaver med scannede PDF'er",
+   "items": [
+    "Skriv et kort resumé af en scannet rapport til en kollega",
+    "Lav et udkast til et svarbrev ud fra et scannet brev",
+    "Træk de vigtigste aftaler ud af et scannet mødereferat",
+    "Omskriv gamle noter til et færdigt afsnit i et dokument",
+    "Forklar et scannet dokument i et enklere sprog"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Hvorfor en scannet PDF er noget særligt",
+    "body": "En almindelig PDF, der er lavet fra Word eller Google Docs, indeholder tekst, som en computer kan læse direkte. En scannet PDF er derimod et foto af papiret. For computeren er det bare prikker i forskellige farver, indtil nogen omsætter billedet til bogstaver.\n\nDet sker med OCR, som står for optisk tegngenkendelse. Teknikken genkender bogstaverne i billedet og laver dem om til tekst, som AI bagefter kan læse, opsummere og skrive videre ud fra. Derfor afhænger resultatet af to ting: hvor godt OCR aflæser siden, og hvor godt AI forstår indholdet bagefter. Er siden skæv, sløret eller håndskrevet, kan der snige sig fejl ind allerede i første trin."
+   },
+   {
+    "heading": "Hvilke værktøjer kan læse scannede PDF'er",
+    "body": "Du har flere muligheder, og en gratis løsning er ofte nok. Åbner du en scannet PDF med Google Docs fra Google Drev, forsøger Google at omsætte den til redigerbar tekst, som du kan kopiere videre. Adobe Acrobat har også en funktion, der gør scannede dokumenter søgbare.\n\nChatGPT, Gemini og Copilot kan tage imod PDF-filer og billeder og kan i mange tilfælde læse scannede sider, men det varierer med udgaven og filen. ChatBot Skriv læser scannede dokumenter automatisk med OCR med understøttelse af dansk, og du kan vedhæfte PDF, Word, tekst og billeder direkte i samtalen. Forskellen er, at teksten bagefter skrives direkte ind i det dokument eller den mail, du arbejder i."
+   },
+   {
+    "heading": "Sådan får du det bedste resultat",
+    "body": "Start med en god scanning. Scan siderne lige, i god opløsning og med tydelig kontrast. Et billede taget skråt med mobilen i dårligt lys giver flere fejl end en scanning fra en rigtig scanner.\n\nFortæl derefter AI præcist, hvad du vil have: et resumé på fem linjer, et svarbrev eller en liste over aftaler. Nævn hvem teksten er til, og hvilken tone den skal have. Læs altid resultatet igennem, især navne, datoer, beløb og tal, fordi det er dér, en fejl i aflæsningen gør mest skade. Indeholder dokumentet oplysninger om andre personer, så tjek først, om du må bruge værktøjet til det på din arbejdsplads."
+   }
+  ],
+  "table": {
+   "caption": "Oversigt: Måder at få AI til at skrive ud fra en scannet PDF",
+   "head": [
+    "Metode",
+    "Hvad den gør",
+    "Godt at vide"
+   ],
+   "rows": [
+    [
+     "Åbn med Google Docs i Google Drev",
+     "Omsætter den scannede PDF til redigerbar tekst",
+     "Gratis, men du skal selv give teksten videre til en AI"
+    ],
+    [
+     "Adobe Acrobat",
+     "Gør scannede sider søgbare og redigerbare",
+     "Godt til at arbejde videre med selve PDF-filen"
+    ],
+    [
+     "ChatGPT, Gemini eller Copilot",
+     "Tager imod filen og svarer i chatten",
+     "Kan læse mange scanninger, men du kopierer selv svaret videre"
+    ],
+    [
+     "ChatBot Skriv",
+     "Læser filen med OCR og skriver svaret direkte ind i din editor",
+     "Du vælger længden og om teksten indsættes med det samme eller i skrivetempo"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der bare skal have teksten ud af en scannet PDF én gang: åbn den med Google Docs i Google Drev, det er gratis og ofte nok.",
+   "Bedst til dig, der vil skrive et udkast ud fra scannede filer direkte i Google Docs, mail eller en webformular: ChatBot Skriv læser filen og skriver teksten ind, hvor du arbejder.",
+   "Bedst til dig, der skal redigere, underskrive eller arkivere selve PDF-filen: her er et PDF-program som Adobe Acrobat det rigtige valg, og ChatBot Skriv er ikke."
+  ],
+  "faq": [
+   {
+    "q": "Kan AI læse håndskrift i en scannet PDF?",
+    "a": "Nogle gange. Pæn og tydelig håndskrift kan ofte aflæses, men resultatet er mindre sikkert end ved trykt tekst. Tjek derfor teksten grundigt, før du bruger den."
+   },
+   {
+    "q": "Hvordan ved jeg, om min PDF er scannet?",
+    "a": "Prøv at markere et ord i dokumentet. Kan du ikke markere teksten, eller bliver hele siden markeret som ét billede, er det en scannet PDF, som skal aflæses med OCR."
+   },
+   {
+    "q": "Virker det også på dansk?",
+    "a": "Ja, de fleste nyere OCR-løsninger kan læse danske bogstaver som æ, ø og å. ChatBot Skriv understøtter dansk fuldt ud, når scannede dokumenter læses."
+   }
+  ]
  }
 ]

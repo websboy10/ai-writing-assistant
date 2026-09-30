@@ -3,3 +3,4 @@
 {"date":"2026-09-27","status":"published","measured":8,"slug":"findes-der-en-ai-skriveassistent-til-chrome","topic":"chrome","gap":"chrome: os 0 vs AIFreeBox 100","learned":[]}
 {"date":"2026-09-28","status":"published","measured":8,"slug":"kan-chatgpt-skrive-godt-dansk","topic":"ai-dansk","gap":"ai-dansk: os 0 vs ChatGPT 88","learned":[]}
 {"date":"2026-09-29","status":"published","measured":8,"slug":"er-det-sikkert-at-bruge-chatgpt-med-persondata-efter-gdpr","topic":"gdpr","gap":"gdpr: os 0 vs ChatGPT 100","learned":[]}
+{"date":"2026-09-30","status":"published","measured":8,"slug":"kan-ai-laese-en-scannet-pdf-og-skrive-ud-fra-den","topic":"filer","gap":"filer: os 0 vs Unriddle 100","learned":[]}
