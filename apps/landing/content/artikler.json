@@ -616,5 +616,89 @@
     "a": "Ja, de fleste nyere OCR-løsninger kan læse danske bogstaver som æ, ø og å. ChatBot Skriv understøtter dansk fuldt ud, når scannede dokumenter læses."
    }
   ]
+ },
+ {
+  "slug": "kan-man-se-om-en-tekst-er-skrevet-af-ai",
+  "questionId": "kan-man-se-om-en-tekst-er-skrevet-af-ai",
+  "topic": "ai-dansk",
+  "datePublished": "2026-10-01",
+  "h1": "Kan man se, om en tekst er skrevet af AI?",
+  "metaTitle": "Kan man se, om en tekst er skrevet af AI?",
+  "metaDescription": "Nogle gange, men aldrig med sikkerhed. Se de typiske tegn på AI-tekst, hvorfor AI-detektorer tager fejl, og hvorfor åbenhed virker bedre end gætteri.",
+  "answer": "Ikke med sikkerhed. Der findes typiske tegn, for eksempel en glat og generel tone, faste vendinger og påstande uden kilder, men mennesker skriver også sådan. AI-detektorer som GPTZero giver kun et skøn og tager jævnligt fejl, især på dansk og på korte tekster. Det mest pålidelige er at spørge åbent, hvordan teksten er lavet. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Mange møder i dag tekster, hvor de tænker: Har et menneske skrevet det her, eller er det AI? Det kan være en ansøgning, et opslag på LinkedIn, en kundemail eller et indlæg i en debat. Spørgsmålet er forståeligt, fordi AI-værktøjer som ChatGPT, Gemini og Copilot er blevet en helt almindelig del af hverdagen.\n\nDet korte svar er, at man sjældent kan vide det med sikkerhed. Her gennemgår vi de tegn, der ofte går igen i AI-tekst, hvorfor de såkaldte AI-detektorer ikke kan bruges som bevis, og hvorfor åbenhed om brugen af AI er en bedre vej end gætteri, både når du læser og når du selv skriver.",
+  "examples": {
+   "heading": "Typiske tegn, der kan pege på AI-tekst",
+   "items": [
+    "En pæn og korrekt tone, der ikke siger noget konkret eller personligt",
+    "Faste vendinger og den samme opbygning i hvert afsnit",
+    "Påstande, tal eller kilder, der ikke kan genfindes",
+    "Lister med tre punkter og en opsummering til sidst, også når det ikke passer",
+    "Ord og udtryk, der lyder oversat fra engelsk"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "De tegn, man ofte kan se",
+    "body": "AI-tekst er ofte grammatisk korrekt, men lidt for glat. Den bruger generelle formuleringer, gentager den samme opbygning og runder gerne af med en pæn opsummering. Den mangler tit de små detaljer, som kun den, der har været der, kender: et navn, en dato, en konkret episode.\n\nPå dansk kan man desuden støde på vendinger, der lyder som direkte oversættelser fra engelsk. Og nogle gange indeholder teksten oplysninger, der lyder rigtige, men som ikke passer, når man tjekker dem.\n\nHusk dog, at ingen af tegnene beviser noget. Mange mennesker skriver også korrekt, generelt og struktureret, især i formelle tekster."
+   },
+   {
+    "heading": "Hvorfor AI-detektorer ikke kan bruges som bevis",
+    "body": "Der findes værktøjer, der lover at afsløre AI-tekst, for eksempel GPTZero og flere andre. De giver et skøn over, hvor sandsynligt det er, at en tekst er maskinskrevet, men de tager jævnligt fejl i begge retninger. Tekster skrevet af mennesker bliver markeret som AI, og AI-tekst, som et menneske har rettet i, slipper igennem.\n\nOpenAI, firmaet bag ChatGPT, lukkede selv sit eget detektionsværktøj, fordi det ikke var præcist nok. Detektorerne er typisk svagest på korte tekster og på andre sprog end engelsk, herunder dansk. Et resultat fra en detektor bør derfor højst være anledning til en samtale, aldrig en afgørelse om nogens arbejde."
+   },
+   {
+    "heading": "Åbenhed virker bedre end gætteri",
+    "body": "Den mest pålidelige måde at vide, hvordan en tekst er lavet, er at spørge. Mange arbejdspladser har i dag retningslinjer for, hvornår man må bruge AI, og om det skal nævnes. Er du i tvivl, så aftal det på forhånd frem for at vurdere bagefter.\n\nNår du selv bruger AI til at skrive, så brug det som et udkast, du står inde for. Giv værktøjet dine egne noter og fakta, ret teksten til, så den lyder som dig, og tjek alle oplysninger. Det gør teksten bedre, uanset om nogen spørger. Og i sammenhænge, hvor du skal aflevere dit eget arbejde, for eksempel en eksamen, gælder reglerne for det sted, ikke værktøjets muligheder."
+   }
+  ],
+  "table": {
+   "caption": "Oversigt: Måder at vurdere, om en tekst er skrevet med AI",
+   "head": [
+    "Metode",
+    "Hvad den kan",
+    "Godt at vide"
+   ],
+   "rows": [
+    [
+     "Læse kritisk efter typiske tegn",
+     "Giver et fingerpeg om generelle og upersonlige tekster",
+     "Ingen af tegnene beviser noget, mennesker skriver også sådan"
+    ],
+    [
+     "Tjekke fakta og kilder",
+     "Afslører oplysninger, der ikke passer",
+     "Fejl kan også skyldes et menneske, men det er altid værd at gøre"
+    ],
+    [
+     "AI-detektorer som GPTZero",
+     "Giver et skøn over sandsynligheden for AI",
+     "Tager jævnligt fejl, især på korte og danske tekster"
+    ],
+    [
+     "Spørge åbent",
+     "Giver det mest pålidelige svar",
+     "Virker bedst, når der er klare aftaler om brug af AI"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der vil vurdere en tekst: læs kritisk, tjek fakta og spørg åbent i stedet for at stole blindt på en AI-detektor.",
+   "Bedst til dig, der vil skrive ud fra dine egne noter og filer og selv rette teksten til: ChatBot Skriv skriver udkastet direkte ind i Google Docs, mails og webformularer.",
+   "Bedst til dig, der skal undersøge, om andres tekster er skrevet med AI: her er ChatBot Skriv ikke det rigtige valg, fordi det er en skriveassistent og ikke et analyseværktøj."
+  ],
+  "faq": [
+   {
+    "q": "Kan Google se, om en tekst er skrevet af AI?",
+    "a": "Google har oplyst, at det vigtigste for søgeresultater er, om indholdet er nyttigt og troværdigt, ikke om det er skrevet med AI. Tekster, der kun er lavet for at manipulere søgeresultater, bliver dog vurderet dårligt, uanset hvem der har skrevet dem."
+   },
+   {
+    "q": "Er AI-detektorer pålidelige på dansk?",
+    "a": "Nej, ikke nok til at afgøre noget. De fleste er udviklet med fokus på engelsk og tager oftere fejl på andre sprog og på korte tekster. Brug et resultat som anledning til at spørge, ikke som bevis."
+   },
+   {
+    "q": "Skal jeg fortælle, at jeg har brugt AI?",
+    "a": "Det afhænger af sammenhængen og af reglerne der, hvor du skriver. Mange arbejdspladser har retningslinjer for det. Er du i tvivl, er det bedst at være åben, og du bør altid kunne stå inde for indholdet."
+   }
+  ]
  }
 ]
