@@ -700,5 +700,89 @@
     "a": "Det afhænger af sammenhængen og af reglerne der, hvor du skriver. Mange arbejdspladser har retningslinjer for det. Er du i tvivl, er det bedst at være åben, og du bør altid kunne stå inde for indholdet."
    }
   ]
+ },
+ {
+  "slug": "kan-en-chrome-udvidelse-skrive-direkte-i-google-docs",
+  "questionId": "kan-en-chrome-udvidelse-skrive-direkte-i-google-docs",
+  "topic": "google-docs",
+  "datePublished": "2026-10-02",
+  "h1": "Kan en Chrome-udvidelse skrive direkte i Google Docs?",
+  "metaTitle": "Kan en Chrome-udvidelse skrive direkte i Google Docs?",
+  "metaDescription": "Ja, men kun hvis den er bygget til det. Se hvorfor Google Docs er svær for udvidelser, hvordan det adskiller sig fra Gemini og ChatGPT, og hvad du skal vælge.",
+  "answer": "Ja, men kun hvis udvidelsen er bygget specifikt til det. Google Docs bruger sin egen særlige editor, så mange udvidelser kan læse siden, men ikke sætte tekst ind. Alternativet er at kopiere fra ChatGPT eller bruge Gemini, som Google selv har bygget ind i Docs for nogle konti. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Mange, der bruger AI til at skrive, kender rutinen: Man stiller spørgsmålet i ChatGPT eller et andet chatvindue, kopierer svaret, skifter fane og sætter teksten ind i Google Docs. Bagefter skal formateringen rettes, og så starter man forfra med næste afsnit. Derfor er det oplagt at spørge, om en Chrome-udvidelse ikke bare kan skrive teksten direkte i dokumentet.\n\nSvaret er ja, men det er ikke en selvfølge. Google Docs fungerer anderledes end almindelige tekstfelter på nettet, og det er grunden til, at mange udvidelser kun virker halvt i Docs. Her forklarer vi, hvorfor det er sådan, hvilke muligheder du har, og hvordan du vælger den løsning, der passer til dig.",
+  "examples": {
+   "heading": "Det kan en udvidelse typisk hjælpe med i Google Docs",
+   "items": [
+    "Skrive et første udkast til et afsnit ud fra dine egne noter",
+    "Omskrive et afsnit, så tonen bliver kortere eller mere venlig",
+    "Opsummere et vedhæftet referat eller en PDF direkte i dokumentet",
+    "Oversætte et afsnit til eller fra dansk",
+    "Skrive faste tekster som mødereferater, statusopdateringer eller medarbejderudtalelser"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Hvorfor Google Docs er svær for udvidelser",
+    "body": "På de fleste hjemmesider er et tekstfelt et almindeligt felt, som en udvidelse let kan skrive i. Google Docs er anderledes. Dokumentet bliver tegnet af Googles egen editor, og det, du ser på skærmen, er ikke et almindeligt tekstfelt.\n\nDet betyder, at en udvidelse, der virker fint i Gmail eller en webformular, ofte ikke kan sætte tekst ind i Docs. Nogle udvidelser løser det ved at vise teksten i et separat vindue, så du selv skal kopiere den. Andre bruger en tilføjelse fra Google Workspace Marketplace, som skal installeres for sig. Kun udvidelser, der har bygget særlig understøttelse af Google Docs, kan skrive teksten direkte dér, hvor markøren står."
+   },
+   {
+    "heading": "Dine muligheder: kopiere, Gemini eller en udvidelse",
+    "body": "Den enkleste løsning er stadig at bruge ChatGPT, Claude eller Copilot i en anden fane og kopiere svaret over. Det virker for alle og koster ikke noget at prøve, men det kræver mange skift frem og tilbage.\n\nGemini er Googles egen AI og er bygget ind i Docs for en del Google Workspace-konti. Har du adgang til den, er den et naturligt førstevalg, fordi den allerede ligger i dokumentet. Tilgængelighed og sprog afhænger dog af din konto og din arbejdsplads.\n\nEn Chrome-udvidelse giver dig samme assistent på tværs af Google Docs, mail og webformularer. Det er en fordel, hvis du skriver mange forskellige steder og ikke vil skifte værktøj hver gang."
+   },
+   {
+    "heading": "Sådan vælger du den rigtige løsning",
+    "body": "Start med at se på, hvor du skriver. Skriver du næsten kun i Google Docs og har Gemini på din konto, så prøv den først. Skriver du sjældent og korte tekster, er det helt fint at kopiere fra ChatGPT.\n\nHvis du skriver mange tekster ud fra filer, for eksempel noter, referater eller scannede dokumenter, og vil have teksten direkte ind i dokumentet, giver en udvidelse med Google Docs-understøttelse mest mening. Tjek tre ting, før du vælger: Skriver den virkelig i selve dokumentet, kan du stoppe og fortryde undervejs, og hvordan håndteres dine data? Læs privatlivspolitikken, især hvis du skriver om andre personer, for eksempel i HR-arbejde."
+   }
+  ],
+  "table": {
+   "caption": "Oversigt: Måder at få AI-tekst ind i Google Docs",
+   "head": [
+    "Løsning",
+    "Sådan kommer teksten ind",
+    "Godt at vide"
+   ],
+   "rows": [
+    [
+     "ChatGPT, Claude eller Copilot i en anden fane",
+     "Du kopierer og indsætter selv",
+     "Virker for alle, men kræver mange skift mellem faner"
+    ],
+    [
+     "Gemini i Google Docs",
+     "Direkte i dokumentet",
+     "Kræver en konto, hvor Gemini er slået til"
+    ],
+    [
+     "Tilføjelse fra Google Workspace Marketplace",
+     "Via et sidepanel i Docs",
+     "Skal installeres separat og virker kun i Googles egne apps"
+    ],
+    [
+     "Chrome-udvidelse med Google Docs-understøttelse",
+     "Direkte dér, hvor markøren står",
+     "Virker også i mail og webformularer, men tjek at Docs faktisk understøttes"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der har Gemini på din Google Workspace-konto og næsten kun skriver i Docs: brug den indbyggede løsning først.",
+   "Bedst til dig, der skriver ud fra noter, PDF'er og scannede dokumenter og vil have teksten direkte ind i Google Docs, mails og webformularer: ChatBot Skriv skriver den dér, hvor markøren står, med det samme eller i et menneskeligt skrivetempo, som du kan stoppe undervejs.",
+   "Bedst til dig, der kun af og til har brug for en kort tekst: her er ChatBot Skriv ikke nødvendig, og det er helt fint at kopiere svaret fra en gratis chat som ChatGPT."
+  ],
+  "faq": [
+   {
+    "q": "Hvorfor virker min AI-udvidelse ikke i Google Docs?",
+    "a": "Google Docs bruger sin egen editor i stedet for et almindeligt tekstfelt. Mange udvidelser er kun bygget til almindelige tekstfelter og kan derfor ikke sætte tekst ind i Docs, selv om de virker fint i Gmail og på andre sider."
+   },
+   {
+    "q": "Er en Chrome-udvidelse det samme som en Google Docs-tilføjelse?",
+    "a": "Nej. En Chrome-udvidelse installeres i browseren og kan virke på mange hjemmesider. En tilføjelse installeres fra Google Workspace Marketplace og virker kun inde i Googles egne apps som Docs, Sheets og Gmail."
+   },
+   {
+    "q": "Kan jeg fortryde, hvis udvidelsen skriver noget forkert i mit dokument?",
+    "a": "Det afhænger af udvidelsen. I ChatBot Skriv kan du sætte på pause, stoppe og fortryde undervejs. Uanset værktøj kan du også altid bruge Fortryd i Google Docs og se tidligere versioner i versionshistorikken."
+   }
+  ]
  }
 ]
