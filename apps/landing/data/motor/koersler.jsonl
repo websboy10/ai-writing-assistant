@@ -6,3 +6,4 @@
 {"date":"2026-09-30","status":"published","measured":8,"slug":"kan-ai-laese-en-scannet-pdf-og-skrive-ud-fra-den","topic":"filer","gap":"filer: os 0 vs Unriddle 100","learned":[]}
 {"date":"2026-10-01","status":"published","measured":8,"slug":"kan-man-se-om-en-tekst-er-skrevet-af-ai","topic":"ai-dansk","gap":"ai-dansk: os 0 vs ChatGPT 63","learned":[]}
 {"date":"2026-10-02","status":"published","measured":8,"slug":"kan-en-chrome-udvidelse-skrive-direkte-i-google-docs","topic":"google-docs","gap":"google-docs: os 0 vs ChatGPT 100","learned":[{"topic":"ai-dansk","count":1,"delta":0,"avgDelta":0}]}
+{"date":"2026-10-03","status":"published","measured":8,"slug":"hvordan-skriver-man-et-cv-med-ai","topic":"ansoegning","gap":"ansoegning: os 0 vs ChatGPT 75","learned":[{"topic":"ai-dansk","count":1,"delta":0,"avgDelta":0},{"topic":"ansoegning","count":1,"delta":0,"avgDelta":0}]}

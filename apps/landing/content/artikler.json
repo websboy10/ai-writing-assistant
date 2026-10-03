@@ -784,5 +784,94 @@
     "a": "Det afhænger af udvidelsen. I ChatBot Skriv kan du sætte på pause, stoppe og fortryde undervejs. Uanset værktøj kan du også altid bruge Fortryd i Google Docs og se tidligere versioner i versionshistorikken."
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-et-cv-med-ai",
+  "questionId": "hvordan-skriver-man-et-cv-med-ai",
+  "topic": "ansoegning",
+  "datePublished": "2026-10-03",
+  "h1": "Hvordan skriver man et CV med AI?",
+  "metaTitle": "Sådan skriver du et CV med AI | ChatBot Skriv",
+  "metaDescription": "Sådan bruger du AI til dit CV: giv den dine egne fakta og jobopslaget, lad den sortere og stramme op, og tjek hver linje. Værktøjerne sammenlignet ærligt.",
+  "answer": "Start med dine egne fakta: stillinger, datoer, uddannelse og konkrete resultater. Giv AI'en det materiale sammen med jobopslaget, og bed den sortere, stramme formuleringerne og fremhæve det relevante. Lad den aldrig finde på erfaring eller tal. ChatGPT, Gemini og Copilot kan alle hjælpe, og en CV-bygger giver dig layoutet. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Et CV er et faktadokument. Det skal vise, hvad du har lavet, hvor og hvornår, og hvad det førte til. Det er netop derfor, AI er både nyttig og farlig her. Den er god til at sortere, forkorte og finde de rigtige ord, men den kender ikke dit arbejdsliv, og hvis du ikke giver den fakta, gætter den.\n\nDen sikre arbejdsgang er derfor enkel: du leverer indholdet, AI'en hjælper med formen, og du tjekker hver linje til sidst. Her er, hvordan du gør det i praksis, og hvilke værktøjer der passer til hvad.",
+  "examples": {
+   "heading": "Det kan AI hjælpe dig med i et CV",
+   "items": [
+    "En kort profiltekst øverst, skrevet ud fra dine egne stikord",
+    "Punktopstillinger under hver stilling, der beskriver resultater i stedet for opgaver",
+    "En version af CV'et, der er tilpasset et bestemt jobopslag",
+    "En strammere udgave af et CV, der er blevet for langt",
+    "En engelsk version af et dansk CV"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Giv AI'en dine fakta, ikke kun en titel",
+    "body": "Det mest almindelige fejltrin er at skrive \"lav et CV til en projektleder\" og så bruge det, der kommer ud. Resultatet bliver generisk, og det kan indeholde erfaring, du ikke har.\n\nGiv i stedet AI'en dit nuværende CV eller en liste med stillinger, datoer, uddannelse og to eller tre konkrete resultater fra hvert job. Har du kun dit gamle CV som en scannet PDF, så brug et værktøj, der kan læse den. Sæt jobopslaget ind ved siden af, og bed om at fremhæve det, der passer til stillingen. Jo mere præcist materialet er, jo mindre skal du rette bagefter."
+   },
+   {
+    "heading": "Tjek hver linje, før du sender",
+    "body": "AI'en kan finde på tal, titler og kompetencer, der lyder overbevisende, men som ikke er sande. I et CV er det et alvorligt problem, fordi en arbejdsgiver kan spørge ind til alt, hvad der står.\n\nLæs derfor hele teksten igennem med ét spørgsmål for øje: kan jeg forklare og dokumentere det her til en samtale? Fjern alt, hvad du ikke kan stå inde for. Ret også sproget, så det lyder som dig. Ord som \"passioneret\" og \"resultatorienteret\" dukker ofte op i AI-tekst og siger ikke ret meget. Et konkret eksempel på, hvad du fik gjort, siger mere."
+   },
+   {
+    "heading": "Hvilket værktøj skal du vælge?",
+    "body": "Til selve teksten er en almindelig chatbot som ChatGPT, Gemini eller Copilot ofte nok, og de har gratis udgaver. Du kopierer så resultatet over i dit dokument. Vil du have færdigt layout og skabeloner, er en CV-bygger som Enhancv eller Jobseeker lavet til netop det, og jobportaler som Jobindex har gode råd om, hvad danske arbejdsgivere forventer.\n\nSkriver du dit CV i Google Docs eller Word online, kan en Chrome-udvidelse som ChatBot Skriv spare kopieringen. Du vedhæfter dit gamle CV og jobopslaget, vælger længde og får teksten skrevet direkte ind i dokumentet, hvor din markør står."
+   }
+  ],
+  "table": {
+   "caption": "Tre måder at skrive CV med AI",
+   "head": [
+    "",
+    "Chatbot i en fane",
+    "CV-bygger",
+    "Chrome-udvidelse"
+   ],
+   "rows": [
+    [
+     "Eksempler",
+     "ChatGPT, Gemini, Copilot",
+     "Enhancv, Jobseeker",
+     "ChatBot Skriv"
+    ],
+    [
+     "Giver færdigt layout",
+     "Nej",
+     "Ja",
+     "Nej, du bruger dit eget dokument"
+    ],
+    [
+     "Skriver direkte i dit dokument",
+     "Nej, du kopierer",
+     "Nej, CV'et laves i deres værktøj",
+     "Ja"
+    ],
+    [
+     "Kan læse dit gamle CV som fil",
+     "Ofte",
+     "Ofte",
+     "Ja, også scannede PDF'er"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til dig, der vil have et pænt layout hurtigt: en CV-bygger med skabeloner.",
+   "Bedst til dig, der kun skal opdatere dit CV en enkelt gang: en gratis chatbot og lidt kopiering er helt fint.",
+   "Bedst til dig, der skriver CV og ansøgninger i Google Docs og tilpasser dem tit: en udvidelse, der læser dine filer og skriver direkte i dokumentet."
+  ],
+  "faq": [
+   {
+    "q": "Kan en arbejdsgiver se, at mit CV er skrevet med AI?",
+    "a": "Ikke med sikkerhed, men generiske vendinger og et CV, der ikke passer til din samtale, falder i øjnene. Brug AI til formuleringerne og hold indholdet konkret og sandt, så er det dit CV."
+   },
+   {
+    "q": "Er det sikkert at give AI mit CV?",
+    "a": "Et CV indeholder personoplysninger som navn, adresse og telefonnummer. Fjern dem, før du indsætter teksten, eller vælg et værktøj, hvor data opbevares i EU, og hvor dine tekster ikke bruges til at træne modellen."
+   },
+   {
+    "q": "Skal jeg lave et nyt CV til hver ansøgning?",
+    "a": "Ikke et helt nyt, men det betaler sig at tilpasse profilteksten og rækkefølgen af dine resultater til hvert opslag. Det er netop den slags tilpasning, AI er hurtig til, når den har dit grund-CV og jobopslaget."
+   }
+  ]
  }
 ]
