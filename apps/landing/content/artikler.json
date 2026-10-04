@@ -873,5 +873,89 @@
     "a": "Ikke et helt nyt, men det betaler sig at tilpasse profilteksten og rækkefølgen af dine resultater til hvert opslag. Det er netop den slags tilpasning, AI er hurtig til, når den har dit grund-CV og jobopslaget."
    }
   ]
+ },
+ {
+  "slug": "hvordan-faar-man-en-ai-tekst-til-at-lyde-mere-menneskelig",
+  "questionId": "hvordan-faar-man-en-ai-tekst-til-at-lyde-mere-menneskelig",
+  "topic": "ai-dansk",
+  "datePublished": "2026-10-04",
+  "h1": "Hvordan får man en AI-tekst til at lyde mere menneskelig?",
+  "metaTitle": "Få en AI-tekst til at lyde menneskelig | ChatBot Skriv",
+  "metaDescription": "Sådan får du en AI-tekst til at lyde som dig: giv den dine egne eksempler og fakta, skær de tomme vendinger væk og læs teksten højt, før du bruger den.",
+  "answer": "Giv AI'en dit eget materiale: noter, fakta og et par tekster, du selv har skrevet, så den kan ramme din tone. Bed om korte sætninger og konkrete eksempler, og skær tomme vendinger som \"i en verden, hvor\" væk. Læs teksten højt og ret det, du aldrig selv ville sige. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Mange kender følelsen: AI'en har skrevet en tekst, der er korrekt, men den lyder som alle andre. Den er lidt for høflig, lidt for lang og fuld af ord, der fylder uden at sige noget. På dansk bliver det ekstra tydeligt, fordi mange vendinger er oversat direkte fra engelsk.\n\nDet gode er, at det meste kan løses med bedre input og fem minutters efterarbejde. Målet er ikke at skjule, at du har fået hjælp, men at teksten siger det, du mener, på den måde du selv ville sige det. Her er, hvordan du gør i praksis.",
+  "examples": {
+   "heading": "Typiske tegn på en tekst, der lyder som AI",
+   "items": [
+    "Indledninger som \"I en verden, hvor\" eller \"Det er vigtigt at bemærke, at\"",
+    "Tre tillægsord i træk, hvor ét konkret eksempel ville sige mere",
+    "Alle afsnit er lige lange og slutter med en lille opsummering",
+    "Ord som \"spændende\", \"passioneret\" og \"banebrydende\" uden noget bag",
+    "Engelske vendinger oversat direkte, for eksempel \"at tage det til næste niveau\""
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Giv AI'en noget at arbejde med",
+    "body": "En AI-tekst lyder generisk, når AI'en har for lidt at gå ud fra. Skriver du bare \"skriv en mail til kunden om forsinkelsen\", får du gennemsnittet af alle mails om forsinkelser.\n\nGiv den i stedet de konkrete fakta: hvad er forsinket, hvorfor, hvad gør I ved det, og hvem skriver du til. Sæt gerne en tekst ind, du selv har skrevet, og bed AI'en om at ramme samme tone. Har du noter, et referat eller et dokument, så vedhæft det. Jo mere af dit eget materiale teksten bygger på, jo mere lyder den som dig og jo mindre skal du rette."
+   },
+   {
+    "heading": "Skær ud og gør det konkret",
+    "body": "Det hurtigste greb er at slette. Fjern indledningen, hvis den bare gentager spørgsmålet, og fjern den sidste sætning, hvis den bare opsummerer. Stryg tillægsord, der ikke tilføjer noget, og erstat dem med et eksempel eller et faktum.\n\nDu kan også bede AI'en om det direkte: \"Skriv kortere sætninger, brug almindelige danske ord, og undgå floskler.\" Bed om en bestemt længde frem for at lade den fylde ud. Et kort svar, der siger én ting klart, lyder langt mere menneskeligt end et langt svar, der dækker alt. Til sidst kan et stavekontrolværktøj fange de småfejl, der stadig er tilbage."
+   },
+   {
+    "heading": "Læs højt, og skriv det sidste selv",
+    "body": "Læs teksten højt, før du bruger den. Det afslører med det samme de steder, hvor du snubler, eller hvor det lyder som en pressemeddelelse. Spørg dig selv ved hver sætning: ville jeg sige det sådan til en kollega?\n\nRet de ord, du aldrig selv ville bruge, og tilføj en detalje, som kun du kender: en aftale, et navn, en konkret situation. Det er de detaljer, der gør en tekst levende. AI er god til at levere et første udkast og en struktur, men det personlige præg skal komme fra dig. Står du inde for hvert ord, er det din tekst."
+   }
+  ],
+  "table": {
+   "caption": "Fra AI-agtig til menneskelig: fire greb",
+   "head": [
+    "",
+    "Typisk AI-tekst",
+    "Sådan gør du den menneskelig"
+   ],
+   "rows": [
+    [
+     "Indledning",
+     "Gentager spørgsmålet eller starter bredt",
+     "Gå direkte til sagen i første sætning"
+    ],
+    [
+     "Ordvalg",
+     "Floskler og direkte oversat engelsk",
+     "Almindelige danske ord, som du selv bruger"
+    ],
+    [
+     "Indhold",
+     "Generelle påstande",
+     "Konkrete fakta og eksempler fra dit eget materiale"
+    ],
+    [
+     "Længde",
+     "Fylder mere ud end nødvendigt",
+     "Vælg en fast længde og skær resten væk"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: en gratis chatbot som ChatGPT, Gemini eller Copilot, en god prompt med dine egne fakta og fem minutters efterarbejde.",
+   "Bedst til dig, der kun vil rette stavning og grammatik i en tekst, du selv har skrevet: et stavekontrolværktøj er nok, og en skriveassistent er ikke nødvendig.",
+   "Bedst til dig, der skriver i Google Docs eller mail og vil bygge teksten på dine egne filer: en udvidelse som ChatBot Skriv, hvor du vedhæfter noterne, vælger længden og retter teksten direkte i dokumentet."
+  ],
+  "faq": [
+   {
+    "q": "Hvorfor lyder AI-tekster ofte ens?",
+    "a": "Fordi en AI uden konkret input skriver det mest sandsynlige svar, og det er tit det mest gennemsnitlige. Giver du den dine egne fakta, eksempler og en tekst i din egen tone, bliver resultatet mere personligt."
+   },
+   {
+    "q": "Kan jeg bare bede AI'en om at skrive mere menneskeligt?",
+    "a": "Det hjælper lidt, men det virker bedre at være konkret: bed om korte sætninger, almindelige danske ord, ingen floskler og en bestemt længde. Og læs altid teksten igennem selv bagefter."
+   },
+   {
+    "q": "Skriver AI godt nok dansk til, at det kan bruges?",
+    "a": "De store modeller skriver i dag forståeligt og korrekt dansk, men de kan lyde stive og bruge vendinger oversat fra engelsk. Skriv din forespørgsel på dansk, og ret de ord, der ikke lyder naturlige."
+   }
+  ]
  }
 ]
