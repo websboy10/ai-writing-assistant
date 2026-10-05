@@ -957,5 +957,84 @@
     "a": "De store modeller skriver i dag forståeligt og korrekt dansk, men de kan lyde stive og bruge vendinger oversat fra engelsk. Skriv din forespørgsel på dansk, og ret de ord, der ikke lyder naturlige."
    }
   ]
+ },
+ {
+  "slug": "hvordan-laver-man-et-referat-af-et-moede-med-ai",
+  "questionId": "hvordan-laver-man-et-referat-af-et-moede-med-ai",
+  "topic": "arbejde",
+  "datePublished": "2026-10-05",
+  "h1": "Hvordan laver man et referat af et møde med AI?",
+  "metaTitle": "Lav et mødereferat med AI | ChatBot Skriv",
+  "metaDescription": "Sådan laver du et mødereferat med AI: saml noter eller en udskrift, giv AI'en en fast skabelon med beslutninger og opgaver, og tjek navne og datoer selv.",
+  "answer": "Saml dit råmateriale først: dine egne noter, dagsordenen eller en udskrift fra mødet. Giv det til AI'en sammen med en fast skabelon med deltagere, beslutninger, opgaver med ansvarlig og frist samt næste møde. Bed om et kort, sagligt referat, og tjek selv navne, tal og aftaler, før du sender det. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Et godt referat er kort og siger tydeligt, hvad der blev besluttet, og hvem der gør hvad. Alligevel ender mange med at bruge en halv time på at renskrive notater, som ingen læser til bunds. Her kan AI spare dig for det meste af arbejdet, fordi den er god til at sortere og opsummere tekst.\n\nAI'en kan dog kun skrive ud fra det, du giver den. Den var ikke selv til mødet, og den ved ikke, hvad der blev sagt mellem linjerne. Derfor handler et godt AI-referat om to ting: et godt råmateriale og en klar skabelon. Her er, hvordan du gør i praksis.",
+  "examples": {
+   "heading": "Det bør et mødereferat indeholde",
+   "items": [
+    "Dato, mødets formål og hvem der deltog",
+    "De vigtigste punkter fra dagsordenen i korte afsnit",
+    "Beslutninger skrevet som hele sætninger, så de ikke kan misforstås",
+    "Opgaver med en ansvarlig person og en frist",
+    "Tidspunkt og emne for næste møde"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Start med et godt råmateriale",
+    "body": "AI'en laver ikke referatet ud af ingenting. Den har brug for noget at arbejde med, og jo bedre materialet er, jo bedre bliver referatet.\n\nDet enkleste er dine egne stikordsnoter fra mødet suppleret med dagsordenen. Mange mødeværktøjer kan også lave en udskrift eller et automatisk resumé af et onlinemøde, for eksempel Copilot i Teams, Gemini i Google Meet eller Zoom AI Companion, afhængigt af jeres abonnement og indstillinger. Husk at fortælle deltagerne, hvis mødet optages eller skrives ud. Har du noter på papir eller en scannet dagsorden, kan du tage et billede af dem. Det vigtigste er, at alle beslutninger og aftaler står et sted i materialet."
+   },
+   {
+    "heading": "Giv AI'en en fast skabelon",
+    "body": "Skriver du bare \"lav et referat\", får du ofte en lang og jævn opsummering, hvor beslutningerne drukner. Giv i stedet AI'en den skabelon, I plejer at bruge, eller skriv overskrifterne selv: deltagere, punkter, beslutninger, opgaver og næste møde.\n\nBed om korte afsnit og saglige formuleringer uden fyldord. Bed også AI'en om at markere det, den er i tvivl om, i stedet for at gætte. En god prompt kan lyde sådan her: \"Skriv et kort referat ud fra de vedhæftede noter. Brug overskrifterne nedenfor. Skriv opgaver som en liste med navn og frist. Markér med [?], hvis noget er uklart.\" Vælg en fast længde, så referatet ikke fylder mere end nødvendigt."
+   },
+   {
+    "heading": "Tjek referatet, før du sender det",
+    "body": "Et referat er et dokument, folk handler ud fra, så det skal være rigtigt. Læs det igennem med dine noter ved siden af, og tjek især navne, datoer, tal og hvem der har fået hvilken opgave. AI'en kan komme til at slå to punkter sammen eller gøre en løs idé til en beslutning.\n\nRet de steder, AI'en har markeret som uklare, og fjern det, der ikke hører hjemme i et referat, for eksempel personlige bemærkninger. Indeholder mødet følsomme personoplysninger, så tjek jeres egne regler for, hvilke værktøjer I må bruge. Når du står inde for indholdet, kan referatet sendes eller lægges i det fælles dokument."
+   }
+  ],
+  "table": {
+   "caption": "Tre måder at lave et mødereferat med AI",
+   "head": [
+    "",
+    "Godt til",
+    "Vær opmærksom på"
+   ],
+   "rows": [
+    [
+     "Mødeværktøjets egen AI (Teams, Meet, Zoom)",
+     "Onlinemøder, hvor udskrift er slået til",
+     "Kræver ofte et bestemt abonnement, og deltagerne skal vide det"
+    ],
+    [
+     "Gratis chatbot (ChatGPT, Gemini, Copilot)",
+     "Hurtigt referat ud fra noter, du indsætter",
+     "Du skal selv kopiere teksten over i dokumentet"
+    ],
+    [
+     "Udvidelse i browseren (ChatBot Skriv)",
+     "Referat skrevet direkte i Google Docs ud fra vedhæftede filer",
+     "Laver ikke selv en udskrift af mødet"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste onlinemøder: den AI, der allerede er i jeres mødeværktøj, hvis I har den, fordi den kan lave udskriften for dig.",
+   "Bedst til et hurtigt referat af korte noter: en gratis chatbot som ChatGPT, Gemini eller Copilot med en god skabelon i prompten. Her er ChatBot Skriv ikke nødvendig.",
+   "Bedst til dig, der skriver referater i Google Docs ud fra noter, dagsordener eller scannede papirer: en udvidelse som ChatBot Skriv, hvor du vedhæfter filerne og får referatet skrevet direkte ind i dokumentet."
+  ],
+  "faq": [
+   {
+    "q": "Kan AI lave et referat uden at optage mødet?",
+    "a": "Ja. Du kan give AI'en dine egne noter og dagsordenen, og så skriver den et referat ud fra dem. Referatet bliver aldrig bedre end noterne, så skriv beslutninger og opgaver ned undervejs."
+   },
+   {
+    "q": "Må man optage et møde for at lave et referat?",
+    "a": "Det afhænger af jeres egne regler og af, hvad der bliver talt om. Fortæl altid deltagerne, hvis mødet optages eller skrives ud, og tjek arbejdspladsens retningslinjer, især hvis der tales om personoplysninger."
+   },
+   {
+    "q": "Hvor langt skal et mødereferat være?",
+    "a": "Så kort som muligt. De fleste læser kun beslutninger og opgaver, så sørg for, at de står tydeligt. Bed AI'en om en fast længde og om at skrive opgaver som en liste med navn og frist."
+   }
+  ]
  }
 ]
