@@ -40,6 +40,14 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 
 /* ---------- Header ---------- */
 
+.invite-bar {
+  background: var(--ink);
+  color: var(--paper);
+  font: 500 0.92rem/1.45 var(--sans);
+  text-align: center;
+  padding: 10px 20px;
+}
+
 .site-header {
   position: sticky; top: 0; z-index: 50;
   background: rgba(251, 251, 249, 0.92);

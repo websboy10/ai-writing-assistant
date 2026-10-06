@@ -17,6 +17,7 @@ import { AuthView } from './AuthView';
 import { ChatView } from './ChatView';
 import { HistoryView } from './HistoryView';
 import { PaywallView } from './PaywallView';
+import { ReferralView } from './ReferralView';
 
 const SERIF = { fontFamily: 'Charter, Georgia, serif' };
 
@@ -325,6 +326,7 @@ export function App() {
                       void useStore.getState().loadHistory();
                     }}
                   />
+                  <TabButton label="Inviter" active={view === 'invite'} onClick={() => set({ view: 'invite' })} />
                   <TabButton
                     label="Log ud"
                     active={false}
@@ -349,6 +351,8 @@ export function App() {
               <AuthView />
             ) : view === 'history' ? (
               <HistoryView />
+            ) : view === 'invite' ? (
+              <ReferralView />
             ) : billing && !billing.active ? (
               <PaywallView />
             ) : (

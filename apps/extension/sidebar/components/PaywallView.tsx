@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { PASS_DAYS, PRICE_DKK } from '@awa/shared';
 import { call } from '../api';
 import { useStore } from '../store';
+import { RedeemCode } from './ReferralView';
 
 const SERIF = { fontFamily: 'Charter, Georgia, Cambria, serif' };
 
@@ -27,6 +28,7 @@ export function PaywallView() {
   // flips this view by itself — no manual refresh to explain to anyone.
   useEffect(() => {
     const t = setInterval(() => void useStore.getState().loadBilling(), 5_000);
+    void useStore.getState().loadReferral();
     return () => clearInterval(t);
   }, []);
 
@@ -72,6 +74,14 @@ export function PaywallView() {
           {PASS_DAYS} dage og fornyes ikke af sig selv.
         </p>
       </div>
+
+      {/* The one free way past this screen, so it is offered on it. */}
+      {s.referral?.enabled && s.referral.canClaim && <RedeemCode />}
+      {s.referral?.enabled && (
+        <button onClick={() => s.set({ view: 'invite' })} className="text-ui underline underline-offset-2 hover:text-ink">
+          Inviter en ven og få {s.referral.rewardDays} dage gratis
+        </button>
+      )}
 
       {s.billing?.subscribed && (
         <button onClick={() => void open('portal')} className="text-ui underline underline-offset-2 hover:text-ink">

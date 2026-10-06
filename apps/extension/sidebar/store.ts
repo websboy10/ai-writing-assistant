@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { BillingInfo, ChatMessage, ChatStatus, ContextItem, ConversationSummary, OutputLength, OutputPrefs, UsageInfo, WebSource } from '@awa/shared';
+import type { BillingInfo, ReferralInfo, ChatMessage, ChatStatus, ContextItem, ConversationSummary, OutputLength, OutputPrefs, UsageInfo, WebSource } from '@awa/shared';
 import { DEFAULT_PACING, MAX_WPM, MIN_WPM, type InsertionState, type PacingConfig, type RunState } from '@/insertion';
 import { call } from './api';
 import { stopGeneration } from './chat';
 
-export type View = 'auth' | 'chat' | 'history';
+export type View = 'auth' | 'chat' | 'history' | 'invite';
 export type Theme = 'light' | 'dark';
 
 export interface UiMessage extends ChatMessage {
@@ -118,11 +118,14 @@ interface AwaState {
   history: ConversationSummary[];
   // freemium gate (null = not loaded yet)
   billing: BillingInfo | null;
+  // the invitation offer; loaded when something shows it, not on every page
+  referral: ReferralInfo | null;
 
   set: (partial: Partial<AwaState>) => void;
   loadSession: () => Promise<void>;
   loadUsage: () => Promise<void>;
   loadBilling: () => Promise<void>;
+  loadReferral: () => Promise<void>;
   loadHistory: (q?: string) => Promise<void>;
   signOut: () => Promise<void>;
   setPacing: (partial: Partial<PacingConfig>) => void;
@@ -158,6 +161,7 @@ export const useStore = create<AwaState>((set, get) => ({
   usage: null,
   history: [],
   billing: null,
+  referral: null,
 
   set: (partial) => set(partial),
 
@@ -186,8 +190,15 @@ export const useStore = create<AwaState>((set, get) => ({
   },
 
   loadBilling: async () => {
+    // First, so a redeemed code is already counted in the status that follows.
+    await redeemPendingReferral();
     const res = await call({ kind: 'api', path: '/api/billing/status' });
     if (res.ok) set({ billing: res.data as BillingInfo });
+  },
+
+  loadReferral: async () => {
+    const res = await call({ kind: 'api', path: '/api/referral' });
+    if (res.ok) set({ referral: res.data as ReferralInfo });
   },
 
   loadHistory: async (q?: string) => {
@@ -199,7 +210,7 @@ export const useStore = create<AwaState>((set, get) => ({
 
   signOut: async () => {
     await call({ kind: 'logout' });
-    set({ email: null, view: 'auth', messages: [], conversationId: null, history: [], usage: null, billing: null });
+    set({ email: null, view: 'auth', messages: [], conversationId: null, history: [], usage: null, billing: null, referral: null });
   },
 
   setPacing: (partial) => {
@@ -260,4 +271,27 @@ function sanitizePacing(raw: unknown): PacingConfig {
   const r = (raw ?? {}) as Partial<PacingConfig>;
   const wpm = typeof r.wpm === 'number' && Number.isFinite(r.wpm) ? Math.min(MAX_WPM, Math.max(MIN_WPM, Math.round(r.wpm))) : DEFAULT_PACING.wpm;
   return { wpm, human: r.human === true };
+}
+
+/**
+ * Redeems a code that arrived on its own: the friend opened an invitation link
+ * and the content script on chatbotskriv.dk (or the install handler in the
+ * background worker) left the code in storage.
+ *
+ * It rides on loadBilling because that runs at every moment the code could
+ * become usable: right after sign-in, and every five seconds while the paywall
+ * is showing, so opening the link in another tab unlocks a waiting panel.
+ */
+async function redeemPendingReferral(): Promise<void> {
+  const { pendingReferral } = await chrome.storage.local.get('pendingReferral');
+  if (typeof pendingReferral !== 'string') return;
+  const res = await call({ kind: 'api', path: '/api/referral/claim', method: 'POST', body: { code: pendingReferral } });
+  // Kept only when nobody actually answered (offline, signed out, server
+  // down). Any real answer is final, yes or no, and asking again would only
+  // repeat the same refusal every five seconds.
+  if (res.status === 0 || res.status === 401 || res.status >= 500) return;
+  await chrome.storage.local.remove('pendingReferral');
+  if (!res.ok) return;
+  const got = (res.data as { trialDays: number }).trialDays;
+  if (got > 0) useStore.getState().set({ notice: `Din invitation er registreret. Du har ${got} dage gratis.` });
 }

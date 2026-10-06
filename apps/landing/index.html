@@ -210,6 +210,24 @@
 </footer>
 
 <script>
+// An invitation link is chatbotskriv.dk/?r=CODE. The Chrome Web Store sits
+// between this page and the extension and passes nothing on, so the code is
+// (1) shown, so it can be typed by hand, (2) kept in localStorage, where the
+// extension reads it on a later visit, and (3) left in this tab's address by
+// opening the store in a new tab, which is where the extension looks for it
+// the moment it is installed.
+(function () {
+  var code = new URLSearchParams(location.search).get("r");
+  if (!code || !/^[A-Za-z0-9]{4,12}$/.test(code)) return;
+  code = code.toUpperCase();
+  try { localStorage.setItem("awa_ref", code); } catch (e) { /* storage blocked: the code is still on screen */ }
+  var bar = document.createElement("p");
+  bar.className = "invite-bar";
+  bar.textContent = "Du er inviteret af en ven. Hent udvidelsen og opret en konto, så får du en gratis prøveperiode. Din kode: " + code;
+  document.body.insertBefore(bar, document.body.firstChild);
+  document.querySelectorAll('a[href*="chromewebstore.google.com"]').forEach(function (a) { a.target = "_blank"; });
+})();
+
 (function () {
   var el = document.getElementById("typed");
   if (!el) return;

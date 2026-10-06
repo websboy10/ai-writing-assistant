@@ -8,6 +8,15 @@ export default defineContentScript({
   cssInjectionMode: 'ui',
 
   async main(ctx) {
+    // An invitation link lands on our own site, and this script is the one
+    // piece of the extension that can see that page. The landing page keeps
+    // the code in localStorage, so it is still here on a visit after the
+    // install; the panel redeems it at the next sign-in (sidebar/store.ts).
+    if (/^(www\.)?chatbotskriv\.dk$/.test(location.hostname)) {
+      const code = new URLSearchParams(location.search).get('r') ?? localStorage.getItem('awa_ref');
+      if (code && /^[A-Za-z0-9]{4,12}$/.test(code)) void chrome.storage.local.set({ pendingReferral: code });
+    }
+
     const ui = await createShadowRootUi(ctx, {
       name: 'awa-sidebar',
       position: 'inline',

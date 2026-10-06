@@ -364,6 +364,27 @@ export default defineBackground(() => {
     });
   });
 
+  // ---- invitation code, carried across the install ----
+
+  // The friend clicked an invitation link, landed on chatbotskriv.dk/?r=CODE
+  // and went to the Web Store from there, which knows nothing about the code.
+  // The landing page opens the store in a new tab for exactly this reason: its
+  // own tab is still open with the code in the address, and reading a tab's
+  // address on a host we hold permission for needs no extra permission.
+  // Content scripts are not injected into tabs that were open before the
+  // install, so this is the only thing that can see it at this moment.
+  chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+    if (reason !== 'install') return;
+    const tabs = await chrome.tabs.query({ url: ['https://chatbotskriv.dk/*', 'https://www.chatbotskriv.dk/*'] });
+    for (const tab of tabs) {
+      const code = tab.url ? new URL(tab.url).searchParams.get('r') : null;
+      if (code && /^[A-Za-z0-9]{4,12}$/.test(code)) {
+        await chrome.storage.local.set({ pendingReferral: code });
+        return;
+      }
+    }
+  });
+
   // ---- sidebar toggle: toolbar icon + keyboard command ----
 
   async function toggleSidebar(tabId?: number) {
