@@ -8,9 +8,9 @@ date: 2026-10-06
 # Invitationer — summary
 
 Built, deployed and run end to end on 2026-10-06. Backend and landing page are
-live. Extension 0.2.4 is built (`apps/extension/.output/extension-0.2.4-chrome.zip`)
-and NOT yet uploaded to the Chrome Web Store, so no real user can see the
-Inviter tab until it is.
+live. Extension 0.2.4 was uploaded to the Chrome Web Store by sehit on
+2026-10-06 and is IN REVIEW. No real user sees the Inviter tab until Google
+approves it and their Chrome updates.
 
 ## Observed (not claimed)
 
@@ -56,3 +56,36 @@ All test accounts, their rows and their device records were deleted afterwards.
 - A refund of the friend's payment does not take the reward back.
 - Local dev cannot run this: `.env` has placeholder Stripe keys and no service
   role key. Use a preview deployment (`vercel --yes`), which has both.
+
+## Where things are
+
+- Database: `supabase/migrations/0017_referrals.sql` (applied live 2026-10-06).
+- Backend: `apps/backend/src/routes/referral.ts`, `rewardReferrer` in
+  `apps/backend/src/billing.ts`, admin parts in `routes/admin.ts` and
+  `routes/dashboard-page.ts`. Production deploy `ai-skriveassistent-ldzifv5qy`.
+- Extension: `sidebar/components/ReferralView.tsx`, code pickup in
+  `entrypoints/content/index.tsx` and `entrypoints/background.ts`, redeeming in
+  `sidebar/store.ts`.
+- Landing: the first inline script in `apps/landing/index.html`.
+- Settings: the dashboard, section "Invitationer". Defaults 14 / 30 / 12, on.
+
+## After the store approves 0.2.4
+
+1. Install from the store in a clean Chrome profile after opening an invite
+   link, and confirm the code is redeemed without typing. This is the
+   install-time pickup that is still unproven.
+2. Watch the dashboard's "Invitationer" cards and the PostHog events
+   `referral_link_copied`, `referral_claimed`, `referral_rewarded`.
+
+## Open decisions for sehit
+
+- The landing page still says "7 dage gratis" while the hard paywall gives an
+  uninvited user no trial.
+- Supabase's built-in mailer allows about 2 signup e-mails an hour. A custom
+  SMTP sender lifts that; it matters the day an invitation spreads.
+
+## Left behind by testing
+
+- Three test subscriptions in the Stripe sandbox ("Chat sandbox").
+- A deployment-protection bypass secret on the Vercel backend project, and the
+  preview deployment `ai-skriveassistent-hfecovf2b`.
