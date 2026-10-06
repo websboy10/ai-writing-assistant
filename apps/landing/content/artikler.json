@@ -1036,5 +1036,89 @@
     "a": "Så kort som muligt. De fleste læser kun beslutninger og opgaver, så sørg for, at de står tydeligt. Bed AI'en om en fast længde og om at skrive opgaver som en liste med navn og frist."
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-et-motiveret-ansoegningsbrev-uden-at-lyde-som-alle-andre",
+  "questionId": "hvordan-skriver-man-et-motiveret-ansoegningsbrev-uden-at-lyde-som-alle-andre",
+  "topic": "ansoegning",
+  "datePublished": "2026-10-06",
+  "h1": "Hvordan skriver man et motiveret ansøgningsbrev uden at lyde som alle andre?",
+  "metaTitle": "Motiveret ansøgning, der skiller sig ud | ChatBot Skriv",
+  "metaDescription": "Sådan skriver du et motiveret ansøgningsbrev, der ikke lyder som alle andre: drop standardfraserne, vis motivation med konkrete eksempler og brug AI klogt.",
+  "answer": "Start med det, der kun gælder dig: hvorfor netop denne stilling og denne arbejdsplads, fortalt gennem et konkret eksempel fra din egen erfaring. Drop standardfraser som \"det er med stor interesse\", og vis motivationen med handlinger frem for tillægsord. AI kan hjælpe med struktur og et udkast, men detaljerne skal komme fra dig. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "De fleste ansøgninger begynder på samme måde, og de fleste motivationsafsnit siger det samme: at man er engageret, glad for at lære og brænder for området. Det er ikke forkert, men det er netop det, der får en ansøgning til at forsvinde i bunken. Den, der læser, kan ikke se forskel på dig og de andre ansøgere, når alle bruger de samme ord.\n\nEn motiveret ansøgning handler ikke om at bruge stærkere ord. Den handler om at vise, hvorfor netop du vil have netop dette job, med detaljer som ingen andre kunne have skrevet. Her er, hvordan du gør i praksis, og hvordan AI kan hjælpe uden at gøre teksten mere ens.",
+  "examples": {
+   "heading": "Vendinger, der får en ansøgning til at lyde som alle andre",
+   "items": [
+    "\"Det er med stor interesse, at jeg søger stillingen som ...\"",
+    "\"Jeg er en udadvendt og positiv person, der trives med mange bolde i luften\"",
+    "\"Jeg brænder for at gøre en forskel\" uden at sige for hvem eller hvordan",
+    "\"Jeg er både selvstændig og god til at samarbejde\"",
+    "\"Jeg ser frem til at høre fra jer\" som eneste afslutning"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Find din egen grund til at søge",
+    "body": "Før du skriver noget, så svar ærligt på to spørgsmål: Hvad var det i opslaget, der fik dig til at stoppe op? Og hvad ved du om arbejdspladsen, som ikke står i opslaget? Læs deres hjemmeside, se hvad de har lavet for nylig, og ring gerne og stil et godt spørgsmål, hvis der står et telefonnummer.\n\nSvarene er din motivation. Måske har du brugt deres produkt, måske passer en bestemt opgave til noget, du har savnet i dit nuværende job. Jo mere konkret grunden er, jo sværere er den at kopiere. En sætning som \"jeg vil gerne arbejde med jeres nye kundeplatform, fordi jeg har bygget noget lignende i min forening\" siger mere end et helt afsnit om engagement."
+   },
+   {
+    "heading": "Vis det med eksempler i stedet for tillægsord",
+    "body": "Ord som engageret, struktureret og løsningsorienteret siger ikke meget alene, fordi alle kan skrive dem. Det, der overbeviser, er en kort historie: en situation, hvad du gjorde, og hvad der kom ud af det. Vælg to eller tre eksempler, der passer direkte til de vigtigste krav i opslaget, og lad resten ligge i dit CV.\n\nSkær også fyldord væk. Gå teksten igennem og slet \"meget\", \"virkelig\" og lignende forstærkere, og se om sætningen bliver stærkere uden dem. Begynd gerne med noget andet end din egen interesse, for eksempel en samtale du har haft med arbejdspladsen eller en opgave i opslaget, du allerede ved, hvordan du ville gribe an."
+   },
+   {
+    "heading": "Brug AI uden at blive generisk",
+    "body": "AI-værktøjer som ChatGPT, Gemini og Copilot er gode til struktur, til at korte en lang tekst ned og til at foreslå en bedre indledning. Men beder du dem bare om \"en motiveret ansøgning\", får du præcis de vendinger, der lyder som alle andre. AI'en kender ikke din grund til at søge.\n\nGiv den derfor dit eget råmateriale: opslaget, dit CV og dine konkrete eksempler med dine ord. Bed om et kort udkast i en direkte tone, og skriv at den ikke må finde på erfaringer eller bruge standardfraser. Læs bagefter udkastet højt og skriv om, hvor det ikke lyder som dig. Det er din ansøgning, og den skal kunne stå sin prøve til samtalen."
+   }
+  ],
+  "table": {
+   "caption": "Generisk eller motiveret: samme pointe, to måder",
+   "head": [
+    "",
+    "Lyder som alle andre",
+    "Lyder som dig"
+   ],
+   "rows": [
+    [
+     "Indledning",
+     "Det er med stor interesse, at jeg søger stillingen",
+     "Da jeg talte med jeres teamleder i tirsdags, fik jeg lyst til at være med på jeres nye projekt"
+    ],
+    [
+     "Motivation",
+     "Jeg brænder for kundeservice",
+     "Jeg kan lide at få en sur kunde til at slutte samtalen glad, og det lykkes oftest"
+    ],
+    [
+     "Kompetence",
+     "Jeg er struktureret og har overblik",
+     "Jeg lavede den plan for vagtskifter, som min afdeling stadig bruger"
+    ],
+    [
+     "Afslutning",
+     "Jeg ser frem til at høre fra jer",
+     "Jeg vil gerne fortælle mere om, hvordan jeg ville gribe jeres første opgave an"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste, der skriver en enkelt ansøgning: en gratis chatbot som ChatGPT, Gemini eller Copilot til struktur og feedback, mens du selv skriver motivationen.",
+   "Bedst til dig, der skriver mange ansøgninger i Google Docs, mail eller jobportalers formularer: ChatBot Skriv læser dit vedhæftede CV og opslag og skriver udkastet direkte ind, hvor du arbejder.",
+   "Bedst til dig, der er i tvivl om, hvad din motivation overhovedet er: en samtale med en jobkonsulent, a-kasse eller en du stoler på. Her hjælper hverken ChatBot Skriv eller anden AI meget."
+  ],
+  "faq": [
+   {
+    "q": "Hvad skal der stå i motivationsafsnittet?",
+    "a": "Hvorfor du søger netop denne stilling hos netop denne arbejdsplads, og hvad du kan bidrage med. Brug et konkret eksempel i stedet for generelle ord, og hold det kort."
+   },
+   {
+    "q": "Kan man bruge AI til at skrive en motiveret ansøgning?",
+    "a": "Ja, til struktur, udkast og sprog. Men motivationen skal komme fra dig, for AI'en kender ikke din grund til at søge. Giv den dine egne eksempler, og ret udkastet, så det lyder som dig."
+   },
+   {
+    "q": "Hvordan starter man en ansøgning uden en kliché?",
+    "a": "Begynd med noget konkret: en samtale med arbejdspladsen, en opgave i opslaget eller det, der fik dig til at søge. Så kommer du direkte til sagen, og læseren ved med det samme, hvorfor du skriver."
+   }
+  ]
  }
 ]
