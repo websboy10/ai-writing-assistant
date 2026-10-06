@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import Stripe from 'stripe';
 import { env } from '../env.js';
 import { verifyUser, anonRpc, rpc, type AuthedUser } from '../supabase.js';
-import { stripe, getEntitlement, applySubscription, mapStatus, periodEnd, isMissingInStripe } from '../billing.js';
+import { stripe, getEntitlement, applySubscription, rewardReferrer, isMissingInStripe } from '../billing.js';
 import { enforce, HOUR } from '../limit.js';
 import { capture } from '../analytics.js';
 
@@ -301,6 +301,7 @@ async function applyCheckout(session: Stripe.Checkout.Session): Promise<void> {
       p_session_id: session.id,
       p_amount_dkk: session.amount_total != null ? Math.round(session.amount_total / 100) : null,
     });
+    await rewardReferrer(userId);
   }
 }
 

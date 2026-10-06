@@ -10,6 +10,7 @@ import { billingRoutes } from './routes/billing.js';
 import { chatRoutes } from './routes/chat.js';
 import { conversationRoutes } from './routes/conversations.js';
 import { fileRoutes } from './routes/files.js';
+import { referralRoutes } from './routes/referral.js';
 import { siteRoutes } from './routes/site.js';
 import { templateRoutes } from './routes/templates.js';
 import { verifyUser, rpc } from './supabase.js';
@@ -131,6 +132,7 @@ chatRoutes(app);
 siteRoutes(app);
 conversationRoutes(app);
 fileRoutes(app);
+referralRoutes(app);
 templateRoutes(app);
 
 // On Vercel the function adapter (api/index.ts) owns the socket; only local

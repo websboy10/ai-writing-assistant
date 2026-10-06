@@ -211,6 +211,27 @@ export const OPERATION_LABELS: Record<PromptOperation, string> = {
 // from this package are type-only by contract — see routes/files.ts), and the
 // real authority is the Stripe Price. Three copies of one number is two too
 // many, but a shared runtime constant cannot cross into the Vercel bundle.
+/** GET /api/referral — the caller's invitation code and what it has earned. */
+export interface ReferralInfo {
+  /** false → the operator has switched invitations off; hide the offer */
+  enabled: boolean;
+  code: string;
+  /** Free days a friend gets for redeeming the code. */
+  friendTrialDays: number;
+  /** Free days the inviter gets when that friend first pays. */
+  rewardDays: number;
+  invited: number;
+  paid: number;
+  rewards: number;
+  /** The yearly ceiling is reached: further friends still get their trial. */
+  capReached: boolean;
+  /** Whether the caller may still redeem somebody else's code. */
+  canClaim: boolean;
+}
+
+/** Where an invitation link points. The landing page keeps the code across the store install. */
+export const referralLink = (code: string): string => `https://chatbotskriv.dk/?r=${code}`;
+
 export const PRICE_DKK = 100;
 export const PASS_DAYS = 30;
 

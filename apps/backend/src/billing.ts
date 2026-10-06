@@ -201,4 +201,55 @@ export async function applySubscription(sub: Stripe.Subscription): Promise<void>
     p_status: mapStatus(sub.status),
     p_period_end: periodEnd(sub),
   });
+  // After the unlock, never before it: if this throws, the customer already
+  // has what they paid for and Stripe's retry of the webhook tries again.
+  if (sub.status === 'active') await rewardReferrer(userId);
+}
+
+interface ReferralReward {
+  referrer_id: string;
+  kind: 'days' | 'credit' | 'capped';
+  days?: number;
+  customer_id?: string;
+  subscription_id?: string;
+}
+
+/**
+ * Pays whoever invited this user, the first time this user pays.
+ *
+ * The database decides whether anything is owed and pays it out itself when
+ * the reward is free days (migration 0017). What reaches this function to be
+ * done is the one case Postgres cannot do: an inviter with a running
+ * subscription gets nothing from free days, because Stripe charges them
+ * regardless, so their reward is a credit on their Stripe balance that the
+ * next invoice is drawn from.
+ *
+ * Safe to call on every payment event for every user. With nobody to pay it is
+ * one indexed lookup. A credit that failed half way is handed back by the
+ * database on the next call, and the idempotency key stops Stripe creating it
+ * twice when the success page and the webhook both arrive.
+ */
+export async function rewardReferrer(payerId: string): Promise<void> {
+  const r = await anonRpc<ReferralReward | null>('referral_qualify', { p_user_id: payerId });
+  if (!r) return;
+  if (r.kind === 'credit') {
+    if (!r.customer_id || !r.subscription_id) throw new Error('referral credit owed to an account with no Stripe customer');
+    const sub = await stripe.subscriptions.retrieve(r.subscription_id);
+    const price = sub.items.data[0]?.price;
+    if (!price?.unit_amount) throw new Error('referral credit: the subscription has no price to credit');
+    await stripe.customers.createBalanceTransaction(
+      r.customer_id,
+      {
+        // Negative is money owed TO the customer. Their own price, so the
+        // credit is worth what a month costs them and not what it costs today.
+        amount: -Math.round((price.unit_amount * (r.days ?? 30)) / 30),
+        currency: price.currency,
+        description: 'Invitationsbonus',
+        metadata: { referred_user_id: payerId },
+      },
+      { idempotencyKey: `referral-${payerId}` },
+    );
+    await anonRpc('referral_credit_done', { p_user_id: payerId });
+  }
+  await capture(r.referrer_id, 'referral_rewarded', { kind: r.kind, days: r.days ?? null });
 }

@@ -68,13 +68,14 @@ export function adminRoutes(app: FastifyInstance): void {
     // own error and never as unfiltered figures.
     const internal = anonRpc<Internal>('admin_internal');
 
-    const [money, cost, product, usage, excluded, site] = await Promise.allSettled([
+    const [money, cost, product, usage, excluded, site, referrals] = await Promise.allSettled([
       internal.then((i) => stripeSection(i)),
       internal.then((i) => openrouterSection(i.real_ids)),
       productSection(),
       internal.then((i) => posthogSection(i.real_ids)),
       internal,
       siteSection(),
+      anonRpc<Record<string, unknown>>('admin_referrals'),
     ]);
 
     const unwrap = <T>(r: PromiseSettledResult<T>) =>
@@ -88,6 +89,7 @@ export function adminRoutes(app: FastifyInstance): void {
       usage: unwrap(usage),
       excluded: unwrap(excluded),
       site: unwrap(site),
+      referrals: unwrap(referrals),
     };
   });
 
@@ -95,8 +97,17 @@ export function adminRoutes(app: FastifyInstance): void {
   app.get('/api/admin/config', async (req, reply) => {
     const user = await requireAdmin(req, reply);
     if (!user) return reply;
-    const [row] = await anonRpc<{ hard_paywall: boolean }[]>('admin_get_config');
-    return { hardPaywall: row?.hard_paywall ?? false };
+    const [row] = await anonRpc<ConfigRow[]>('admin_get_config');
+    if (!row) throw new Error('app_settings has no row');
+    return {
+      hardPaywall: row.hard_paywall,
+      referral: {
+        enabled: row.referral_enabled,
+        friendTrialDays: row.referral_friend_trial_days,
+        rewardDays: row.referral_reward_days,
+        yearlyCap: row.referral_yearly_cap,
+      },
+    };
   });
 
   /**
@@ -116,9 +127,46 @@ export function adminRoutes(app: FastifyInstance): void {
     return { hardPaywall: enabled };
   });
 
+  /**
+   * The invitation offer: on or off, what the friend gets, what the inviter
+   * gets, and the ceiling. Takes effect for the next code redeemed and the next
+   * friend who pays; rewards already paid out are not touched.
+   */
+  app.post<{ Body: Record<string, unknown> }>('/api/admin/referral', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    const { enabled, friendTrialDays, rewardDays, yearlyCap } = req.body ?? {};
+    const whole = (v: unknown, min: number, max: number): v is number =>
+      typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
+    // The same ranges as the column checks in migration 0017, said in Danish
+    // here so a typo is a sentence on screen rather than a Postgres error.
+    if (typeof enabled !== 'boolean' || !whole(friendTrialDays, 0, 90) || !whole(rewardDays, 1, 90) || !whole(yearlyCap, 0, 1000)) {
+      return reply.code(400).send({
+        error: 'Vennens dage skal være 0-90, din belønning 1-90 dage og loftet 0-1000.',
+        code: 'bad_request',
+      });
+    }
+    await anonRpc('admin_set_referral', {
+      p_enabled: enabled,
+      p_friend_trial_days: friendTrialDays,
+      p_reward_days: rewardDays,
+      p_yearly_cap: yearlyCap,
+    });
+    await capture(user.id, 'admin_referral_changed', { enabled, friendTrialDays, rewardDays, yearlyCap });
+    return { referral: { enabled, friendTrialDays, rewardDays, yearlyCap } };
+  });
+
   app.get('/dashboard', async (_req, reply) => {
     reply.type('text/html').send(DASHBOARD_HTML);
   });
+}
+
+interface ConfigRow {
+  hard_paywall: boolean;
+  referral_enabled: boolean;
+  referral_friend_trial_days: number;
+  referral_reward_days: number;
+  referral_yearly_cap: number;
 }
 
 /** Who counts, and who we are. */

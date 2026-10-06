@@ -79,9 +79,14 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
 .err{color:var(--bad);font-size:.84rem;margin:8px 0 0}
 .muted{color:var(--soft);font-size:.84rem;margin:8px 0 0}
-form{max-width:330px;margin:14vh auto;display:flex;flex-direction:column;gap:10px}
+.settings{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;background:var(--card);
+  border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.settings label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--soft)}
+.settings input[type=number]{width:104px;padding:7px 10px}
+.settings label.check{flex-direction:row;align-items:center;gap:8px;font-size:.9rem;color:var(--ink);padding-bottom:8px}
+#login{max-width:330px;margin:14vh auto;display:flex;flex-direction:column;gap:10px}
 input{font:inherit;padding:11px 13px;border-radius:11px;border:1px solid var(--line);background:var(--card)}
-form .btn{padding:11px;background:var(--ink);color:#fff;border-color:var(--ink)}
+#login .btn{padding:11px;background:var(--ink);color:#fff;border-color:var(--ink)}
 #app{display:none}
 @media (max-width:520px){ .row{grid-template-columns:110px 1fr auto} }
 </style></head><body><div class="wrap">
@@ -117,6 +122,24 @@ form .btn{padding:11px;background:var(--ink);color:#fff;border-color:var(--ink)}
   <h2>Brugere</h2>
   <div class="grid" id="product"></div>
   <p class="err" id="productErr"></p>
+
+  <h2>Invitationer</h2>
+  <form class="settings" id="refForm">
+    <label class="check"><input type="checkbox" id="refEnabled"> Invitationer er slået til</label>
+    <label>Vennen får gratis dage<input type="number" id="refFriend" min="0" max="90" required></label>
+    <label>Den der inviterer får dage<input type="number" id="refReward" min="1" max="90" required></label>
+    <label>Loft: belønninger pr. år<input type="number" id="refCap" min="0" max="1000" required></label>
+    <button class="btn" type="submit" id="refSave">Gem</button>
+    <span class="stamp" id="refSaved"></span>
+  </form>
+  <div class="grid" id="referrals"></div>
+  <div class="two" style="margin-top:12px">
+    <div><p class="muted">Hvem inviterer flest</p><div id="refTop"></div></div>
+    <div><p class="muted">Seneste invitationer</p><div id="refRecent"></div></div>
+  </div>
+  <p class="muted">Belønningen udløses først, når vennen har betalt. En abonnent får den som kredit på næste
+    regning hos Stripe, alle andre som gratis dage. Ændringer gælder fra næste kode der indløses.</p>
+  <p class="err" id="referralsErr"></p>
 
   <h2>Hjemmesiden (chatbotskriv.dk)</h2>
   <div class="grid" id="site"></div>
@@ -225,14 +248,46 @@ function renderPaywallBtn(hardPaywall) {
   b.classList.toggle('on', hardPaywall);
 }
 
+function renderReferralForm(c) {
+  $('refEnabled').checked = c.enabled;
+  $('refFriend').value = c.friendTrialDays;
+  $('refReward').value = c.rewardDays;
+  $('refCap').value = c.yearlyCap;
+}
+
 async function loadPaywallConfig() {
   try {
     const r = await fetch('/api/admin/config', { headers: { Authorization: 'Bearer ' + token } });
     if (!r.ok) return;
     const b = await r.json();
     renderPaywallBtn(b.hardPaywall);
+    renderReferralForm(b.referral);
   } catch (e) { /* leaves the button on its placeholder label */ }
 }
+
+$('refForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('refSaved').textContent = '';
+  $('refSave').disabled = true;
+  try {
+    const r = await fetch('/api/admin/referral', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        enabled: $('refEnabled').checked,
+        friendTrialDays: Number($('refFriend').value),
+        rewardDays: Number($('refReward').value),
+        yearlyCap: Number($('refCap').value),
+      }),
+    });
+    const b = await r.json();
+    if (!r.ok) { alert(b.error || 'Kunne ikke gemme.'); return; }
+    renderReferralForm(b.referral);
+    $('refSaved').textContent = 'Gemt ' + new Date().toLocaleTimeString('da-DK');
+  } finally {
+    $('refSave').disabled = false;
+  }
+});
 
 $('paywallToggle').addEventListener('click', async () => {
   const turningOn = !$('paywallToggle').classList.contains('on');
@@ -357,6 +412,30 @@ async function load() {
     $('reqCap').textContent = (p.daily_requests || []).length
       ? 'Fra kvotetælleren, som ikke kan miste en linje · peg på en søjle'
       : 'Ingen svar endnu.';
+  }
+
+  // ---- invitations ----
+  const rf = d.referrals;
+  if (!rf || rf.error) { $('referralsErr').textContent = rf ? rf.error : ''; $('referrals').innerHTML = ''; }
+  else {
+    const conv = rf.invited ? Math.round(100 * rf.paid / rf.invited) + '%' : '–';
+    $('referrals').innerHTML =
+      card('Inviterede venner', nf(rf.invited), 'fra ' + nf(rf.inviters) + ' brugere · ' + nf(rf.trials) + ' fik prøveperiode') +
+      card('Venner der betalte', nf(rf.paid), conv + ' af de inviterede') +
+      card('Belønninger givet', nf(rf.rewarded_days + rf.rewarded_credit),
+           nf(rf.rewarded_days) + ' i dage · ' + nf(rf.rewarded_credit) + ' som kredit') +
+      card('Ramte loftet', nf(rf.capped), 'betalende venner uden belønning') +
+      // Only shown when there is one: a credit that Stripe refused, waiting to be retried.
+      (rf.credit_due ? card('Kredit ikke udbetalt', nf(rf.credit_due), 'prøves igen ved næste betaling') : '');
+    $('refTop').innerHTML = table(['Bruger', 'Inviteret', 'Betalte', 'Belønninger'],
+      rf.top.map((t) => [t.email, nf(t.invited), nf(t.paid), nf(t.rewards)]), 'Ingen har inviteret nogen endnu.');
+    const state = (x) => x.status === 'pending' ? 'Venter på betaling'
+      : x.status === 'capped' ? 'Betalt · loft nået'
+      : x.status === 'credit_due' ? 'Betalt · kredit mangler'
+      : 'Belønnet · ' + (x.reward_kind === 'credit' ? 'kredit' : 'dage');
+    $('refRecent').innerHTML = table(['Ven', 'Inviteret af', 'Status'],
+      rf.recent.map((x) => [x.friend_email + (x.internal ? ' (test)' : ''), x.referrer_email, state(x)]),
+      'Ingen invitationer endnu.');
   }
 
   // ---- website ----
