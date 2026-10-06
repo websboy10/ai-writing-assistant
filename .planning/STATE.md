@@ -392,6 +392,7 @@ five.
 | 2026-09-09 | `260909-g7z-besvar-alle-genkend-alle-formater-udfyld` — every place in a worksheet gets its own answer: grids, tables with empty rows, "fortsæt herunder…" cells, labels, answered questions skipped | Done. The operator's own worksheet: 32 places filled, nothing unplaced, read back through Docs' export; synthetic sheet 29/29 |
 | 2026-09-09 | `260909-h4m-menneske-sletter-med-backspace-aldrig-markering` — the humanizer deletes with Backspace, checked in a way the screen never shows; a filled answer cell means the question is answered | Done. Probe 48/48 with 0 ms marked; Langsomt worksheet 26/26 twice, screen read every frame; whole chain green; backend deployed; store zip built, upload pending |
 | 2026-09-25 | `260925-j9r-landing-favicon` — chatbotskriv.dk gets a favicon Google can use (favicon.ico + 48/96px, same logo) | Done. Live: all three files 200, all 6 sitemap pages link them (commit e4fece0) |
+| 2026-10-06 | `261006-gf9-referral-system` — invitations: friend gets a 14-day trial, inviter gets 30 days (or a Stripe credit) when the friend first pays, cap 12 a year, all set from the dashboard | Done. Backend + landing live, migration 0017 applied. Proven with three Stripe test-mode payments on a preview and with the built extension in Chrome against production. Extension 0.2.4 zip built, store upload pending |
 
 ## Decisions
 
