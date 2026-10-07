@@ -1120,5 +1120,100 @@
     "a": "Begynd med noget konkret: en samtale med arbejdspladsen, en opgave i opslaget eller det, der fik dig til at søge. Så kommer du direkte til sagen, og læseren ved med det samme, hvorfor du skriver."
    }
   ]
+ },
+ {
+  "slug": "hvordan-retter-man-stavefejl-og-grammatik-paa-dansk-med-ai",
+  "questionId": "hvordan-retter-man-stavefejl-og-grammatik-paa-dansk-med-ai",
+  "topic": "ai-dansk",
+  "datePublished": "2026-10-07",
+  "h1": "Hvordan retter man stavefejl og grammatik på dansk med AI?",
+  "metaTitle": "Ret stavefejl og grammatik på dansk med AI | ChatBot Skriv",
+  "metaDescription": "Sådan retter du stavefejl, kommaer og grammatik på dansk med AI: hvad stavekontrollen klarer, hvornår en chatbot hjælper, og hvordan du beder om rettelser.",
+  "answer": "Brug først den indbyggede stavekontrol i Word eller Google Docs til de rene stavefejl. Til grammatik, kommaer og sætninger der hænger dårligt sammen, kan du give teksten til en AI som ChatGPT, Gemini eller Copilot og bede den rette uden at ændre indholdet. Bed om en liste over ændringerne, så du kan tjekke dem. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Mange søger efter et dansk Grammarly, men Grammarly retter ikke dansk. Til gengæld findes der flere andre måder at få fanget stavefejl, forkerte bøjninger og manglende kommaer på, og flere af dem er gratis eller allerede indbygget i det program, du skriver i.\n\nAI-chatbots har gjort det lettere at få rettet mere end bare stavning. De kan se, når en sætning er for lang, når et ord er brugt forkert, eller når tonen skifter midt i en mail. Men de kan også ændre mere end du bad om. Her er, hvordan du får det bedste ud af både stavekontrollen og AI, uden at miste din egen tekst undervejs.",
+  "examples": {
+   "heading": "Fejl, som AI ofte fanger, når stavekontrollen ikke gør",
+   "items": [
+    "Nutids-r: \"Jeg vil gerne lærer mere\" i stedet for \"Jeg vil gerne lære mere\"",
+    "Ord, der er stavet rigtigt, men forkert brugt: \"ligge\" og \"lægge\", \"nogen\" og \"nogle\"",
+    "Særskrivning: \"lyse rød\" i stedet for \"lyserød\"",
+    "Manglende komma før en ledsætning, hvis du bruger startkomma",
+    "Sætninger, der er så lange, at læseren mister tråden"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Start med stavekontrollen, du allerede har",
+    "body": "Word har dansk stave- og grammatikkontrol, og Google Docs kan stavekontrollere på dansk, når dokumentets sprog står til dansk under Filer. Det tager ingen tid og fanger de fleste tastefejl. Til tvivlsspørgsmål om stavning og bøjning er Retskrivningsordbogen fra Dansk Sprognævn gratis og den officielle kilde.\n\nVil du have et ekstra lag, understøtter LanguageTool dansk og kan køre i browseren. Men stavekontroller har en grænse: de ser på det enkelte ord. Et ord, der findes, men står det forkerte sted, slipper ofte igennem. Det samme gælder nutids-r, \"nogen\" og \"nogle\" og sætninger, der er grammatisk korrekte, men svære at læse. Det er her, en AI kan hjælpe."
+   },
+   {
+    "heading": "Sådan beder du en AI om at rette din tekst",
+    "body": "Sæt teksten ind i en chatbot som ChatGPT, Gemini eller Copilot, og vær præcis i din besked. Skriv for eksempel: \"Ret stavefejl, grammatik og kommaer i teksten nedenfor. Bevar mine ord, min tone og min længde. Giv mig først den rettede tekst og derefter en kort liste over, hvad du har ændret.\"\n\nListen er vigtig. Uden den kan du ikke se, om AI'en har rettet en fejl eller bare omformuleret noget, den syntes lød bedre. Nævn også, om du bruger startkomma eller ikke, så kommateringen bliver ens. Skriv på dansk til AI'en, så svarer den på dansk, og bed den holde sig til teksten i stedet for at finde på nyt indhold."
+   },
+   {
+    "heading": "Læs altid efter, og pas på følsomme oplysninger",
+    "body": "AI er god til dansk, men ikke fejlfri. Den kan indføre en ny fejl, bytte et fagord ud med et mere almindeligt eller rette noget, der var rigtigt i forvejen. Læs derfor den rettede tekst igennem, især navne, tal, datoer og fagudtryk.\n\nTænk også over, hvad du sætter ind. Indeholder teksten oplysninger om andre mennesker, for eksempel en medarbejdersamtale eller en klage fra en kunde, så tjek hvilke regler der gælder hos dig, og fjern navne, hvis du er i tvivl. Arbejder du i Google Docs eller en webformular, kan ChatBot Skriv skrive den rettede tekst direkte ind, hvor du arbejder, så du slipper for at kopiere frem og tilbage."
+   }
+  ],
+  "table": {
+   "caption": "Hvilket værktøj fanger hvad på dansk",
+   "head": [
+    "",
+    "Stavekontrol i Word eller Google Docs",
+    "LanguageTool",
+    "AI-chatbot (ChatGPT, Gemini, Copilot)"
+   ],
+   "rows": [
+    [
+     "Tastefejl og stavning",
+     "Ja",
+     "Ja",
+     "Ja"
+    ],
+    [
+     "Rigtigt ord brugt forkert",
+     "Sjældent",
+     "Nogle gange",
+     "Ofte"
+    ],
+    [
+     "Kommaer",
+     "Begrænset",
+     "Delvist",
+     "Ja, hvis du siger hvilken kommaregel"
+    ],
+    [
+     "Lange og uklare sætninger",
+     "Nej",
+     "Nogle gange",
+     "Ja"
+    ],
+    [
+     "Risiko for at ændre for meget",
+     "Ingen",
+     "Lav",
+     "Ja, bed om en liste over ændringer"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: den indbyggede stavekontrol i Word eller Google Docs, suppleret med en gratis chatbot, når en sætning skal strammes op.",
+   "Bedst til dig, der skriver meget i Google Docs, mail eller webformularer: ChatBot Skriv retter teksten i samtalen og skriver den rettede version direkte ind, hvor du arbejder.",
+   "Bedst til dig, der vil se hver enkelt fejl markeret i teksten, mens du skriver: en løbende stavekontrol som Word eller LanguageTool. ChatBot Skriv understreger ikke fejl undervejs."
+  ],
+  "faq": [
+   {
+    "q": "Kan Grammarly rette dansk?",
+    "a": "Nej, Grammarly retter kun engelsk. Til dansk kan du bruge stavekontrollen i Word eller Google Docs, LanguageTool eller en AI-chatbot, som du beder om at rette teksten."
+   },
+   {
+    "q": "Kan ChatGPT rette kommaer på dansk?",
+    "a": "Ja, som regel godt, men skriv om du bruger startkomma eller ikke, så bliver det ens hele vejen. Bed om en liste over ændringerne, og tjek dem, hvis kommateringen er vigtig."
+   },
+   {
+    "q": "Hvordan undgår jeg, at AI'en ændrer min tekst for meget?",
+    "a": "Skriv tydeligt, at den kun må rette fejl og skal bevare dine ord, din tone og din længde. Bed om en liste over ændringerne, så du kan se præcis, hvad den har gjort."
+   }
+  ]
  }
 ]
