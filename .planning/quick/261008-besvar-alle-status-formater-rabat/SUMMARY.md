@@ -77,3 +77,13 @@ Suites on the final build: verify-docs-click-pause 8/8 ×2, verify-answer-all 9/
 - **The "cursor jump" was a hand in the window**: the same probe with no clicks put every line where it belonged.
 
 Regression on the final build: verify-docs-forms 12/12, verify-fills 29/29, verify-answer-all 9/9, verify-box-below 2/2, verify-formatted-answers 33/33, verify-docs-click-pause 8/8 (run before the Docs replace work, not after).
+
+## Shipped 2026-10-08 (commits c2117a7, 46e904d)
+
+- Migration 0018 applied to the live database; backend deployed to production (`ai-skriveassistent-bzbmxk1n4`); landing and terms pushed and live.
+- **Invitations observed** on a Vercel preview with Stripe TEST cards and the real database: a friend who redeemed a code got 0 free days and stayed paywalled, Stripe showed "Invitation: 50 % på en måned", 25,00 of 50,00 kr., then full price; after payment `referrals = rewarded / discount`, inviter `discount_credits = 1`; the inviter's own checkout showed the same 25,00 kr. and, delivered twice, spent the credit once (`discount_uses = 1`, credits 0); `referral_revoke` set the row to `refunded`. All test rows and the friend account deleted, awatest put back to trialing.
+- **Production observed**: `/api/referral` returns `discountPercent: 50`; `/api/autonomous/answer` streams stages with `stream: true` and still answers as plain JSON for the published 0.2.4.
+- **Unproven**: the live `charge.refunded` webhook (the event has to be switched on for the live endpoint in the Stripe account "Chat"); the Stripe balance credit for an inviter who already subscribes; the admin dashboard's Invitationer section after the change (not opened).
+- The preview's Stripe success URL points at production, so a preview test delivers the paid session itself: `vercel curl '/billing/success?session_id=…'`. `scripts/pay-test-card.mjs <checkout url>` pays with 4242 in the test browser.
+- Extension 0.2.5 zip: `apps/extension/.output/extension-0.2.5-chrome.zip`, for the operator to upload. Until it is approved, 0.2.4 users see the old wording in the panel and get no live status.
+- Left behind: two test subscriptions in the Stripe sandbox, the preview deployment `ai-skriveassistent-mpq64dp4d`.
