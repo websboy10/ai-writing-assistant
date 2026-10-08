@@ -5,7 +5,6 @@ import { useStore } from '../store';
 
 const SERIF = { fontFamily: 'Charter, Georgia, Cambria, serif' };
 
-const days = (n: number) => `${n} ${n === 1 ? 'dag' : 'dage'}`;
 
 /**
  * "Inviter": the user's own link, what it has earned, and a place to redeem
@@ -40,7 +39,7 @@ export function ReferralView() {
 
   async function copy() {
     await navigator.clipboard.writeText(
-      `Prøv ChatBot Skriv gratis i ${days(referral!.friendTrialDays)}. Den skriver direkte i dine dokumenter: ${link}`,
+      `Få ${referral!.discountPercent} % på din første måned med ChatBot Skriv. Den skriver direkte i dine dokumenter: ${link}`,
     );
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
@@ -51,12 +50,17 @@ export function ReferralView() {
     <div className="flex h-full flex-col items-center gap-4 overflow-y-auto px-6 py-8 text-center">
       <p className="awa-eyebrow">Inviter en ven</p>
       <h2 className="text-title leading-snug" style={SERIF}>
-        Giv {days(referral.friendTrialDays)} gratis. Få {days(referral.rewardDays)} selv.
+        Giv {referral.discountPercent} %. Få {referral.discountPercent} % selv.
       </h2>
       <p className="max-w-[300px] text-body text-graphite">
-        Din ven prøver ChatBot Skriv gratis i {days(referral.friendTrialDays)}. Når din ven køber adgang første gang,
-        får du {days(referral.rewardDays)} oveni.
+        Din ven får {referral.discountPercent} % på sin første måned. Når din ven har betalt, får du{' '}
+        {referral.discountPercent} % på din næste.
       </p>
+      {referral.myDiscount && (
+        <p className="max-w-[300px] rounded-2xl border border-hairline px-4 py-2 text-ui text-ink">
+          Du har {referral.discountPercent} % rabat til gode. Den trækkes fra, næste gang du betaler.
+        </p>
+      )}
 
       <div className="flex w-full max-w-[280px] flex-col gap-2">
         <button
@@ -74,11 +78,11 @@ export function ReferralView() {
       <p className="text-ui text-graphite">
         {referral.invited === 0
           ? 'Ingen har brugt din invitation endnu.'
-          : `${referral.invited} inviteret · ${referral.paid} har købt · ${days(referral.rewards * referral.rewardDays)} optjent`}
+          : `${referral.invited} inviteret · ${referral.paid} har købt · ${referral.rewards} ${referral.rewards === 1 ? 'rabat' : 'rabatter'} optjent`}
       </p>
       {referral.capReached && (
         <p className="max-w-[280px] text-aside leading-relaxed text-graphite">
-          Du har nået årets loft for belønninger. Dine venner får stadig deres gratis dage.
+          Du har nået årets loft for belønninger. Dine venner får stadig deres rabat.
         </p>
       )}
 
@@ -109,13 +113,12 @@ export function RedeemCode() {
       setErr(res.error ?? 'Koden kunne ikke bruges.');
       return;
     }
-    const got = (res.data as { trialDays: number }).trialDays;
-    set({
-      view: 'chat',
-      notice: got > 0 ? `Koden er godkendt. Du har ${days(got)} gratis.` : 'Koden er godkendt.',
-    });
+    // Loaded again first, so the paywall behind this notice already shows the
+    // lower price the notice promises.
+    await loadReferral();
+    const percent = useStore.getState().referral?.discountPercent;
+    set({ view: 'chat', notice: percent ? `Koden er godkendt. Du får ${percent} % på din første måned.` : 'Koden er godkendt.' });
     void loadBilling();
-    void loadReferral();
   }
 
   return (

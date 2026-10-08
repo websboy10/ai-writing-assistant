@@ -259,6 +259,7 @@ export class AutonomousRun {
         ...(answer.task ? { task: answer.task } : {}),
         at: answer.at,
         mode: answer.mode,
+        ...(answer.target ? { target: answer.target } : {}),
         answer: answer.answer,
       });
 

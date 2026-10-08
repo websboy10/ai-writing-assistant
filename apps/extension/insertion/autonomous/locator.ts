@@ -18,6 +18,8 @@ export interface FillTarget {
   task?: string;
   at: number;
   mode: FillMode;
+  /** `replace`: the piece of line `at` the answer takes the place of. */
+  target?: string;
   answer: string;
 }
 
@@ -49,6 +51,8 @@ export interface QuestionSource {
    * Absent everywhere else — a DOM source's read() is the marking itself.
    */
   readonly marked?: { from: number; to: number };
+  /** locate() can select a piece of a line to be written over (FillMode `replace`). The server only plans such places for a source that says so. */
+  readonly canReplace?: boolean;
   read(): Promise<AutonomousParagraph[]>;
   locate(fill: FillTarget): Promise<SavedTarget | null>;
   /**
@@ -83,6 +87,7 @@ function linesToParagraphs(text: string): AutonomousParagraph[] {
 class DomSource implements QuestionSource {
   readonly sourceName = 'DomSource';
   readonly placement = 'in-place' as const;
+  readonly canReplace = true;
   /** plain: char offset to search from. contenteditable: block index to search from. */
   private searchFromChar = 0;
   private searchFromBlock = 0;
@@ -141,13 +146,23 @@ class DomSource implements QuestionSource {
   async locate(fill: FillTarget): Promise<SavedTarget | null> {
     this.reason = '';
     const line = fill.mode !== 'fill' && fill.at !== fill.paragraphIndex ? (this.paragraphs[fill.at]?.text ?? fill.questionText) : fill.questionText;
+    if (fill.mode === 'replace') {
+      // Always the line the place is ON, which may be the question itself.
+      const own = this.paragraphs[fill.at]?.text ?? line;
+      const piece = fill.target ?? '';
+      if (!piece || own.indexOf(piece) === -1) {
+        this.reason = `Stedet i linjen "${truncate(own)}" kunne ikke findes.`;
+        return null;
+      }
+      return this.target.kind === 'plain' ? this.locatePlain(own, piece) : this.locateCE(own, piece);
+    }
     if (this.target.kind === 'plain') return this.locatePlain(line);
     return this.locateCE(line);
   }
 
   // ---- plain ----
 
-  private locatePlain(questionText: string): SavedTarget | null {
+  private locatePlain(questionText: string, piece?: string): SavedTarget | null {
     const el = this.target.element as HTMLInputElement | HTMLTextAreaElement;
     if (!el.isConnected) {
       this.reason = 'Feltet er ikke længere på siden.';
@@ -167,6 +182,14 @@ class DomSource implements QuestionSource {
     }
     const absoluteStart = this.searchFromChar + idx;
     const absoluteEnd = absoluteStart + questionText.length;
+    if (piece) {
+      // The piece of the line to write over. The line is about to change, so
+      // the next search starts at its beginning rather than its old end.
+      const start = absoluteStart + questionText.indexOf(piece);
+      this.searchFromChar = absoluteStart;
+      el.focus();
+      return { kind: 'plain', element: el, selStart: start, selEnd: start + piece.length, label: this.target.label, replacing: true, inBox: true };
+    }
     this.searchFromChar = absoluteEnd;
 
     // PlainAdapter.prepare() reads el.selectionEnd AT PREPARE TIME — setting
@@ -193,7 +216,7 @@ class DomSource implements QuestionSource {
     return blocks;
   }
 
-  private locateCE(questionText: string): SavedTarget | null {
+  private locateCE(questionText: string, piece?: string): SavedTarget | null {
     const root = this.target.element;
     if (!root.isConnected) {
       this.reason = 'Editoren er ikke længere på siden.';
@@ -214,6 +237,15 @@ class DomSource implements QuestionSource {
       return null;
     }
     const { i, block } = matches[0];
+    if (piece) {
+      const range = rangeOfText(block, piece);
+      if (!range) {
+        this.reason = `Stedet i linjen "${truncate(questionText)}" kunne ikke findes.`;
+        return null;
+      }
+      this.searchFromBlock = i;
+      return { kind: 'contenteditable', element: root, range, label: this.target.label, replacing: true, inBox: true };
+    }
     this.searchFromBlock = i + 1;
 
     // ContentEditableAdapter.prepare() uses target.range, collapsed to its
@@ -223,6 +255,31 @@ class DomSource implements QuestionSource {
     range.collapse(false);
     return { kind: 'contenteditable', element: root, range, label: this.target.label };
   }
+}
+
+/** The range covering the one occurrence of `piece` in a block's text, across however many text nodes it spans. */
+function rangeOfText(block: HTMLElement, piece: string): Range | null {
+  const start = (block.textContent ?? '').indexOf(piece);
+  if (start === -1) return null;
+  const end = start + piece.length;
+  const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let pos = 0;
+  let began = false;
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const len = node.textContent?.length ?? 0;
+    if (!began && start < pos + len) {
+      range.setStart(node, start - pos);
+      began = true;
+    }
+    if (began && end <= pos + len) {
+      range.setEnd(node, end - pos);
+      return range;
+    }
+    pos += len;
+  }
+  return null;
 }
 
 /**

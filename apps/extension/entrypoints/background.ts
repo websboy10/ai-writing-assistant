@@ -1,6 +1,7 @@
 import type { ChatErrorCode, ChatStreamEvent } from '@awa/shared';
 import { danishAuthError } from '@/utils/auth-errors';
 import {
+  AUTO_PORT,
   BACKEND_URL,
   CHAT_PORT,
   type ChatPortClientMsg,
@@ -262,7 +263,10 @@ export default defineBackground(() => {
   // ---- chat streaming over a long-lived port ----
 
   chrome.runtime.onConnect.addListener((port) => {
-    if (port.name !== CHAT_PORT) return;
+    // Both streams are the same thing to this relay: a POST whose reply is
+    // SSE frames, passed through one by one.
+    const path = port.name === CHAT_PORT ? '/api/chat' : port.name === AUTO_PORT ? '/api/autonomous/answer' : null;
+    if (!path) return;
     const abort = new AbortController();
     let closed = false;
     let started = false;
@@ -294,7 +298,7 @@ export default defineBackground(() => {
       started = true;
 
       try {
-        const res = await apiFetch('/api/chat', {
+        const res = await apiFetch(path, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(msg.request),
@@ -315,6 +319,15 @@ export default defineBackground(() => {
             },
           });
           send({ type: 'closed' });
+          return;
+        }
+
+        // A backend from before "Besvar alle" streamed answers the same request
+        // with one JSON body. That is the whole result, so it is passed on as
+        // one: the extension and the backend ship separately, and neither
+        // order may leave the feature dead in between.
+        if (res.headers.get('content-type')?.includes('application/json')) {
+          port.postMessage({ type: 'event', event: { type: 'result', response: await res.json() } });
           return;
         }
 

@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import Stripe from 'stripe';
 import { env } from '../env.js';
 import { verifyUser, anonRpc, rpc, type AuthedUser } from '../supabase.js';
-import { stripe, getEntitlement, applySubscription, rewardReferrer, isMissingInStripe } from '../billing.js';
+import { stripe, getEntitlement, applySubscription, rewardReferrer, revokeReferral, checkoutDiscount, isMissingInStripe } from '../billing.js';
 import { enforce, HOUR } from '../limit.js';
 import { capture } from '../analytics.js';
 
@@ -52,15 +52,18 @@ export function billingRoutes(app: FastifyInstance): void {
     if (!(await enforce(req, reply, 'billing-checkout', user.id, [{ limit: 12, seconds: HOUR }]))) return reply;
 
     const customerId = await customerFor(user, installHashOf(req));
+    const discount = await checkoutDiscount(user.id);
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price: env.stripePriceId, quantity: 1 }],
       locale: 'da',
-      allow_promotion_codes: true,
+      // Stripe takes one or the other, never both: a session that already
+      // carries the invitation discount has no promotion code field.
+      ...(discount ? { discounts: [{ coupon: discount.coupon }] } : { allow_promotion_codes: true }),
       subscription_data: { metadata: { user_id: user.id } },
-      metadata: { user_id: user.id },
+      metadata: { user_id: user.id, ...(discount ? { discount: discount.kind } : {}) },
       success_url: `${env.publicUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${env.publicUrl}/billing/cancel`,
       // Stripe Tax books the moms share of the tax-inclusive 100 kr price.
@@ -106,14 +109,16 @@ export function billingRoutes(app: FastifyInstance): void {
     if (!(await enforce(req, reply, 'billing-pass', user.id, [{ limit: 12, seconds: HOUR }]))) return reply;
 
     const customerId = await customerFor(user, installHashOf(req));
+    const discount = await checkoutDiscount(user.id);
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer: customerId,
       line_items: [{ price: env.stripePassPriceId, quantity: 1 }],
       locale: 'da',
+      ...(discount ? { discounts: [{ coupon: discount.coupon }] } : {}),
       // The one place a user id must survive the round trip: the webhook and
       // the success page both read it back to decide whose account to open.
-      metadata: { user_id: user.id, kind: 'month_pass', days: String(env.passDays) },
+      metadata: { user_id: user.id, kind: 'month_pass', days: String(env.passDays), ...(discount ? { discount: discount.kind } : {}) },
       payment_intent_data: { metadata: { user_id: user.id, kind: 'month_pass' } },
       success_url: `${env.publicUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${env.publicUrl}/billing/cancel`,
@@ -207,6 +212,8 @@ export function billingRoutes(app: FastifyInstance): void {
         event.type === 'customer.subscription.created'
       ) {
         await applySubscription(event.data.object);
+      } else if (event.type === 'charge.refunded') {
+        await revokeReferral(event.data.object);
       }
       return { received: true };
     });
@@ -275,6 +282,12 @@ async function customerFor(user: AuthedUser, installHash: string): Promise<strin
  */
 async function applyCheckout(session: Stripe.Checkout.Session): Promise<void> {
   const userId = session.metadata?.user_id;
+
+  // A month the buyer earned by inviting is spent here, once the money is in,
+  // and once per session however many times this is delivered (0018).
+  if (userId && session.metadata?.discount === 'credit' && session.payment_status === 'paid') {
+    await anonRpc('referral_discount_used', { p_user_id: userId, p_session_id: session.id });
+  }
 
   if (session.mode === 'subscription' && session.subscription) {
     const sub =

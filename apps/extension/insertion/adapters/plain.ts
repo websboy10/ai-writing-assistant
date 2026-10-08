@@ -21,10 +21,14 @@ export class PlainAdapter implements InsertionAdapter {
   private insertPos = 0;
   /** Exactly what this session has written so far — the undo target. */
   private insertedText = '';
+  /** A span to write over (SavedTarget.replacing), and what stood in it — put back by undo. */
+  private replace: { start: number; end: number } | null;
+  private removedText = '';
 
   constructor(target: SavedTarget) {
     this.el = target.element as HTMLInputElement | HTMLTextAreaElement;
     this.insertPos = target.selStart ?? this.el.value.length;
+    this.replace = target.replacing && target.selStart !== undefined && target.selEnd !== undefined ? { start: target.selStart, end: target.selEnd } : null;
   }
 
   eventTarget(): EventTarget {
@@ -43,6 +47,16 @@ export class PlainAdapter implements InsertionAdapter {
       /* some input types disallow selection */
     }
     this.insertedText = '';
+    this.removedText = '';
+    if (this.replace) {
+      const { start, end } = this.replace;
+      const v = this.el.value;
+      const next = v.slice(0, start) + v.slice(end);
+      this.setValue(next, start, 'deleteContentBackward');
+      if (this.el.value !== next) return { ok: false, verified: true, reason: 'Feltet tillod ikke at skrive i linjen.' };
+      this.removedText = v.slice(start, end);
+      this.insertPos = start;
+    }
     return { ok: true, verified: true };
   }
 
@@ -86,7 +100,7 @@ export class PlainAdapter implements InsertionAdapter {
 
   undoAll(): InsertResult {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet findes ikke længere på siden.' };
-    if (!this.insertedText) return { ok: true, verified: true };
+    if (!this.insertedText && !this.removedText) return { ok: true, verified: true };
     const loc = this.locateInserted();
     if (!loc.ok) {
       // Never fall back to a snapshot restore here: that would also erase
@@ -94,10 +108,14 @@ export class PlainAdapter implements InsertionAdapter {
       return { ok: false, verified: true, reason: loc.reason };
     }
     const v = this.el.value;
-    const next = v.slice(0, this.insertPos) + v.slice(this.insertPos + this.insertedText.length);
-    this.setValue(next, this.insertPos, 'deleteContent');
+    // What was written over goes back where it stood, in the same step.
+    const next = v.slice(0, this.insertPos) + this.removedText + v.slice(this.insertPos + this.insertedText.length);
+    this.setValue(next, this.insertPos + this.removedText.length, 'deleteContent');
     const ok = this.el.value === next;
-    if (ok) this.insertedText = '';
+    if (ok) {
+      this.insertedText = '';
+      this.removedText = '';
+    }
     return { ok, verified: true, reason: ok ? undefined : 'Feltet tog ikke imod fortrydelsen.' };
   }
 

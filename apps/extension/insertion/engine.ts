@@ -71,6 +71,7 @@ export class InsertionSession {
   private timer: number | null = null;
   private inOwnDispatch = false;
   private guardTarget: EventTarget | null = null;
+  private pausedBy: string | undefined;
   private html: string | undefined;
 
   constructor(
@@ -136,6 +137,7 @@ export class InsertionSession {
   pause(detail?: string): void {
     if (this.state !== 'running') return;
     this.clearTimer();
+    this.pausedBy = detail;
     this.setState('paused', detail);
   }
 
@@ -143,7 +145,9 @@ export class InsertionSession {
     if (this.state !== 'paused') return;
     // Pitfall 3: the document may have changed while paused. Never write at
     // stale offsets — refusing loudly beats corrupting the user's text.
-    const check = this.adapter.verifyIntact?.();
+    // A caret-following editor is only asked after a click: its check reads
+    // what stands before the caret, which the user's own typing changes too.
+    const check = this.adapter.followsCaret && this.pausedBy !== 'user-clicked' ? undefined : this.adapter.verifyIntact?.();
     if (check && !check.ok) {
       this.detachGuard();
       return this.fail(check.reason ?? 'Teksten blev ændret undervejs — indsættelsen kan ikke fortsættes sikkert.');
@@ -204,6 +208,10 @@ export class InsertionSession {
     else if (step.deleteBack) res = this.adapter.deleteBack(step.deleteBack);
     else if (step.key) res = this.adapter.pressKey?.(step.key) ?? { ok: false, verified: true, reason: 'Editoren kan ikke formatere tekst.' };
     this.inOwnDispatch = false;
+    // Every keystroke of a run, in order. A letter missing from the document
+    // is otherwise a fact with no history: the adapter cannot see Docs' canvas
+    // and nothing else records what was sent (awa-debug only).
+    awaLog('engine.step', { i: this.stepIndex, insert: step.insert, del: step.deleteBack, key: step.key });
 
     if (!res.ok) {
       awaLog('engine.fail', { stepIndex: this.stepIndex, reason: res.reason });
@@ -256,6 +264,7 @@ export class InsertionSession {
       this.guardTarget?.addEventListener('input', this.onUserInput, true);
     }
     this.guardTarget?.addEventListener('keydown', this.onUserKey, true);
+    if (this.adapter.followsCaret) window.addEventListener('mousedown', this.onUserClick, true);
   }
 
   private detachGuard(): void {
@@ -265,7 +274,15 @@ export class InsertionSession {
     this.guardTarget?.removeEventListener('input', this.onUserInput, true);
     this.guardTarget?.removeEventListener('keydown', this.onUserKey, true);
     this.guardTarget = null;
+    if (this.adapter.followsCaret) window.removeEventListener('mousedown', this.onUserClick, true);
   }
+
+  private onUserClick = (e: Event): void => {
+    // Our own panel is in the page too, and Pause and Stop live there.
+    if (!e.isTrusted || e.composedPath().some((n) => (n as Element).tagName === 'AWA-SIDEBAR')) return;
+    awaLog('engine.pause.click', { stepIndex: this.stepIndex });
+    this.pause('user-clicked');
+  };
 
   private onUserInput = (e: Event): void => {
     if (this.inOwnDispatch || !e.isTrusted) return;

@@ -216,14 +216,17 @@ export interface ReferralInfo {
   /** false → the operator has switched invitations off; hide the offer */
   enabled: boolean;
   code: string;
-  /** Free days a friend gets for redeeming the code. */
+  /** Read by 0.2.4 only, which showed free days; the offer is `discountPercent` now. */
   friendTrialDays: number;
-  /** Free days the inviter gets when that friend first pays. */
   rewardDays: number;
+  /** What both get off one month: the friend on their first, the inviter once that friend has paid. */
+  discountPercent: number;
+  /** The caller's own next checkout is discounted: an unused invitation, or a month earned by inviting. */
+  myDiscount: boolean;
   invited: number;
   paid: number;
   rewards: number;
-  /** The yearly ceiling is reached: further friends still get their trial. */
+  /** The yearly ceiling is reached: further friends still get their discount. */
   capReached: boolean;
   /** Whether the caller may still redeem somebody else's code. */
   canClaim: boolean;
@@ -295,8 +298,11 @@ export interface AutonomousParagraph {
  * - `below`: a new line under `at`'s text — the question itself when the
  *   document draws nothing for it, or a cell that asks to be continued.
  * - `inline`: on `at`'s own line, after a label ("Navn:").
+ * - `replace`: INSIDE `at`'s own line, in place of `target`: a blank drawn
+ *   with underscores, an empty tick box, a "Sandt / Falsk" to settle. Only
+ *   sent to a client that asked for it (AutonomousRequest.replace).
  */
-export type FillMode = 'fill' | 'below' | 'inline';
+export type FillMode = 'fill' | 'below' | 'inline' | 'replace';
 
 export interface AutonomousRequest {
   scope: 'document' | 'selection';
@@ -319,7 +325,32 @@ export interface AutonomousRequest {
    * grid's twenty-five cells one under the other beneath the question.
    */
   fills?: boolean;
+  /**
+   * The client can write INTO a line, not only under or after it (FillMode
+   * `replace`). Without it a blank or a tick box is answered the old way, on
+   * a line of its own, which every extension can place.
+   */
+  replace?: boolean;
+  /**
+   * Answer as a stream of AutonomousStreamEvent instead of one JSON body.
+   *
+   * Two reasons, one mechanism. The run is 10-60s of model calls, and for all
+   * of it the panel could only say "Finder spørgsmål". And Chrome ends an
+   * extension's service worker when a fetch has waited 30s for its response,
+   * which is this request on any form of real size: the run then died with
+   * nothing written and nothing said. A stream answers at once and keeps
+   * talking, so the worker lives and the user can read what is happening.
+   */
+  stream?: boolean;
 }
+
+/** What "Besvar alle" is doing right now, and at the end what it produced. */
+export type AutonomousStreamEvent =
+  | { type: 'stage'; stage: 'found'; questions: number; places: number }
+  | { type: 'stage'; stage: 'searching' }
+  | { type: 'stage'; stage: 'answering'; done: number; total: number }
+  | { type: 'result'; response: AutonomousResponse }
+  | { type: 'error'; code: string; message: string };
 
 /**
  * One place in the document and the text that goes there.
@@ -340,6 +371,8 @@ export interface AutonomousAnswer {
   /** The paragraph the fill lands at or under — see FillMode. Validated server-side against the paragraphs the extension sent; the extension checks again. */
   at: number;
   mode: FillMode;
+  /** `replace` only: the piece of line `at`, verbatim and occurring once in it, that the answer takes the place of. */
+  target?: string;
   /** `at` when `mode` is `fill`, for extensions built before fills existed; never read by the current client. */
   answerAt?: number;
   /**

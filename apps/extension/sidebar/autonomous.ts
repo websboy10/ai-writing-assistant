@@ -1,7 +1,7 @@
-import type { AutonomousRequest, AutonomousResponse } from '@awa/shared';
+import type { AutonomousRequest, AutonomousResponse, AutonomousStreamEvent } from '@awa/shared';
 import { AutonomousRun, sourceFor, stripMarkdown, type RunCallbacks } from '@/insertion';
 import { awaLog } from '@/insertion/debug';
-import { call } from './api';
+import { AUTO_PORT, type AutoPortServerMsg, type ChatPortClientMsg } from '@/utils/protocol';
 import { inserter } from './inserter';
 import { useStore } from './store';
 
@@ -24,6 +24,8 @@ class Autonomous {
   // the new run object exists.
   private loadingRun = false;
   private pauseRequestedWhileLoading = false;
+  /** Ends the request for answers while it is still out; null once it has come back. */
+  private cancelLoading: (() => void) | null = null;
 
   async run(scope: 'document' | 'selection', mode: 'instant' | 'progressive'): Promise<void> {
     const store = useStore.getState();
@@ -60,6 +62,7 @@ class Autonomous {
       context: store.context.length ? store.context : undefined,
       prefs: store.prefs,
       fills: true,
+      replace: source.canReplace === true,
     };
 
     useStore.getState().set({
@@ -67,6 +70,7 @@ class Autonomous {
       notice: null,
       autoRun: {
         state: 'writing',
+        steps: [`Læste ${scope === 'selection' ? 'markeringen' : 'dokumentet'} · ${plural(paragraphs.length, 'linje', 'linjer')}`, 'Finder spørgsmålene og deres svarfelter'],
         answersDone: 0,
         answersTotal: 0,
         progress: 0,
@@ -80,14 +84,26 @@ class Autonomous {
 
     this.loadingRun = true;
     this.pauseRequestedWhileLoading = false;
-    const res = await call({ kind: 'api', path: '/api/autonomous/answer', method: 'POST', body });
+    const res = await this.requestAnswers(body);
+    this.cancelLoading = null;
+    if (res === 'cancelled') {
+      this.loadingRun = false;
+      useStore.getState().set({ autoRun: null });
+      return;
+    }
     if (!res.ok) {
       this.loadingRun = false;
-      useStore.getState().set({ autoRun: null, error: res.error ?? 'Besvarelsen fejlede.' });
+      // Session death lands on the sign-in form, as it does for every other
+      // call (api.ts); this one no longer goes through that wrapper.
+      useStore.getState().set(
+        res.code === 'unauthenticated'
+          ? { autoRun: null, email: null, view: 'auth', error: 'Din session er udløbet. Log ind igen for at fortsætte.' }
+          : { autoRun: null, error: res.error },
+      );
       return;
     }
 
-    const data = res.data as AutonomousResponse;
+    const data = res.data;
     if (!data || data.detected === 0) {
       this.loadingRun = false;
       useStore.getState().set({ autoRun: null, notice: 'Der blev ikke fundet nogen spørgsmål i denne tekst.' });
@@ -172,6 +188,7 @@ class Autonomous {
     useStore.getState().set({
       autoRun: {
         state: startPaused ? 'paused' : 'writing',
+        steps: [],
         answersDone: 0,
         answersTotal: answers.length,
         progress: 0,
@@ -186,6 +203,63 @@ class Autonomous {
     await this.active.start(startPaused);
   }
 
+  /**
+   * The thinking half, as a stream: every stage the server reports becomes a
+   * line in the panel, and the last event carries the answers.
+   */
+  private requestAnswers(
+    body: AutonomousRequest,
+  ): Promise<{ ok: true; data: AutonomousResponse } | { ok: false; error: string; code?: string } | 'cancelled'> {
+    return new Promise((resolve) => {
+      const port = chrome.runtime.connect({ name: AUTO_PORT });
+      let settled = false;
+      const settle = (v: Parameters<typeof resolve>[0]) => {
+        if (settled) return;
+        settled = true;
+        try {
+          port.disconnect();
+        } catch {
+          /* already gone */
+        }
+        resolve(v);
+      };
+      this.cancelLoading = () => settle('cancelled');
+
+      /** A finished step keeps its line; the step in progress is the last one and is rewritten in place. */
+      const step = (text: string, replaceLast = false) => {
+        const s = useStore.getState();
+        if (!s.autoRun) return;
+        const steps = replaceLast ? s.autoRun.steps.slice(0, -1) : s.autoRun.steps;
+        s.set({ autoRun: { ...s.autoRun, steps: [...steps, text] } });
+      };
+      const onEvent = (ev: AutonomousStreamEvent) => {
+        if (ev.type === 'result') return settle({ ok: true, data: ev.response });
+        if (ev.type === 'error') return settle({ ok: false, error: ev.message, code: ev.code });
+        if (ev.stage === 'found') {
+          step(
+            `Fandt ${plural(ev.questions, 'spørgsmål', 'spørgsmål')}` +
+              (ev.places > ev.questions ? ` · ${plural(ev.places, 'felt', 'felter')} at udfylde` : ''),
+            true,
+          );
+        } else if (ev.stage === 'searching') {
+          step('Slår fakta op på nettet');
+        } else {
+          step(`Formulerer svarene · ${ev.done} af ${ev.total}`, ev.done > 0);
+        }
+      };
+
+      port.onMessage.addListener((msg: AutoPortServerMsg) => {
+        if (msg.type === 'event') onEvent(msg.event);
+        else if (msg.type === 'closed') settle({ ok: false, error: 'Besvarelsen blev afbrudt, før den var færdig. Prøv igen.' });
+      });
+      port.onDisconnect.addListener(() =>
+        settle({ ok: false, error: 'Forbindelsen til assistenten røg undervejs. Intet er skrevet i dokumentet. Prøv igen.' }),
+      );
+      const start: ChatPortClientMsg = { type: 'start', request: { ...body, stream: true } };
+      port.postMessage(start);
+    });
+  }
+
   pause(): void {
     if (this.loadingRun) {
       this.pauseRequestedWhileLoading = true;
@@ -197,6 +271,12 @@ class Autonomous {
     this.active?.resume();
   }
   stop(): void {
+    // Nothing is in the document yet while the answers are being fetched, so
+    // stopping there is simply not going ahead.
+    if (this.loadingRun) {
+      this.cancelLoading?.();
+      return;
+    }
     this.active?.stop();
   }
   async undo(): Promise<void> {
@@ -206,6 +286,7 @@ class Autonomous {
     }
   }
   dismiss(): void {
+    this.cancelLoading?.();
     this.active?.destroy();
     this.active = null;
     useStore.getState().set({ autoRun: null });
@@ -213,3 +294,7 @@ class Autonomous {
 }
 
 export const autonomous = new Autonomous();
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}

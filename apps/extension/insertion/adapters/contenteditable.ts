@@ -31,10 +31,21 @@ export class ContentEditableAdapter implements InsertionAdapter {
   private inserted = 0;
   /** Exactly what this session has asked the editor to insert so far. */
   private insertedText = '';
+  /** The saved range is to be written over (SavedTarget.replacing); what stood in it is put back by undo. */
+  private replacing: boolean;
+  private removedText = '';
+  /**
+   * Where the caret stood right after the write-over deleted its piece. An
+   * offset cannot say this: a box at the start of a line and the end of the
+   * line above are the same number of characters into the editor, and the
+   * tick was typed at the end of the wrong line (2026-10-08).
+   */
+  private anchor: Range | null = null;
 
   constructor(target: SavedTarget) {
     this.el = target.element;
     this.savedRange = target.range ?? null;
+    this.replacing = !!target.replacing;
   }
 
   eventTarget(): EventTarget {
@@ -46,6 +57,28 @@ export class ContentEditableAdapter implements InsertionAdapter {
     this.el.focus();
     const sel = document.getSelection();
     if (!sel) return { ok: false, verified: true, reason: 'Markeringen på siden kunne ikke læses.' };
+    this.removedText = '';
+    if (this.replacing) {
+      if (!this.savedRange || !this.el.contains(this.savedRange.startContainer)) {
+        return { ok: false, verified: true, reason: 'Stedet i linjen kunne ikke findes igen.' };
+      }
+      const removed = this.savedRange.toString();
+      this.startOffset = this.absoluteOffset(this.savedRange);
+      sel.removeAllRanges();
+      sel.addRange(this.savedRange.cloneRange());
+      const before = this.textLength();
+      try {
+        document.execCommand('delete');
+      } catch {
+        /* measured below */
+      }
+      if (this.textLength() !== before - removed.length) return { ok: false, verified: true, reason: 'Feltet tillod ikke at skrive i linjen.' };
+      this.removedText = removed;
+      this.anchor = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+      this.inserted = 0;
+      this.insertedText = '';
+      return { ok: true, verified: true };
+    }
     if (this.savedRange && this.el.contains(this.savedRange.startContainer)) {
       // A marked selection is never replaced — collapse to its END so the
       // answer lands below it (the inserter prefixes a newline).
@@ -198,13 +231,13 @@ export class ContentEditableAdapter implements InsertionAdapter {
 
   undoAll(): InsertResult {
     if (!this.el.isConnected) return { ok: false, verified: true, reason: 'Feltet findes ikke længere på siden.' };
-    if (this.inserted <= 0) return { ok: true, verified: true };
+    if (this.inserted <= 0) return this.restoreRemoved();
     // Deleting [start, start+inserted] is only safe while that range still
     // contains exactly our text — otherwise it would take the user's edits
     // with it.
     const intact = this.verifyIntact();
     if (!intact.ok) return intact;
-    const range = this.rangeFromOffsets(this.startOffset, this.startOffset + this.inserted);
+    const range = this.rangeFromOffsets(this.startOffset, this.startOffset + this.inserted, this.replacing);
     if (!range) return { ok: false, verified: true, reason: 'Den indsatte tekst kunne ikke findes igen og blev derfor ikke fjernet.' };
     const sel = document.getSelection();
     if (!sel) return { ok: false, verified: true, reason: 'Markeringen på siden kunne ikke læses.' };
@@ -232,12 +265,26 @@ export class ContentEditableAdapter implements InsertionAdapter {
     if (success) {
       this.inserted = 0;
       this.insertedText = '';
+      // The delete left the caret exactly where the piece goes back.
+      return this.restoreRemoved(true);
     }
-    return {
-      ok: success,
-      verified: true,
-      reason: success ? undefined : 'Feltet tillod ikke at fjerne den indsatte tekst.',
-    };
+    return { ok: false, verified: true, reason: 'Feltet tillod ikke at fjerne den indsatte tekst.' };
+  }
+
+  /** The other half of undoing a write-over: what stood there goes back. */
+  private restoreRemoved(caretIsThere = false): InsertResult {
+    if (!this.removedText) return { ok: true, verified: true };
+    this.el.focus();
+    if (!caretIsThere) this.restoreCursor();
+    const before = this.textLength();
+    try {
+      document.execCommand('insertText', false, this.removedText);
+    } catch {
+      /* measured below */
+    }
+    if (this.textLength() === before) return { ok: false, verified: true, reason: 'Feltet tillod ikke at sætte den oprindelige tekst tilbage.' };
+    this.removedText = '';
+    return { ok: true, verified: true };
   }
 
   // ---- text offset helpers ----
@@ -253,7 +300,13 @@ export class ContentEditableAdapter implements InsertionAdapter {
     return r.toString().length;
   }
 
-  private rangeFromOffsets(start: number, end: number): Range | null {
+  /**
+   * `startInNextNode` settles a start that falls exactly between two text
+   * nodes. By default it is the end of the earlier one, which is right for
+   * text typed after a line. A write-over's text begins a node instead, and
+   * taking the earlier end there would select across a paragraph break.
+   */
+  private rangeFromOffsets(start: number, end: number, startInNextNode = false): Range | null {
     const walker = document.createTreeWalker(this.el, NodeFilter.SHOW_TEXT);
     let pos = 0;
     let startNode: Node | null = null;
@@ -263,7 +316,7 @@ export class ContentEditableAdapter implements InsertionAdapter {
     let node: Node | null;
     while ((node = walker.nextNode())) {
       const len = node.textContent?.length ?? 0;
-      if (!startNode && pos + len >= start) {
+      if (!startNode && (startInNextNode && end > start ? pos + len > start : pos + len >= start)) {
         startNode = node;
         startOff = start - pos;
       }
@@ -290,6 +343,12 @@ export class ContentEditableAdapter implements InsertionAdapter {
   }
 
   private restoreCursor(): void {
+    if (this.inserted === 0 && this.anchor && this.el.contains(this.anchor.startContainer)) {
+      const sel = document.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(this.anchor.cloneRange());
+      return;
+    }
     const range = this.rangeFromOffsets(
       this.startOffset + this.inserted,
       this.startOffset + this.inserted,

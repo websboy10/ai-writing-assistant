@@ -584,7 +584,7 @@ function AutoRunBar() {
     <div className="sticky bottom-0 space-y-2 rounded-2xl border border-hairline bg-paper p-3 shadow-lg">
       <div className="flex items-baseline justify-between">
         <span className="awa-eyebrow !text-ink">
-          {st.state === 'writing' && (finding ? 'Finder spørgsmål' : 'Skriver')}
+          {st.state === 'writing' && (finding ? 'Forbereder' : 'Skriver')}
           {st.state === 'paused' && 'På pause'}
           {st.state === 'done' && 'Færdig ✓'}
           {st.state === 'stopped' && 'Stoppet'}
@@ -592,11 +592,29 @@ function AutoRunBar() {
           {st.state === 'error' && 'Fejl'}
         </span>
         <span className="awa-eyebrow">
-          {finding ? 'Et øjeblik' : `${st.answersDone} / ${st.answersTotal} · ${pct}%`}
+          {finding ? '' : `${st.answersDone} / ${st.answersTotal} · ${pct}%`}
         </span>
       </div>
+      {/* The wait, said out loud. It used to be one line, "Finder spørgsmål",
+          for up to a minute; a person cannot tell a minute of work from a
+          hang, so every stage the run passes through is listed as it happens. */}
+      {finding && (
+        <ul className="space-y-0.5 text-ui">
+          {st.steps.map((step, i) => {
+            const current = i === st.steps.length - 1;
+            return (
+              <li key={i} className={current ? 'text-ink' : 'text-graphite'}>
+                {current ? '…' : '✓'} {step}
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {st.detail === 'user-typing' && (
         <div className="text-ui text-graphite">På pause — du begyndte at skrive. Fortsæt når du er klar.</div>
+      )}
+      {st.detail === 'user-clicked' && (
+        <div className="text-ui text-graphite">På pause — du klikkede i dokumentet. Sæt markøren tilbage efter det sidste bogstav, og fortsæt.</div>
       )}
       {st.placement === 'block' && st.degradedReason && <div className="text-ui text-graphite">{st.degradedReason}</div>}
       {/* The galley line: ink advancing across paper. No countdown, no ETA — a

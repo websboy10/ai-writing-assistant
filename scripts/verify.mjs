@@ -19,8 +19,8 @@ const extPath = resolve(root, 'apps/extension/.output/chrome-mv3');
 const shotsDir = resolve(root, 'test-results');
 mkdirSync(shotsDir, { recursive: true });
 
-const TEST_EMAIL = 'tester@example.com';
-const TEST_PASSWORD = 'awa-test-2026';
+const TEST_EMAIL = process.env.AWA_TEST_EMAIL ?? 'modestlyeu+awatest@gmail.com';
+const TEST_PASSWORD = process.env.AWA_TEST_PASSWORD ?? 'awa-test-2026-xK9';
 
 let passed = 0;
 let failed = 0;
@@ -353,7 +353,7 @@ try {
   // so a picker that says nothing measurable would be a hint, not a rule.
   ok(
     'the picker states the word count it promises',
-    /40 til 70 ord/.test((await lengthSelect.getAttribute('title')) ?? ''),
+    /15 til 40 ord/.test((await lengthSelect.getAttribute('title')) ?? ''),
     (await lengthSelect.getAttribute('title')) ?? '',
   );
   ok('tone is gone: the voice is fixed, not a setting', (await host.locator('select[title*="Tonefaldet"]').count()) === 0);

@@ -17,6 +17,21 @@ export interface SavedTarget {
    * inside a box, where it would open with a blank line.
    */
   inBox?: boolean;
+  /**
+   * The saved selection (selStart..selEnd, or `range`) is a blank, a tick box
+   * or a set of alternatives that the answer TAKES THE PLACE OF. The one case
+   * where a selection is written over: everywhere else it is the user's own
+   * text and the answer lands below it.
+   */
+  replacing?: boolean;
+  /**
+   * Google Docs only: the blank or tick box stands MARKED in the document
+   * (Docs has no range to hand over) and the answer is typed over it. This
+   * is what it says — undo puts it back.
+   */
+  removedText?: string;
+  /** Google Docs only: edits the placement itself made (the space after "Navn:") — undo has to take those back too. */
+  placementEdits?: number;
   /** The caret stands in an EMPTY LIST ITEM of this kind: the answer continues that list. */
   inList?: 'bullet' | 'numbered';
 }

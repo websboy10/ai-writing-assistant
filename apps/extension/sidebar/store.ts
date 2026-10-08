@@ -61,6 +61,12 @@ interface InsertStatus {
 interface AutoRunStatus {
   state: RunState;
   detail?: string;
+  /**
+   * What the run has done and is doing before the first answer is typed, one
+   * line each, the last one still in progress. Empty once typing starts: from
+   * there the counter is the status.
+   */
+  steps: string[];
   answersDone: number;
   answersTotal: number;
   progress: number; // 0..1
@@ -292,6 +298,7 @@ async function redeemPendingReferral(): Promise<void> {
   if (res.status === 0 || res.status === 401 || res.status >= 500) return;
   await chrome.storage.local.remove('pendingReferral');
   if (!res.ok) return;
-  const got = (res.data as { trialDays: number }).trialDays;
-  if (got > 0) useStore.getState().set({ notice: `Din invitation er registreret. Du har ${got} dage gratis.` });
+  await useStore.getState().loadReferral();
+  const percent = useStore.getState().referral?.discountPercent;
+  if (percent) useStore.getState().set({ notice: `Din invitation er registreret. Du får ${percent} % på din første måned.` });
 }

@@ -208,21 +208,59 @@ export async function applySubscription(sub: Stripe.Subscription): Promise<void>
 
 interface ReferralReward {
   referrer_id: string;
-  kind: 'days' | 'credit' | 'capped';
-  days?: number;
+  kind: 'discount' | 'credit' | 'capped';
+  percent?: number;
   customer_id?: string;
   subscription_id?: string;
+}
+
+const knownCoupons = new Set<string>();
+
+/**
+ * The Stripe coupon a discounted month is: N % off, once. Made the first time
+ * a percentage is needed rather than by hand in the dashboard, so changing the
+ * percentage in the admin page cannot leave checkout pointing at a coupon that
+ * does not exist. The id carries the percentage, so every instance of the
+ * backend finds the same one.
+ */
+async function referralCoupon(percent: number): Promise<string> {
+  const id = `invitation-${percent}`;
+  if (knownCoupons.has(id)) return id;
+  try {
+    await stripe.coupons.retrieve(id);
+  } catch (err) {
+    if (!isMissingInStripe(err)) throw err;
+    await stripe.coupons
+      .create({ id, percent_off: percent, duration: 'once', name: `Invitation: ${percent} % på en måned` })
+      .catch((createErr) => {
+        // Two checkouts at once both found it missing; the other one made it.
+        if ((createErr as { code?: string }).code !== 'resource_already_exists') throw createErr;
+      });
+  }
+  knownCoupons.add(id);
+  return id;
+}
+
+/**
+ * The invitation discount this user's next checkout carries, if any: their own
+ * first month as an invited friend, or a month they earned by inviting
+ * (migration 0018). `kind` goes into the session's metadata, because an earned
+ * month is only spent once the payment has gone through.
+ */
+export async function checkoutDiscount(userId: string): Promise<{ coupon: string; kind: 'friend' | 'credit' } | null> {
+  const d = await anonRpc<{ kind: 'friend' | 'credit'; percent: number } | null>('referral_discount_for', { p_user_id: userId });
+  return d ? { coupon: await referralCoupon(d.percent), kind: d.kind } : null;
 }
 
 /**
  * Pays whoever invited this user, the first time this user pays.
  *
  * The database decides whether anything is owed and pays it out itself when
- * the reward is free days (migration 0017). What reaches this function to be
- * done is the one case Postgres cannot do: an inviter with a running
- * subscription gets nothing from free days, because Stripe charges them
- * regardless, so their reward is a credit on their Stripe balance that the
- * next invoice is drawn from.
+ * the inviter buys month by month: a discounted month waiting at their next
+ * checkout (migration 0018). What reaches this function to be done is the one
+ * case Postgres cannot do: an inviter with a running subscription never sees
+ * a checkout again, so their discount is a credit on their Stripe balance
+ * that the next invoice is drawn from.
  *
  * Safe to call on every payment event for every user. With nobody to pay it is
  * one indexed lookup. A credit that failed half way is handed back by the
@@ -242,7 +280,7 @@ export async function rewardReferrer(payerId: string): Promise<void> {
       {
         // Negative is money owed TO the customer. Their own price, so the
         // credit is worth what a month costs them and not what it costs today.
-        amount: -Math.round((price.unit_amount * (r.days ?? 30)) / 30),
+        amount: -Math.round((price.unit_amount * (r.percent ?? 50)) / 100),
         currency: price.currency,
         description: 'Invitationsbonus',
         metadata: { referred_user_id: payerId },
@@ -251,5 +289,36 @@ export async function rewardReferrer(payerId: string): Promise<void> {
     );
     await anonRpc('referral_credit_done', { p_user_id: payerId });
   }
-  await capture(r.referrer_id, 'referral_rewarded', { kind: r.kind, days: r.days ?? null });
+  await capture(r.referrer_id, 'referral_rewarded', { kind: r.kind, percent: r.percent ?? null });
+}
+
+/**
+ * A payment was refunded in full: if it was an invited friend's first, the
+ * inviter's reward goes back (migration 0018, referral_revoke). Partial
+ * refunds keep it. Safe on every refund of every customer: with nothing to
+ * take back it is two indexed lookups.
+ */
+export async function revokeReferral(charge: Stripe.Charge): Promise<void> {
+  if (!charge.refunded) return;
+  const customerId = typeof charge.customer === 'string' ? charge.customer : charge.customer?.id;
+  if (!customerId) return;
+  const payerId = await anonRpc<string | null>('billing_user_for_customer', { p_customer_id: customerId });
+  if (!payerId) return;
+  const r = await anonRpc<{ referrer_id: string; kind: string; reverse_credit: boolean; customer_id: string | null } | null>(
+    'referral_revoke',
+    { p_user_id: payerId },
+  );
+  if (!r) return;
+  if (r.reverse_credit && r.customer_id) {
+    const { data } = await stripe.customers.listBalanceTransactions(r.customer_id, { limit: 100 });
+    const credit = data.find((t) => t.metadata?.referred_user_id === payerId && t.amount < 0);
+    if (credit) {
+      await stripe.customers.createBalanceTransaction(
+        r.customer_id,
+        { amount: -credit.amount, currency: credit.currency, description: 'Invitationsbonus tilbageført', metadata: { referred_user_id: payerId } },
+        { idempotencyKey: `referral-revoke-${payerId}` },
+      );
+    }
+  }
+  await capture(r.referrer_id, 'referral_revoked', { kind: r.kind });
 }

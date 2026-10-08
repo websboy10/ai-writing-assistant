@@ -35,7 +35,7 @@ export default defineConfig({
   manifest: {
     name: 'ChatBot Skriv',
     description: 'AI-skriveassistent med styrbar indsættelse direkte i det tekstfelt, du allerede skriver i.',
-    version: '0.2.4',
+    version: '0.2.5',
     // Pins the extension ID to foidkbeinmfolejjjfjcokmmknimohof for LOCAL
     // installs. Without it Chrome derives a different ID on every unpacked
     // install, and both the Google OAuth client and Supabase's redirect

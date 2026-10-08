@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { AutonomousAnswer, AutonomousRequest, AutonomousResponse, ContentClass } from '@awa/shared';
+import type { AutonomousAnswer, AutonomousRequest, AutonomousResponse, AutonomousStreamEvent, ContentClass } from '@awa/shared';
 import { verifyUser, rpc, danishTime, anonRpc } from '../supabase.js';
 import { getEntitlement } from '../billing.js';
 import { collect } from '../autonomous/complete.js';
@@ -88,6 +88,9 @@ export function autonomousRoutes(app: FastifyInstance): void {
       context: Array.isArray(body?.context) ? body.context : undefined,
       prefs: body?.prefs,
       fills: body?.fills === true,
+      // Only together with fills: an extension that joins a question's fills
+      // into one answer has no line to write into.
+      replace: body?.fills === true && body?.replace === true,
     };
 
     // Quota is consumed atomically BEFORE any AI call (QUOT-01): a run costs
@@ -125,6 +128,32 @@ export function autonomousRoutes(app: FastifyInstance): void {
     const abort = new AbortController();
     req.raw.on('close', () => abort.abort());
 
+    // From here the reply is either one JSON body (extensions up to 0.2.4) or
+    // a stream of stages ending in the same body (AutonomousRequest.stream).
+    // Everything above answers as plain JSON in both cases: nothing has
+    // started yet, so there is nothing to narrate.
+    const streaming = body?.stream === true;
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    if (streaming) {
+      reply.hijack();
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'Access-Control-Allow-Origin': (req.headers.origin as string) ?? '*',
+      });
+      heartbeat = setInterval(() => reply.raw.write(': ping\n\n'), 15_000);
+    }
+    const emit = (event: AutonomousStreamEvent) => {
+      if (streaming) reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+    const finish = (status: number, payload: AutonomousResponse | { error: string; code: string }) => {
+      if (!streaming) return reply.code(status).send(payload);
+      emit('error' in payload ? { type: 'error', code: payload.code, message: payload.error } : { type: 'result', response: payload });
+      clearInterval(heartbeat);
+      reply.raw.end();
+    };
+
     // What the run was actually given. Answers that say "the attached context
     // holds nothing" are indistinguishable, from the outside, between a model
     // ignoring the attachment and an attachment that never arrived — and the
@@ -150,14 +179,14 @@ export function autonomousRoutes(app: FastifyInstance): void {
       if (detection.failures.length) {
         req.log.warn({ served: detection.model, failures: detection.failures }, 'model chain fallback');
       }
-      const detected = parseDetection(detection.text, paragraphs.length, paragraphs, marked);
+      const detected = parseDetection(detection.text, paragraphs.length, paragraphs, marked, autoReq.replace);
       // The plan, as validated: every fill, as question → mode@place. A run
       // where every fill is "below" at its own question and the raw reply
       // never says "fills" means the model ignored the field, not that the
       // form had no boxes.
       req.log.info(
         {
-          plan: detected.map((f) => `${f.paragraphIndex}→${f.mode}@${f.at}`),
+          plan: detected.map((f) => `${f.paragraphIndex}→${f.mode}@${f.options?.join('/') ?? f.at}`),
           rawMentionsPlan: /"fills"/.test(detection.text),
           rawHead: detection.text.slice(0, 500),
         },
@@ -177,8 +206,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
           req.log.error(refundErr, 'refund_quota failed after zero-question detection'),
         );
 
-        const response: AutonomousResponse = { answers: [], detected: 0 };
-        return reply.send(response);
+        return finish(200, { answers: [], detected: 0 });
       }
 
       const batches = batchFills(detected, ANSWER_BATCH_SIZE);
@@ -186,6 +214,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       // the questions, once each, and the tasks that say more than they do.
       const questions = [...new Set(detected.map((f) => f.questionText))];
       const lookups = [...new Set(detected.map((f) => f.task ?? f.questionText))];
+      emit({ type: 'stage', stage: 'found', questions: questions.length, places: detected.length });
 
       // The same rule the chat route uses, once for the whole run: a form
       // about a named novel or this year's tax rules gets looked up, a form
@@ -204,6 +233,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
       // batch as attached context. The answer call itself never carries the
       // search plugin — see websearch.ts webResearch for the measured reason.
       if (webSearch) {
+        emit({ type: 'stage', stage: 'searching' });
         const note = await webResearch(lookups, contentClass, abort.signal);
         req.log.info({ chars: note.length }, 'web research');
         if (note) {
@@ -219,6 +249,8 @@ export function autonomousRoutes(app: FastifyInstance): void {
       // made the user wait twice as long. Measured 2026-08-25: ten questions
       // took up to 68s sequentially, and every second of that is a person
       // watching a progress bar with nothing else to do.
+      let answered = 0;
+      emit({ type: 'stage', stage: 'answering', done: 0, total: detected.length });
       const perBatch = await Promise.all(
         batches.map(async (batch) => {
           const run = async (insist: boolean) => {
@@ -226,7 +258,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
             if (completion.failures.length) {
               req.log.warn({ served: completion.model, failures: completion.failures }, 'model chain fallback');
             }
-            return { completion, parsed: parseAnswers(completion.text, batch) };
+            return { completion, parsed: parseAnswers(completion.text, batch, paragraphs) };
           };
 
           let { completion, parsed } = await run(false);
@@ -264,6 +296,8 @@ export function autonomousRoutes(app: FastifyInstance): void {
               'answer batch parsed fewer answers than questions asked',
             );
           }
+          answered = Math.min(detected.length, answered + batch.length);
+          emit({ type: 'stage', stage: 'answering', done: answered, total: detected.length });
           return parsed;
         }),
       );
@@ -276,17 +310,21 @@ export function autonomousRoutes(app: FastifyInstance): void {
         );
       }
 
-      const response: AutonomousResponse = { answers, detected: questions.length };
-      return reply.send(response);
+      return finish(200, { answers, detected: questions.length });
     } catch (err) {
-      if (abort.signal.aborted) return; // client disconnected — nothing to send
+      if (abort.signal.aborted) {
+        // Client disconnected: nothing to send, but a hijacked reply is ours to close.
+        clearInterval(heartbeat);
+        if (streaming) reply.raw.end();
+        return;
+      }
 
       await anonRpc('refund_quota_for', { p_user_id: user.id, p_cost: 2 }).catch((refundErr) =>
         req.log.error(refundErr, 'refund_quota failed after autonomous run error'),
       );
 
       if (err instanceof PolicyError) {
-        return reply.code(503).send({
+        return finish(503, {
           error:
             'Denne funktion kører kun på betalte modeller uden træning, fordi den sender hele dokumenter. Ingen er finansieret endnu — tank OpenRouter-kredit op.',
           code: 'policy_no_paid_models',
@@ -296,7 +334,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
         // The reasons, or the next one of these is undiagnosable: on
         // 2026-09-09 two runs died here and the log held only the 503.
         req.log.error({ attempts: err.attempts, webSearch }, 'all models failed');
-        return reply.code(503).send({
+        return finish(503, {
           error: `Alle modeller i kæden er utilgængelige lige nu (${err.attempts
             .map((a) => a.model.split('/').pop())
             .join(', ')}). Det er som regel midlertidigt — prøv igen om et øjeblik.`,
@@ -304,7 +342,7 @@ export function autonomousRoutes(app: FastifyInstance): void {
         });
       }
       req.log.error(err, 'autonomous run failed');
-      return reply.code(502).send({
+      return finish(502, {
         error: `AI-svaret fejlede: ${err instanceof Error ? err.message : 'ukendt fejl'}`,
         code: 'upstream_error',
       });

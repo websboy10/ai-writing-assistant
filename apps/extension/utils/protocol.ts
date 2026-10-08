@@ -1,4 +1,4 @@
-import type { ChatRequest, ChatStreamEvent } from '@awa/shared';
+import type { AutonomousRequest, AutonomousStreamEvent, ChatRequest, ChatStreamEvent } from '@awa/shared';
 
 // Deployed backend by default; local dev overrides with
 // VITE_BACKEND_URL=http://127.0.0.1:8787 at build time.
@@ -32,11 +32,20 @@ export type BackgroundBroadcast = { type: 'toggle-sidebar' };
 
 export const CHAT_PORT = 'awa-chat';
 
-export type ChatPortClientMsg = { type: 'start'; request: ChatRequest } | { type: 'abort' };
+/**
+ * "Besvar alle" rides the same relay as chat, on its own port name. It was a
+ * one-shot message until 0.2.5, and a one-shot fetch that waits more than 30s
+ * for its response gets the service worker killed under it.
+ */
+export const AUTO_PORT = 'awa-auto';
+
+export type ChatPortClientMsg = { type: 'start'; request: ChatRequest | AutonomousRequest } | { type: 'abort' };
 // 'ping' relays the backend's SSE heartbeats: port traffic is what resets the
 // MV3 service-worker idle timer, so heartbeats must cross the port during
 // long token gaps or Chrome may kill the worker mid-stream (WR-15).
-export type ChatPortServerMsg = { type: 'event'; event: ChatStreamEvent } | { type: 'ping' } | { type: 'closed' };
+export type PortServerMsg<E> = { type: 'event'; event: E } | { type: 'ping' } | { type: 'closed' };
+export type ChatPortServerMsg = PortServerMsg<ChatStreamEvent>;
+export type AutoPortServerMsg = PortServerMsg<AutonomousStreamEvent>;
 
 export interface StoredSession {
   access_token: string;

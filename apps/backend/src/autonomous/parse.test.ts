@@ -472,3 +472,101 @@ test('with a marked range, a question outside it is dropped even when the model 
     [[7, 12]],
   );
 });
+
+// ---- writing INTO a line: replace and choose ----
+
+const FORM = [
+  { index: 0, text: 'Danmarks hovedstad er __________.' },
+  { index: 1, text: 'Jeg hedder ____ og er ____ år.' },
+  { index: 2, text: 'Hvilke er frugter?' },
+  { index: 3, text: '☐ Æble' },
+  { index: 4, text: 'b) Gulerod' },
+  { index: 5, text: '[ ] Banan' },
+];
+
+test('a replace keeps the model\'s target when it stands once in the line, and finds the blank itself when it does not', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: 0, questionText: FORM[0].text, fills: [{ at: 0, mode: 'replace', target: '__________' }] },
+    { paragraphIndex: 1, questionText: FORM[1].text, fills: [{ at: 1, mode: 'replace', target: 'not in the line' }] },
+  ]);
+  assert.deepEqual(
+    parseDetection(raw, FORM.length, FORM, undefined, true).map((f) => [f.at, f.mode, f.target]),
+    [
+      [0, 'replace', '__________'],
+      // Two blanks, one place: the span from the first to the last.
+      [1, 'replace', '____ og er ____'],
+    ],
+  );
+});
+
+test('a client that cannot write into a line gets replace and choose as a line of its own', () => {
+  const raw = JSON.stringify([
+    { paragraphIndex: 0, questionText: FORM[0].text, fills: [{ at: 0, mode: 'replace', target: '__________' }] },
+    { paragraphIndex: 2, questionText: FORM[2].text, fills: [{ mode: 'choose', options: [3, 4, 5] }] },
+  ]);
+  assert.deepEqual(
+    parseDetection(raw, FORM.length, FORM).map((f) => [f.at, f.mode]),
+    [
+      [0, 'below'],
+      [2, 'below'],
+    ],
+  );
+});
+
+test('a choice claims its option lines, and its answer becomes a tick at each option picked', () => {
+  const raw = JSON.stringify([{ paragraphIndex: 2, questionText: FORM[2].text, fills: [{ mode: 'choose', options: [5, 3, 4, 3, 99] }] }]);
+  const [choice] = parseDetection(raw, FORM.length, FORM, undefined, true);
+  assert.deepEqual([choice.at, choice.mode, choice.options], [3, 'choose', [3, 4, 5]]);
+
+  const answers = parseAnswers(JSON.stringify([{ at: 3, answer: '3, 4 og 5 — men ikke 0 eller 99' }]), [choice], FORM);
+  assert.deepEqual(
+    answers.map((a) => [a.at, a.mode, a.target, a.answer]),
+    [
+      [3, 'replace', '☐', '☒'],
+      // No box on the line: a tick after it.
+      [4, 'inline', undefined, '✓'],
+      [5, 'replace', '[ ]', '[x]'],
+    ],
+  );
+  // A choice answered with none of its options writes nothing at all.
+  assert.deepEqual(parseAnswers(JSON.stringify([{ at: 3, answer: 'Æble' }]), [choice], FORM), []);
+});
+
+test('a replace answer that repeats the rest of its line is cut back to what takes the target\'s place', () => {
+  const lines = [{ index: 0, text: 'Hvaler er fisk. Sandt / Falsk' }, { index: 1, text: 'En uge har ____ dage.' }];
+  const fills: DetectedFill[] = [
+    { paragraphIndex: 0, questionText: lines[0].text, at: 0, mode: 'replace', target: 'Sandt / Falsk' },
+    { paragraphIndex: 1, questionText: lines[1].text, at: 1, mode: 'replace', target: '____' },
+  ];
+  const raw = JSON.stringify([
+    { at: 0, answer: 'Hvaler er fisk. Falsk' },
+    { at: 1, answer: 'En uge har 7 dage.' },
+  ]);
+  assert.deepEqual(
+    parseAnswers(raw, fills, lines).map((a) => a.answer),
+    ['Falsk', '7'],
+  );
+  // The answer alone is left exactly as it is.
+  assert.equal(parseAnswers(JSON.stringify([{ at: 1, answer: 'syv' }]), [fills[1]], lines)[0].answer, 'syv');
+});
+
+test('a question whose row already holds an answer is not answered in its own cell', () => {
+  const table = [
+    cell(0, 'Hvad er hovedstaden i Danmark?', 0, 0, 0),
+    cell(1, '', 0, 0, 1),
+    cell(2, 'Hvor mange dage har en uge?', 0, 1, 0),
+    cell(3, 'MIT EGET SVAR', 0, 1, 1),
+    cell(4, 'Navn:', 0, 2, 0),
+    cell(5, 'Klasse:', 0, 2, 1),
+  ];
+  const raw = JSON.stringify([
+    { paragraphIndex: 0, questionText: table[0].text, fills: [{ at: 1, mode: 'fill' }] },
+    { paragraphIndex: 2, questionText: table[2].text, fills: [{ at: 2, mode: 'inline' }] },
+    // Labels side by side are each a form of their own.
+    { paragraphIndex: 4, questionText: 'Navn:', fills: [{ at: 4, mode: 'inline' }] },
+  ]);
+  assert.deepEqual(
+    parseDetection(raw, table.length, table).map((f) => [f.at, f.mode]),
+    [[1, 'fill'], [4, 'inline']],
+  );
+});

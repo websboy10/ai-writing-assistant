@@ -14,6 +14,8 @@ interface Mine {
   enabled: boolean;
   friend_trial_days: number;
   reward_days: number;
+  discount_percent: number;
+  my_discount: boolean;
   yearly_cap: number;
   invited: number;
   paid: number;
@@ -65,6 +67,8 @@ export function referralRoutes(app: FastifyInstance): void {
       code: m.code,
       friendTrialDays: m.friend_trial_days,
       rewardDays: m.reward_days,
+      discountPercent: m.discount_percent,
+      myDiscount: m.my_discount,
       invited: m.invited,
       paid: m.paid,
       rewards: m.rewards,

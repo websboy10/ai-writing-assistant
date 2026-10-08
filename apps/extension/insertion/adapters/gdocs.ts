@@ -35,6 +35,7 @@ export class GDocsAdapter implements InsertionAdapter {
    * InsertionAdapter.echoesAsync.
    */
   readonly echoesAsync = true;
+  readonly followsCaret = true;
   private chunksInserted = 0;
   /** Characters this session has in the document right now: pasted minus deleted. */
   private netChars = 0;
@@ -45,6 +46,13 @@ export class GDocsAdapter implements InsertionAdapter {
   private tail = '';
   private lastEl: HTMLElement | null = null;
   private lastIframe: HTMLIFrameElement | null = null;
+
+  /** `removed`: the blank the placement left MARKED for this answer to be typed over (SavedTarget.removedText). */
+  constructor(
+    private removed = '',
+    /** History steps the placement made before this session (SavedTarget.placementEdits). */
+    private placementEdits = 0,
+  ) {}
 
   private iframe(): HTMLIFrameElement | null {
     return document.querySelector<HTMLIFrameElement>('iframe.docs-texteventtarget-iframe');
@@ -183,7 +191,8 @@ export class GDocsAdapter implements InsertionAdapter {
     this.iframe()?.contentWindow?.focus();
     // A marked selection must not be replaced by the paste — ArrowRight
     // collapses it to its end (same synthetic-keystroke channel as undo).
-    if (GDocsAdapter.hasSelection()) {
+    // Except the one the placement marked for this answer to take the place of.
+    if (!this.removed && GDocsAdapter.hasSelection()) {
       const el = this.targetEl();
       if (el) pressGdocsKey(el, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 });
     }
@@ -402,9 +411,14 @@ export class GDocsAdapter implements InsertionAdapter {
     // for "re", and that difference is the whole point of the read.
     const flat = (s: string) => s.replace(/\n/g, '');
     const k = Math.min(before.length, n + 2);
-    let verdict = k > 0 ? 'gave-up' : 'unchecked';
+    // One character of context matches some letter of almost any slip, and the
+    // "repair" then eats the document above the answer: 9 characters of the
+    // question, 2026-10-08, deleting a slip that began right after our Enter.
+    const checkable = [...flat(before.slice(-k).join(''))].length >= 2;
+    let verdict = checkable ? 'gave-up' : 'unchecked';
     let extra = 0;
-    for (let round = 0; k > 0 && round < 3; round++) {
+    const reads: string[] = [];
+    for (let round = 0; checkable && round < 3; round++) {
       const expected = flat(before.slice(-k).join(''));
       for (let i = 0; i < k; i++) pressGdocsKey(el, SHIFT_LEFT);
       let read = flat(gdocsMarkedTextNow());
@@ -415,6 +429,7 @@ export class GDocsAdapter implements InsertionAdapter {
         retries += 1;
       }
       pressGdocsKey(el, RIGHT);
+      reads.push(read);
       if (read === expected) {
         verdict = 'ok';
         break;
@@ -435,11 +450,33 @@ export class GDocsAdapter implements InsertionAdapter {
       for (let i = 0; i < d; i++) pressGdocsKey(el, BACKSPACE);
       extra += d;
     }
-    awaLog('gdocs.deleteBack', { count: n, verdict, extra });
+    awaLog('gdocs.deleteBack', { count: n, verdict, extra, reads });
     this.netChars -= n;
     this.deletions += n;
     this.tail = before.join('');
     return { ok: true, verified: false };
+  }
+
+  /**
+   * Is the caret still right after what this session typed? Asked before a
+   * resume: a pause is where the user clicks somewhere else. The same
+   * invisible select-read-collapse deleteBack() checks itself with; a short
+   * read (a dropped arrow) passes.
+   */
+  verifyIntact(): InsertResult {
+    const el = this.targetEl();
+    const last = [...this.tail].slice(-6);
+    if (!el || last.length === 0) return { ok: true, verified: false };
+    // Newlines are not compared (see deleteBack), so right after our own
+    // Enter the right place reads as nothing and any other place as a letter.
+    const expected = last.join('').replace(/\n/g, '');
+    this.iframe()?.contentWindow?.focus();
+    for (let i = 0; i < last.length; i++) pressGdocsKey(el, { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37, which: 37, shiftKey: true });
+    const read = gdocsMarkedTextNow().replace(/\n/g, '');
+    pressGdocsKey(el, { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 });
+    awaLog('gdocs.verifyIntact', { expected, read });
+    if (read === expected || (read && expected.endsWith(read))) return { ok: true, verified: true };
+    return { ok: false, verified: true, reason: 'Markøren står ikke længere efter svaret. Fortryd, og prøv igen.' };
   }
 
   undoAll(): InsertResult {
@@ -449,8 +486,15 @@ export class GDocsAdapter implements InsertionAdapter {
       for (let i = 0; i < this.netChars; i++) pressGdocsKey(el, { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8 });
       // A list or heading style can outlive its text on the now-empty line.
       if (this.usedKeys) pressGdocsKey(el, { key: '0', code: 'Digit0', keyCode: 48, which: 48, ...gdocsCommandKey(), altKey: true });
+      // The caret now stands where the blank was. (The Cmd+Z branch needs
+      // nothing: undoing the first paste brings back what it was typed over.)
+      if (this.removed) {
+        const dt = new DataTransfer();
+        dt.setData('text/plain', this.removed);
+        el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      }
     } else {
-      for (let i = 0; i < this.chunksInserted; i++) {
+      for (let i = 0; i < this.chunksInserted + this.placementEdits; i++) {
         pressGdocsKey(el, { key: 'z', code: 'KeyZ', keyCode: 90, which: 90, ...gdocsCommandKey() });
       }
     }

@@ -31,8 +31,8 @@ import {
 
 const KEEP = process.argv.includes('--keep');
 const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice(7);
-const TEST_EMAIL = 'tester@example.com';
-const TEST_PASSWORD = 'awa-test-2026';
+const TEST_EMAIL = process.env.AWA_TEST_EMAIL ?? 'modestlyeu+awatest@gmail.com';
+const TEST_PASSWORD = process.env.AWA_TEST_PASSWORD ?? 'awa-test-2026-xK9';
 
 const EXPECTED_BACKEND = process.env.VITE_BACKEND_URL ?? 'http://127.0.0.1:8787';
 

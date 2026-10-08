@@ -58,7 +58,7 @@ const HINT_2 = 'Nævn gerne konkrete eksempler';
 const Q_BLANK = 'Hvad hedder Danmarks længste å?';
 const Q_NOTE = 'Hvilket år blev Danmark medlem af EF?';
 const NOTE = 'Skriv kun årstallet.';
-const BOX = '<table border="1"><tr><td></td></tr></table>';
+const BOX = '<table border="1" style="width:450pt"><tr><td style="width:450pt"></td></tr></table>';
 
 const WORKSHEET = `
 <h1>Opgaver til i dag</h1>
@@ -66,12 +66,12 @@ const WORKSHEET = `
 <p>${Q_LIST}</p>
 <ol><li></li></ol>
 <p>${Q_BOX}</p>
-<table border="1"><tr><td></td></tr></table>
-<table border="1"><tr><td>${Q_CELL}</td><td></td></tr></table>
+<table border="1" style="width:450pt"><tr><td style="width:450pt"></td></tr></table>
+<table border="1" style="width:450pt"><tr><td style="width:150pt">${Q_CELL}</td><td style="width:300pt"></td></tr></table>
 <p>${Q_BOLD}</p>
 <p>${Q_HINTS}</p>
 <ul><li>${HINT_1}</li><li>${HINT_2}</li></ul>
-<table border="1"><tr><td></td></tr></table>
+<table border="1" style="width:450pt"><tr><td style="width:450pt"></td></tr></table>
 `;
 
 const r = reporter();
@@ -226,8 +226,11 @@ try {
         const r = c.getBoundingClientRect();
         if (line.bottom < r.top || line.top > r.bottom) continue;
         const scale = c.height / r.height;
-        const y0 = Math.max(0, Math.floor((line.top - 4 - r.top) * scale));
-        const y1 = Math.min(c.height, Math.ceil((line.bottom + 4 - r.top) * scale));
+        const y0 = Math.max(0, Math.floor((line.top + 3 - r.top) * scale));
+        // Upper half of the line only: a selection washes the whole height,
+        // while Docs' blue grammar squiggle ("lært og spille") sits under the
+        // baseline and stood for 25 s as a "marking" on 2026-10-08.
+        const y1 = Math.min(c.height, Math.ceil(((line.top + line.bottom) / 2 - r.top) * scale));
         if (y1 <= y0) continue;
         try {
           const d = c.getContext('2d').getImageData(0, y0, c.width, y1 - y0).data;
@@ -262,6 +265,16 @@ try {
   // A run that never starts — the test account out of daily requests, a
   // backend error — shows in the panel within seconds; do not wait 15 minutes
   // for a button that is not coming.
+  // A marking that stands is photographed once, so there is something to look at.
+  let markShot = false;
+  setInterval(async () => {
+    if (markShot) return;
+    const age = await page.evaluate(() => (window.__awaMark?.open ? Date.now() - window.__awaMark.open.from : 0)).catch(() => 0);
+    if (age > 1500) {
+      markShot = true;
+      await page.screenshot({ path: resolve(shotsDir, 'formatted-marking.png') }).catch(() => {});
+    }
+  }, 500);
   const doneButton = host.locator('button', { hasText: 'Fortryd alle svar' });
   const stopped = host.locator('text=/brugt alle|Noget gik galt|kunne ikke/i');
   await Promise.race([doneButton.waitFor({ timeout: 900_000 }), stopped.first().waitFor({ timeout: 900_000 })]);
@@ -308,6 +321,7 @@ try {
   console.log(`  document:\n${text.split('\n').map((l) => `    | ${l.slice(0, 160)}`).join('\n')}\n`);
   for (const l of awaLines.filter((l) => /autonomous\.answers|docs\.locate|engine\.plan/.test(l))) console.log(`  ${l.slice(0, 4000)}`);
   for (const l of awaLines.filter((l) => /pressKey/.test(l))) console.log(`  ${l.slice(0, 160)}`);
+  writeFileSync(resolve(shotsDir, 'formatted-awa.log'), awaLines.join('\n'));
   const deleteLogs = awaLines.filter((l) => /gdocs\.deleteBack/.test(l));
   for (const l of deleteLogs) console.log(`  ${l.slice(0, 200)}`);
   for (const l of awaLines.filter((l) => /docs\.walk/.test(l))) console.log(`  ${l.slice(0, 200)}`);
@@ -340,6 +354,9 @@ try {
   // way: nothing but the next prompt between them and the first question.
   const betweenTitleAndFirstQuestion = text.slice(text.indexOf('Opgaver til i dag') + 17, text.indexOf(Q_LIST)).trim();
   r.ok('the heading was left alone — no answer written under a section title', betweenTitleAndFirstQuestion.startsWith(INSTRUCTION), JSON.stringify(betweenTitleAndFirstQuestion.slice(0, 120)));
+  // The run only ever adds: a slip's deletion once ate " vejret." off the
+  // question above it, and every other check here still passed.
+  for (const q of [Q_LIST, Q_BOX, Q_CELL, Q_BOLD, Q_HINTS, Q_BLANK, Q_NOTE]) r.ok(`the question is still whole: ${q.slice(0, 40)}`, text.includes(q), JSON.stringify(text.slice(Math.max(0, text.indexOf(q.slice(0, 15))), text.indexOf(q.slice(0, 15)) + q.length + 20)));
   r.ok('the bold instruction line was not answered', betweenTitleAndFirstQuestion === INSTRUCTION, JSON.stringify(betweenTitleAndFirstQuestion.slice(0, 200)));
 
   // G — hints between the question and its box: the answer goes in the box.

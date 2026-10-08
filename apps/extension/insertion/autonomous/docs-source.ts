@@ -1,7 +1,7 @@
 import type { AutonomousParagraph } from '@awa/shared';
 import type { EditorKind } from '../types';
 import type { SavedTarget } from '../target';
-import { gdocsEventTarget, gdocsSelectionNow, gdocsWholeDocumentNow, pressGdocsKey, type GDocsRead } from '../target';
+import { gdocsEventTarget, gdocsMarkedTextNow, gdocsSelectionNow, gdocsWholeDocumentNow, pressGdocsKey, type GDocsRead } from '../target';
 import { GDocsAdapter } from '../adapters/gdocs';
 import { findAndPlaceCursor } from './docs-find';
 import { boxBelowFor, findLine, normalizeCellText, slotPlanFor, type SlotPlan } from './docs-tables';
@@ -69,6 +69,7 @@ const KEY = {
   end: { key: 'End', code: 'End', keyCode: 35, which: 35 },
   down: { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40, which: 40 },
   left: { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37, which: 37 },
+  right: { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39, which: 39 },
   tab: { key: 'Tab', code: 'Tab', keyCode: 9, which: 9 },
 } as const;
 
@@ -155,6 +156,7 @@ class GDocsFindSource implements QuestionSource {
   readonly kind: EditorKind = 'gdocs';
   readonly label = 'Google Docs-dokument';
   readonly placement = 'in-place' as const;
+  readonly canReplace = true;
   private reason = '';
   /**
    * What this run has already typed, by the paragraph it went at or under.
@@ -166,7 +168,7 @@ class GDocsFindSource implements QuestionSource {
    * in the document, and a fill it could not place typed nothing.
    */
   private typed: { at: number; text: string }[] = [];
-  private pending: { at: number; text: string } | null = null;
+  private pending: { at: number; text: string; piece?: string } | null = null;
 
   constructor(
     private paragraphs: AutonomousParagraph[],
@@ -203,12 +205,17 @@ class GDocsFindSource implements QuestionSource {
   async locate(fill: FillTarget): Promise<SavedTarget | null> {
     this.reason = '';
     if (this.pending) {
-      this.typed.push(this.pending);
+      // An answer written INTO a line changed that line; one written under it
+      // added text of its own. Find has to be told about both.
+      const { at, text, piece } = this.pending;
+      const p = this.paragraphs[at];
+      if (piece && p) p.text = p.text.replace(piece, () => text);
+      else this.typed.push(this.pending);
       this.pending = null;
     }
     const target = await this.place(fill);
     awaLog('docs.locate', { q: (fill.task ?? fill.questionText).slice(0, 40), index: fill.paragraphIndex, at: fill.at, mode: fill.mode, placed: !!target, inBox: !!target?.inBox });
-    if (target) this.pending = { at: fill.at, text: fill.answer };
+    if (target) this.pending = { at: fill.at, text: fill.answer, ...(target.removedText ? { piece: target.removedText } : {}) };
     return target;
   }
 
@@ -232,6 +239,7 @@ class GDocsFindSource implements QuestionSource {
       }
       return this.placeUnderQuestion(fill);
     }
+    if (fill.mode === 'replace') return this.placeInLine(fill);
     if (fill.mode === 'below' && fill.at === fill.paragraphIndex) return this.placeUnderQuestion(fill);
     // "below" or "inline" at a line of the document's own text: the end of
     // that line, found by its last line when the cell has several.
@@ -248,7 +256,42 @@ class GDocsFindSource implements QuestionSource {
     // stands where the answer starts, like inside a box.
     new GDocsAdapter().pressKey('space');
     await settle(TAB_SETTLE_MS);
-    return { ...target, inBox: true };
+    return { ...target, inBox: true, placementEdits: 1 };
+  }
+
+  /**
+   * In place of a blank, a tick box or a "Sandt / Falsk" on the line itself.
+   * Docs hands out no ranges, so: the end of the line by Find, back over what
+   * follows the piece, mark the piece — and only when Docs says the marked
+   * text IS the piece is it handed over to be typed over. Anything else is
+   * left alone and reported unplaced: an arrow dropped (7 of 396 measured) would
+   * otherwise delete the user's own words.
+   */
+  private async placeInLine(fill: FillTarget): Promise<SavedTarget | null> {
+    const p = this.paragraphs[fill.at];
+    const piece = fill.target ?? '';
+    const from = p && piece ? p.text.indexOf(piece) : -1;
+    if (!p || from === -1) {
+      this.reason = `Stedet til "${fill.task ?? fill.questionText}" blev ikke fundet i linjen.`;
+      return null;
+    }
+    const after = [...p.text.slice(from + piece.length)].length;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const target = await this.atEndOf(findLine(p), fill.at);
+      if (!target) return null;
+      const el = target.element as HTMLElement;
+      for (let i = 0; i < after; i++) pressGdocsKey(el, KEY.left);
+      for (let i = 0; i < [...piece].length; i++) pressGdocsKey(el, { ...KEY.left, shiftKey: true });
+      await settle(TAB_SETTLE_MS);
+      // Left marked, not deleted: Backspace over a marked word takes the
+      // space beside it too ("erKøbenhavn", 2026-10-08); a paste over it does not.
+      if (gdocsMarkedTextNow() === piece) return { ...target, inBox: true, removedText: piece };
+      awaLog('docs.inline.miss', { attempt, piece, read: gdocsMarkedTextNow().slice(0, 40) });
+      pressGdocsKey(el, KEY.right);
+      await settle(TAB_SETTLE_MS);
+    }
+    this.reason = `Feltet "${piece.slice(0, 20)}" i linjen kunne ikke rammes præcist, så svaret blev ikke skrevet.`;
+    return null;
   }
 
   /**

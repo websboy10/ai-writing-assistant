@@ -102,6 +102,8 @@ class Inserter {
             detail:
               detail === 'user-typing'
                 ? 'På pause — du begyndte at skrive. Fortsæt når du er klar.'
+                : detail === 'user-clicked'
+                  ? 'På pause — du klikkede i dokumentet. Sæt markøren tilbage efter det sidste bogstav, og fortsæt.'
                 : detail === 'undone'
                   ? 'Indsættelsen er fortrudt.'
                   : undefined,

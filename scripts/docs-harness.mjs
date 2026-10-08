@@ -79,9 +79,70 @@ const headless = process.env.AWA_HEADED !== '1';
  * enforces, not a window size the OS is free to adjust. Every test caller
  * leaves it null and keeps the real window it has always had.
  */
-export async function launch({ viewport = null, windowSize = '1512,982' } = {}) {
+/**
+ * Where scripts/docs-browser.mjs listens. When that browser is up, every
+ * suite attaches to it instead of starting its own: one window signed into
+ * once, rather than a sign-in that has to survive each relaunch. Without it a
+ * suite starts its own browser on the same profile, as it always did.
+ */
+export const BROWSER_PORT = 9333;
+
+async function attachToRunningBrowser() {
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${BROWSER_PORT}`).catch(() => null);
+  if (!browser) return null;
+  const ctx = browser.contexts()[0];
+  // A suite owns a tab, not the browser: closing "the context" here would end
+  // the signed-in session every other suite depends on.
+  const page = await ctx.newPage();
+  // The browser holds the build it started with. Reloading the extension is
+  // what a relaunch used to do for a rebuilt one — through the extensions
+  // page, the way its own reload button does it. chrome.runtime.reload() from
+  // the worker left the extension DISABLED (measured 2026-10-08), so the
+  // sidebar never mounted and the suite timed out waiting for it.
+  await page.goto('chrome://extensions/');
+  await page.evaluate(async () => {
+    // A plain Chrome keeps an unpacked extension DISABLED until developer mode
+    // is on ("unsupportedDeveloperExtension"); Playwright's own launch hid
+    // that, and a browser started by hand has it off.
+    await chrome.developerPrivate.updateProfileConfiguration({ inDeveloperMode: true });
+    for (const e of await chrome.management.getAll()) {
+      if (e.installType !== 'development') continue;
+      if (!e.enabled) await chrome.management.setEnabled(e.id, true);
+      await chrome.developerPrivate.reload(e.id, { failQuietly: true });
+    }
+  });
+  await page.waitForTimeout(1500);
+  await page.goto('about:blank');
+  for (const other of ctx.pages()) if (other !== page) await other.close().catch(() => {});
+  return inSuiteAccount(ctx, async () => void (await browser.close().catch(() => {})));
+}
+
+/** The context as the suites see it: export reads go to the suite's Google account, and `close` is ours to define. */
+function inSuiteAccount(ctx, close) {
+  const request = new Proxy(ctx.request, {
+    get(target, prop) {
+      if (prop === 'get') return (url, options) => target.get(inGoogleSlot(url), options);
+      const value = Reflect.get(target, prop);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+  return new Proxy(ctx, {
+    get(target, prop) {
+      if (prop === 'request') return request;
+      if (prop === 'close' && close) return close;
+      const value = Reflect.get(target, prop);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
+export async function launch({ viewport = null, windowSize = '1512,982', keepOpen = false } = {}) {
+  if (!keepOpen) {
+    const running = await attachToRunningBrowser();
+    if (running) return running;
+  }
   dropCachedServiceWorkers();
-  return chromium.launchPersistentContext(profilePath, {
+  const ctx = await chromium.launchPersistentContext(profilePath, {
     executablePath: chromeForTestingPath(),
     headless,
     viewport,
@@ -99,8 +160,10 @@ export async function launch({ viewport = null, windowSize = '1512,982' } = {}) 
       // text never reached the document. Nobody edits a Google Doc in an 800px
       // window either, so the small one was never the honest test.
       `--window-size=${windowSize}`,
+      ...(keepOpen ? [`--remote-debugging-port=${BROWSER_PORT}`] : []),
     ],
   });
+  return inSuiteAccount(ctx);
 }
 
 /**
@@ -201,19 +264,53 @@ export async function typeIntoDoc(page, text) {
   await new Promise((r) => setTimeout(r, 1200)); // let Docs commit before exporting
 }
 
+/**
+ * The Google account the suites work in, and which of the profile's sign-in
+ * slots it sits in.
+ *
+ * A bare docs.google.com address means slot 0, whoever that is. On 2026-10-08
+ * slot 0 of this profile was an old school account whose session Google no
+ * longer accepted, with the real one signed in beside it in slot 1: every
+ * suite reported "signed out" and three sign-ins went by before anyone looked
+ * at which account was being asked for. So the account is named, found by its
+ * address, and every Docs URL the harness builds goes to its slot.
+ */
+export const GOOGLE_ACCOUNT = process.env.AWA_GOOGLE_ACCOUNT ?? 'sehitdd@gmail.com';
+let googleSlot = null;
+
+async function findGoogleSlot(page) {
+  for (let n = 0; n < 4; n++) {
+    await page.goto(`https://docs.google.com/document/u/${n}/`, { waitUntil: 'domcontentloaded' }).catch(() => {});
+    if (!/^https:\/\/docs\.google\.com\//.test(page.url())) continue;
+    const who = await page
+      .waitForSelector('a[aria-label*="@"]', { timeout: 8000 })
+      .then((el) => el.getAttribute('aria-label'))
+      .catch(() => '');
+    if (who?.includes(GOOGLE_ACCOUNT)) return n;
+  }
+  return null;
+}
+
+/** Docs addresses without a slot, sent to the suite's account. For the export read-back, which every suite builds by hand. */
+function inGoogleSlot(url) {
+  return googleSlot === null ? url : String(url).replace('docs.google.com/document/d/', `docs.google.com/document/u/${googleSlot}/d/`);
+}
+
 /** A fresh empty document per run — /create redirects to the new doc's URL. */
 export async function newDoc(page) {
-  await page.goto('https://docs.google.com/document/create', { waitUntil: 'domcontentloaded' });
-  await page.waitForURL(/\/document\/d\/[a-zA-Z0-9_-]+/, { timeout: 60_000 });
-  const id = page.url().match(/\/document\/d\/([a-zA-Z0-9_-]+)/)?.[1];
+  if (googleSlot === null) googleSlot = await findGoogleSlot(page);
+  if (googleSlot === null) throw new Error(`${GOOGLE_ACCOUNT} is not signed in — run: node scripts/docs-browser.mjs`);
+  await page.goto(`https://docs.google.com/document/u/${googleSlot}/create`, { waitUntil: 'domcontentloaded' });
+  await page.waitForURL(/\/document\/(?:u\/\d+\/)?d\/[a-zA-Z0-9_-]+/, { timeout: 60_000 });
+  const id = page.url().match(/\/document\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]+)/)?.[1];
   if (!id) throw new Error(`no document id in ${page.url()}`);
   await page.waitForSelector('.kix-appview-editor', { timeout: 60_000 });
   return id;
 }
 
 export async function isSignedIn(page) {
-  await page.goto('https://docs.google.com/', { waitUntil: 'domcontentloaded' });
-  return !/accounts\.google\.com|ServiceLogin/.test(page.url());
+  googleSlot = await findGoogleSlot(page);
+  return googleSlot !== null;
 }
 
 export function reporter() {

@@ -35,6 +35,6 @@ export function adapterFor(target: SavedTarget): InsertionAdapter {
     case 'contenteditable':
       return new ContentEditableAdapter(target);
     case 'gdocs':
-      return new GDocsAdapter();
+      return new GDocsAdapter(target.removedText, target.placementEdits);
   }
 }

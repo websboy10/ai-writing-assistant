@@ -42,9 +42,14 @@ export function PaywallView() {
     else setErr(res.error ?? 'Betalingssiden kunne ikke åbnes. Prøv igen.');
   }
 
+  // An invitation, or a month earned by inviting: the first payment is lower,
+  // and the buttons say the amount that will actually be charged.
+  const percent = s.referral?.enabled && s.referral.myDiscount ? s.referral.discountPercent : 0;
+  const first = Math.round((PRICE_DKK * (100 - percent)) / 100);
+
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-8 text-center">
-      <p className="awa-eyebrow">Prøveperioden er slut</p>
+      <p className="awa-eyebrow">{percent ? `Du har ${percent} % rabat på en måned` : 'Prøveperioden er slut'}</p>
       <h2 className="text-title leading-snug" style={SERIF}>
         Skriv videre for {PRICE_DKK} kr. om måneden.
       </h2>
@@ -60,26 +65,31 @@ export function PaywallView() {
           disabled={busy !== null}
           className="rounded-full bg-ink px-6 py-2.5 text-lead font-medium text-paper hover:opacity-85 disabled:opacity-40"
         >
-          {busy === 'checkout' ? 'Åbner…' : `Abonnement — ${PRICE_DKK} kr./md.`}
+          {busy === 'checkout'
+            ? 'Åbner…'
+            : percent
+              ? `Abonnement — ${first} kr. første måned`
+              : `Abonnement — ${PRICE_DKK} kr./md.`}
         </button>
         <button
           onClick={() => void open('pass')}
           disabled={busy !== null}
           className="rounded-full border border-ink px-6 py-2.5 text-lead font-medium text-ink hover:bg-ink hover:text-paper disabled:opacity-40"
         >
-          {busy === 'pass' ? 'Åbner…' : `Månedspas med MobilePay — ${PRICE_DKK} kr.`}
+          {busy === 'pass' ? 'Åbner…' : `Månedspas med MobilePay — ${percent ? first : PRICE_DKK} kr.`}
         </button>
         <p className="text-aside leading-relaxed text-graphite">
-          Abonnementet betales med kort og fornyes hver måned. Månedspasset betales én gang, giver adgang i{' '}
+          Abonnementet betales med kort og fornyes hver måned{percent ? ` til ${PRICE_DKK} kr.` : ''}. Månedspasset
+          betales én gang, giver adgang i{' '}
           {PASS_DAYS} dage og fornyes ikke af sig selv.
         </p>
       </div>
 
-      {/* The one free way past this screen, so it is offered on it. */}
+      {/* The one way to a lower price, so it is offered where the price is. */}
       {s.referral?.enabled && s.referral.canClaim && <RedeemCode />}
       {s.referral?.enabled && (
         <button onClick={() => s.set({ view: 'invite' })} className="text-ui underline underline-offset-2 hover:text-ink">
-          Inviter en ven og få {s.referral.rewardDays} dage gratis
+          Inviter en ven: I får begge {s.referral.discountPercent} % på en måned
         </button>
       )}
 

@@ -68,9 +68,14 @@ export interface InsertionAdapter {
    * Confirm the inserted-so-far text is still where the adapter believes it
    * is. Called before resume — the user may have edited the document while
    * paused (Pitfall 3), and writing at stale offsets corrupts their text.
-   * Absent on adapters that cannot observe the editor (Google Docs).
    */
   verifyIntact?(): InsertResult;
+  /**
+   * The editor writes wherever its caret stands, not at a place the adapter
+   * holds (Google Docs). A click anywhere in the page mid-run then sends the
+   * rest of the answer to the wrong spot, so the engine pauses on one.
+   */
+  readonly followsCaret?: boolean;
   /** The element that receives user keystrokes (for typing-race detection). */
   eventTarget(): EventTarget | null;
   /**

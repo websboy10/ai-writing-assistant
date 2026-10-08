@@ -115,6 +115,37 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
         'question alone says it. Never give a question a "below" fill at itself when its answers go into ' +
         'boxes. When the document has no place at all for a question, its one fill is "below" at the ' +
         'question itself.',
+      // Forms that ask for an answer INSIDE a line (2026-10-08). Measured on
+      // fourteen layouts (scripts/eval-forms.mjs): the five that failed were
+      // all of this kind — a blank drawn with underscores, lettered options,
+      // tick boxes, "Sandt / Falsk" — because the only places there were to
+      // name were a box, a new line and the end of a line. A person filling
+      // these in writes on the line or marks an option, so those are places
+      // now. Offered only to a client that can write there.
+      ...(req.replace
+        ? [
+            'Two more modes, for forms that are answered INSIDE a line or by picking from a list. ' +
+              'Read the layout first and decide what a person with a pen would do with it. ' +
+              '"replace": line [at] holds something the answer takes the place of, and "target" is that piece ' +
+              'copied VERBATIM from the line: a blank drawn with underscores, dots or dashes ("__________"), ' +
+              'in the middle of a sentence or after a label ("Navn: ________"); or alternatives written out ' +
+              'on the line itself to pick between ("Sandt / Falsk", "ja / nej", "☐ Ja ☐ Nej"), where the ' +
+              'target is all the alternatives together. A line with several blanks is ONE fill whose target ' +
+              'runs from the first blank to the last. A line that is nothing but a ruled line under a ' +
+              'question is that question\'s answer line: one "replace" fill whose target is the whole line; ' +
+              'further ruled lines under it are left alone. A sentence with a blank in it is itself the ' +
+              'question, with a "replace" fill at its own line. ' +
+              '"choose": the question is answered by marking one or more options that stand on their own ' +
+              'lines under it: lettered or numbered alternatives ("a) Oslo"), tick boxes ("☐ Æble"), a list ' +
+              'of words to pick from. ONE fill, with "options": the bracketed numbers of ALL its option ' +
+              'lines, and no "at". The options are never questions themselves and never get fills of their own. ' +
+              'A question with a "replace" or "choose" fill gets no "below" fill.',
+          ]
+        : [
+            'When a question is followed by its own options or alternatives on the lines under it, its ' +
+              '"below" place is the LAST of those lines, so the answer lands after the options and not ' +
+              'between the question and them.',
+          ]),
       // "Besvar markeringen": the whole document is sent, as for "Besvar
       // alle", so the model sees the box under the marked question exactly
       // as it would see it for the whole form. Until 2026-09-09 only the
@@ -130,7 +161,10 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
         : []),
       'Output ONLY a bare JSON array, no prose before or after it and no markdown code fence, of objects ' +
         'shaped { "paragraphIndex": number, "questionText": string, "fills": [ { "at": number, ' +
-        '"mode": "fill" | "below" | "inline", "task": string } ] }. "paragraphIndex" is the bracketed number ' +
+        (req.replace
+          ? '"mode": "fill" | "below" | "inline" | "replace" | "choose", "target": string, "options": number[], "task": string } ] }. '
+          : '"mode": "fill" | "below" | "inline", "task": string } ] }. ') +
+        '"paragraphIndex" is the bracketed number ' +
         'of the question. "questionText" must be quoted VERBATIM from that paragraph, never paraphrased. ' +
         'If the document contains no questions, output [].',
     ].join(' '),
@@ -155,8 +189,16 @@ export function detectionMessages(req: AutonomousRequest): ChatMessage[] {
 function fillLine(req: AutonomousRequest, f: DetectedFill): string {
   const place = req.paragraphs[f.at];
   const text = (place?.text ?? '').slice(0, 80);
+  if (f.mode === 'choose') {
+    const options = (f.options ?? []).map((o) => `[${o}] "${(req.paragraphs[o]?.text ?? '').slice(0, 80)}"`).join(', ');
+    return (
+      `PLACE ${f.at}: a choice between the options ${options}. For question [${f.paragraphIndex}] "${f.questionText}". ` +
+      'The answer is ONLY the bracketed number of the right option, or the numbers separated by commas when several are right.'
+    );
+  }
   let where: string;
-  if (f.mode === 'fill') where = `the empty place [${f.at}] ${shapeTag(place).trim()}`;
+  if (f.mode === 'replace') where = `in place of "${f.target}" in line [${f.at}] "${text}"`;
+  else if (f.mode === 'fill') where = `the empty place [${f.at}] ${shapeTag(place).trim()}`;
   else if (f.mode === 'inline') where = `the same line as [${f.at}], after "${text}"`;
   else if (f.at === f.paragraphIndex) where = `a new line under the question [${f.at}]`;
   else where = `a new line under [${f.at}] "${text}"`;
@@ -261,6 +303,11 @@ export function answerMessages(
       'On a new line under a cell that asks to be continued ("fortsæt herunder…"): continue the thought that ' +
       'was started, without repeating it, in a few sentences. ' +
       'On the same line after a label: a few words, no sentence. ' +
+      'In place of a piece of a line: ONLY what stands there afterwards, so the line reads right with it ' +
+      'put in. For a blank that is the missing word or words, with no full stop and nothing repeated from ' +
+      'the rest of the line; for a span of several blanks, the span with every blank filled and the words ' +
+      'between them kept; for alternatives written on the line, the right alternative alone, or the same ' +
+      'boxes with the right one ticked as ☒; for a whole ruled line, the answer itself. ' +
       'Into an empty numbered point: a numbered list "1. ", "2. "; into an empty bullet point: a bullet ' +
       'list "- "; a question that asks for several things gets exactly that many items, one per line. ' +
       'Under a question with room beneath it: paragraphs. ' +
