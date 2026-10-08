@@ -1215,5 +1215,94 @@
     "a": "Skriv tydeligt, at den kun må rette fejl og skal bevare dine ord, din tone og din længde. Bed om en liste over ændringerne, så du kan se præcis, hvad den har gjort."
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-et-opslag-til-sociale-medier-med-ai",
+  "questionId": "hvordan-skriver-man-et-opslag-til-sociale-medier-med-ai",
+  "topic": "arbejde",
+  "datePublished": "2026-10-08",
+  "h1": "Hvordan skriver man et opslag til sociale medier med AI?",
+  "metaTitle": "Skriv opslag til sociale medier med AI | ChatBot Skriv",
+  "metaDescription": "Sådan skriver du et opslag til LinkedIn, Facebook eller Instagram med AI: hvad du skal fortælle AI'en, hvordan du får varianter, og hvad du selv skal rette.",
+  "answer": "Fortæl AI'en hvilken platform opslaget er til, hvem det henvender sig til, hvad læseren skal gøre bagefter, og hvilken tone du vil have. Giv den de konkrete fakta, bed om tre korte varianter, og vælg den bedste. Ret til sidst ordvalg og fakta, så det lyder som dig. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Et godt opslag er kort, konkret og skrevet til én bestemt læser. Det er netop dér, mange går i stå: man ved godt, hvad man vil sige, men ikke hvordan man får det sagt på få linjer, så folk stopper op i deres feed. En AI kan hurtigt give dig et udkast og flere vinkler at vælge imellem.\n\nMen et opslag, der er skrevet af AI uden hjælp, bliver ofte pænt og intetsigende. Det fylder med store ord, for mange hashtags og en afslutning, der lyder som alle andres. Her er, hvordan du giver AI'en det, den skal bruge, og hvad du selv skal gøre bagefter, så opslaget lyder som dig eller din virksomhed.",
+  "examples": {
+   "heading": "Opslag, som AI er god til at lave et første udkast til",
+   "items": [
+    "Et LinkedIn-opslag om en ny medarbejder eller en ny stilling",
+    "Et Facebook-opslag om åbningstider, et arrangement eller et tilbud",
+    "En kort tekst til Instagram om et nyt produkt",
+    "Et opslag, der deler en artikel eller en rapport med en kort pointe",
+    "En tak til kunder, samarbejdspartnere eller kolleger efter et projekt"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Giv AI'en de rigtige oplysninger",
+    "body": "AI'en kan kun skrive om det, du fortæller den. Skriv derfor fire ting i din besked: hvilken platform opslaget er til, hvem det er skrevet til, hvad læseren skal gøre bagefter, og hvilken tone du vil have. Tilføj de konkrete fakta, som dato, sted, navn på produktet eller hvad der er sket.\n\nEt eksempel: \"Skriv et LinkedIn-opslag til små virksomheder om vores gratis webinar om bogføring den 3. november. Tonen skal være venlig og uformel. Højst fem linjer. Slut med en opfordring til at tilmelde sig via linket i kommentaren.\" Har du en pressemeddelelse, en produktbeskrivelse eller et referat, kan du give den til AI'en som grundlag i stedet for at skrive det hele igen."
+   },
+   {
+    "heading": "Bed om flere varianter, og vælg selv",
+    "body": "Den største fordel ved AI er, at du på få sekunder kan se tre eller fem forskellige bud. Bed om varianter med hver sin vinkel, for eksempel én der starter med et spørgsmål, én der starter med en konkret oplevelse, og én der går direkte til sagen.\n\nTænk på platformen. På LinkedIn virker en tydelig første linje, fordi resten af teksten ofte er skjult bag \"se mere\". På Instagram skal teksten passe til billedet, og på Facebook læses korte opslag oftest til ende. Bed AI'en holde opslaget kort. Det er lettere at tilføje en sætning end at skære en halv tekst væk. Vælg den variant, der ligger tættest på det, du selv ville have skrevet."
+   },
+   {
+    "heading": "Ret teksten, så den lyder som dig",
+    "body": "Læs opslaget højt, før du deler det. Fjern store ord som \"spændende rejse\" og \"vi er stolte af at kunne præsentere\", hvis du ikke selv ville sige dem. Skær ned på emojis og hashtags, hvis AI'en har brugt mange, og tjek at alle datoer, navne og tal er rigtige. AI kan finde på detaljer, der lyder troværdige.\n\nNævner du kolleger eller kunder, så sørg for, at de er indforstået med det. Til selve skrivningen kan du bruge en gratis chatbot som ChatGPT, Gemini eller Copilot. Skriver du mange opslag i browseren, kan ChatBot Skriv skrive teksten direkte ind i tekstfeltet, hvor du arbejder, og du kan vælge en kort længde, så opslaget ikke vokser."
+   }
+  ],
+  "table": {
+   "caption": "Hvad du skal fortælle AI'en, før den skriver",
+   "head": [
+    "Oplysning",
+    "Hvorfor den hjælper",
+    "Eksempel"
+   ],
+   "rows": [
+    [
+     "Platform",
+     "Længde og stil er forskellig fra sted til sted",
+     "LinkedIn, Facebook eller Instagram"
+    ],
+    [
+     "Målgruppe",
+     "Teksten rammer bedre, når den er skrevet til én læser",
+     "Små virksomheder, forældre, jobsøgende"
+    ],
+    [
+     "Formål",
+     "AI'en ved, hvad opslaget skal slutte med",
+     "Tilmelding, besøg i butikken, en kommentar"
+    ],
+    [
+     "Tone",
+     "Undgår at teksten bliver for stiv eller for smart",
+     "Venlig og uformel, saglig, humoristisk"
+    ],
+    [
+     "Fakta",
+     "AI'en finder ikke selv på dato, sted og navne",
+     "Dato, tidspunkt, link, produktnavn"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: en gratis chatbot som ChatGPT, Gemini eller Copilot, hvor du giver de rigtige oplysninger og selv retter teksten bagefter.",
+   "Bedst til dig, der skriver mange opslag og tekster i browseren: ChatBot Skriv, der skriver opslaget direkte ind, hvor du arbejder, og kan bruge vedhæftede filer som grundlag.",
+   "Bedst til dig, der vil planlægge og udgive opslag på flere kanaler fra ét sted: et planlægningsværktøj til sociale medier med indbygget AI. ChatBot Skriv planlægger og udgiver ikke opslag for dig."
+  ],
+  "faq": [
+   {
+    "q": "Må jeg bruge AI til at skrive opslag for min virksomhed?",
+    "a": "Ja, mange gør det. Det vigtige er, at du selv læser opslaget igennem, at fakta er rigtige, og at du står inde for det, der bliver delt i virksomhedens navn."
+   },
+   {
+    "q": "Hvor mange hashtags skal et opslag have?",
+    "a": "Der findes ikke ét rigtigt svar, og det er forskelligt fra platform til platform. Få og relevante hashtags er som regel bedre end mange. Bed AI'en om at foreslå nogle, og vælg selv dem, der passer."
+   },
+   {
+    "q": "Kan AI skrive opslag på dansk?",
+    "a": "Ja, de store chatbots skriver godt dansk, især hvis du skriver din besked på dansk. Læs alligevel teksten igennem, så ordvalg og vendinger lyder naturlige for dine læsere."
+   }
+  ]
  }
 ]
