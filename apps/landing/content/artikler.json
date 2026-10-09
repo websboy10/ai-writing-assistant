@@ -1304,5 +1304,94 @@
     "a": "Ja, de store chatbots skriver godt dansk, især hvis du skriver din besked på dansk. Læs alligevel teksten igennem, så ordvalg og vendinger lyder naturlige for dine læsere."
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-en-god-linkedin-profil-med-ai",
+  "questionId": "hvordan-skriver-man-en-god-linkedin-profil-med-ai",
+  "topic": "ansoegning",
+  "datePublished": "2026-10-09",
+  "h1": "Hvordan skriver man en god LinkedIn-profil med AI?",
+  "metaTitle": "Skriv en god LinkedIn-profil med AI | ChatBot Skriv",
+  "metaDescription": "Sådan bruger du AI til din LinkedIn-profil: hvad du skal give AI'en, hvordan du skriver overskrift, Om-tekst og erfaring, og hvad du altid selv skal rette.",
+  "answer": "Giv AI'en dit CV, et par jobopslag du gerne vil matche, og tre ting du er særligt god til. Bed den om forslag til overskrift, en kort Om-tekst i første person og resultater under hver stilling. Vælg det bedste, ret fakta og ordvalg, så det lyder som dig. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "En LinkedIn-profil bliver læst af rekrutterere, kommende kolleger og kunder, ofte på få sekunder. Overskriften og de første linjer i Om-teksten afgør, om de læser videre. Mange ved godt, hvad de kan, men har svært ved at skrive det kort og konkret om sig selv. Her kan AI give et godt første udkast og flere vinkler at vælge imellem.\n\nMen en profil skrevet af AI uden dine egne oplysninger bliver hurtigt generisk. Den fyldes med ord som \"passioneret\" og \"resultatorienteret\", som ikke siger noget om netop dig. Her er, hvad du skal give AI'en, hvordan du bruger den til hver del af profilen, og hvad du altid selv skal tjekke.",
+  "examples": {
+   "heading": "Dele af profilen, som AI kan hjælpe med",
+   "items": [
+    "Overskriften under dit navn, så den siger, hvad du arbejder med",
+    "Om-teksten, skrevet kort og i første person",
+    "Beskrivelser af dine stillinger med konkrete resultater",
+    "En liste over kompetencer, der passer til de job, du søger",
+    "En kort, venlig besked, når du vil forbinde dig med nogen"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Giv AI'en dine egne oplysninger",
+    "body": "AI'en kender ikke din karriere, så den skal have noget at arbejde med. Det letteste er at give den dit CV, enten som tekst eller som fil. Tilføj to eller tre jobopslag, der ligner det job, du gerne vil have næste gang, så AI'en kan se, hvilke ord og kompetencer der efterspørges.\n\nSkriv også kort, hvem profilen skal henvende sig til, og hvad du gerne vil kendes for. Et eksempel: \"Jeg er bogholder med ti års erfaring i små virksomheder. Jeg vil gerne findes af revisionsfirmaer. Skriv tre forslag til en overskrift på højst 120 tegn og en Om-tekst på fem til syv linjer i første person. Brug kun oplysninger fra mit CV.\""
+   },
+   {
+    "heading": "Overskrift, Om-tekst og erfaring",
+    "body": "Overskriften er det første, folk ser i søgninger. Bed AI'en om flere bud, der siger, hvad du laver og for hvem, i stedet for kun din jobtitel. Om-teksten skal kunne læses på et halvt minut. Bed om en kort version i første person, der starter med det vigtigste, og som slutter med, hvad du gerne vil kontaktes om.\n\nUnder hver stilling kan AI'en omskrive en liste over opgaver til få linjer om, hvad du har opnået. Den kan dog ikke vide, hvor mange kunder du hjalp, eller hvor meget tid du sparede. Bed den om at markere de steder, hvor du selv skal indsætte tal og eksempler, så den ikke gætter."
+   },
+   {
+    "heading": "Ret profilen, så den lyder som dig",
+    "body": "Læs teksten højt. Fjern ord, du aldrig ville sige selv, og skær gentagelser væk. Tjek at titler, datoer, firmanavne og uddannelser er helt rigtige, for AI kan finde på detaljer, der lyder troværdige. Det skal være en profil, du kan stå inde for til en samtale.\n\nTil selve skrivningen kan en gratis chatbot som ChatGPT, Gemini eller Copilot sagtens løse opgaven for de fleste, og LinkedIn har også selv AI-forslag til nogle brugere. Skriver du profilen, ansøgninger og beskeder i browseren, kan ChatBot Skriv bruge dit CV som vedhæftet fil og skrive teksten direkte ind i feltet, hvor du redigerer. Du kan vælge en kort længde, så Om-teksten ikke vokser."
+   }
+  ],
+  "table": {
+   "caption": "Hvad AI kan hjælpe med på din LinkedIn-profil",
+   "head": [
+    "Del af profilen",
+    "Hvad du giver AI'en",
+    "Hvad du selv skal tjekke"
+   ],
+   "rows": [
+    [
+     "Overskrift",
+     "Din rolle, dit fag og hvem du vil findes af",
+     "At den er kort og ikke kun en jobtitel"
+    ],
+    [
+     "Om-tekst",
+     "Dit CV og tre ting, du er god til",
+     "At den lyder som dig og er i første person"
+    ],
+    [
+     "Erfaring",
+     "Dine opgaver i hver stilling",
+     "At tal og resultater er dine egne og rigtige"
+    ],
+    [
+     "Kompetencer",
+     "Jobopslag, du gerne vil matche",
+     "At du faktisk kan det, der står"
+    ],
+    [
+     "Beskeder",
+     "Hvem modtageren er, og hvorfor du skriver",
+     "At beskeden er kort og personlig"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: en gratis chatbot som ChatGPT, Gemini eller Copilot, hvor du giver dit CV og et par jobopslag og selv retter teksten bagefter.",
+   "Bedst til dig, der skriver profil, ansøgninger og beskeder i browseren: ChatBot Skriv, der kan bruge dit CV som vedhæftet fil og skrive teksten direkte ind, hvor du arbejder.",
+   "Bedst til dig, der kun vil have små forslag inde i LinkedIn: de AI-funktioner, LinkedIn selv tilbyder, hvis de findes på din konto. Her er ChatBot Skriv ikke nødvendig."
+  ],
+  "faq": [
+   {
+    "q": "Kan folk se, at min LinkedIn-profil er skrevet med AI?",
+    "a": "Det kan de ofte, hvis teksten er generisk og fuld af store ord. Bruger du dine egne oplysninger og retter teksten, så den lyder som dig, er det svært at se forskel. Det vigtigste er, at alt, der står, er rigtigt."
+   },
+   {
+    "q": "Skal min LinkedIn-profil være på dansk eller engelsk?",
+    "a": "Det afhænger af, hvem du vil findes af. Søger du job i Danmark, er dansk ofte det naturlige valg. Arbejder du i en international branche, kan engelsk være bedre. AI kan hjælpe dig med at lave en version på begge sprog."
+   },
+   {
+    "q": "Hvor lang skal Om-teksten være?",
+    "a": "Der er ingen fast regel, men de første par linjer er de vigtigste, fordi resten ofte er skjult bag \"se mere\". En kort tekst på fem til ti linjer er nok for de fleste."
+   }
+  ]
  }
 ]
