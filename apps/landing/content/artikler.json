@@ -1393,5 +1393,94 @@
     "a": "Der er ingen fast regel, men de første par linjer er de vigtigste, fordi resten ofte er skjult bag \"se mere\". En kort tekst på fem til ti linjer er nok for de fleste."
    }
   ]
+ },
+ {
+  "slug": "hvad-koster-en-ai-skriveassistent",
+  "questionId": "hvad-koster-en-ai-skriveassistent",
+  "topic": "chrome",
+  "datePublished": "2026-10-10",
+  "h1": "Hvad koster en AI-skriveassistent?",
+  "metaTitle": "Hvad koster en AI-skriveassistent? | ChatBot Skriv",
+  "metaDescription": "Hvad koster en AI-skriveassistent? Gratis versioner, abonnement, AI i pakker du allerede betaler for, og hvordan du vælger uden at betale for meget",
+  "answer": "Det spænder fra gratis til et fast månedligt abonnement. ChatGPT, Gemini og Copilot har gratis versioner, der er nok til de fleste. Betalte planer giver flere beskeder, nyere modeller eller AI inde i Word og Google Docs. Specialværktøjer koster typisk et månedsbeløb. Tjek altid prisen hos udbyderen, før du vælger. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Spørger du, hvad en AI-skriveassistent koster, er det korte svar: det kommer an på, hvad du skal bruge den til. Mange kan klare sig gratis, mens andre får mere ud af at betale for et værktøj, der passer præcis til deres måde at arbejde på. Priserne ændrer sig ofte, så denne guide giver ikke tal, men et overblik over de typer af priser, du vil møde.\n\nDet vigtigste er ikke at finde det billigste værktøj, men at undgå at betale for noget, du ikke bruger. Her er de mest almindelige prismodeller, hvad du typisk får for pengene, og hvordan du vælger.",
+  "examples": {
+   "heading": "Typiske måder at betale for AI-skrivehjælp",
+   "items": [
+    "Gratis version af en chatbot med et begrænset antal beskeder",
+    "Månedligt abonnement på en chatbot med flere beskeder og nyere modeller",
+    "AI inkluderet i en kontorpakke, du måske allerede betaler for",
+    "Specialværktøj til fx stavning, mails eller SEO med fast månedspris",
+    "Betaling pr. brug, som mest bruges af udviklere og virksomheder"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Gratis er nok for mange",
+    "body": "ChatGPT, Gemini og Copilot har alle gratis versioner, der kan skrive udkast, omskrive tekst og rette sprog på dansk. Skriver du en mail eller et kort afsnit en gang imellem, er det ofte alt, hvad du behøver. Begrænsningen er typisk, at du kun kan sende et vist antal beskeder, eller at de nyeste modeller er forbeholdt betalende brugere.\n\nDe gratis versioner har også en praktisk ulempe: Du skriver i chatten og kopierer selv teksten over i dit dokument eller din mail. Det er fint ved korte tekster, men det bliver hurtigt besværligt, hvis du skriver meget hver dag, eller hvis du skal arbejde ud fra filer."
+   },
+   {
+    "heading": "Hvad du betaler for, når du betaler",
+    "body": "Et betalt abonnement på en chatbot giver typisk flere beskeder, adgang til de nyeste modeller og mulighed for at arbejde med større filer. Microsoft og Google tilbyder desuden AI inde i Word, Outlook, Gmail og Google Docs i visse betalte planer. Bruger din arbejdsplads allerede en af dem, kan det betale sig at spørge, om AI er inkluderet, før du køber noget selv.\n\nSpecialværktøjer har ofte en fast pris pr. måned og løser én opgave godt. Grammarly og DeepL Write fokuserer på sprog og formulering. Andre værktøjer er bygget til mails, SEO eller marketing. Her betaler du for, at værktøjet passer til netop din arbejdsgang."
+   },
+   {
+    "heading": "Sådan vælger du uden at betale for meget",
+    "body": "Start med den gratis version af en kendt chatbot, og se hvor langt den rækker. Mærker du, at du rammer grænsen for antal beskeder, eller at du bruger meget tid på at kopiere tekst frem og tilbage, er det et tegn på, at et betalt værktøj kan være pengene værd.\n\nKig efter abonnementer uden binding, så du kan stoppe, hvis du ikke bruger det. ChatBot Skriv har en fast månedspris uden binding og kan også betales som et månedspas med MobilePay, der ikke fornyes af sig selv. Den er til dig, der skriver meget i browseren og vil have teksten skrevet direkte ind i Google Docs, mails og webformularer. Se den aktuelle pris på forsiden."
+   }
+  ],
+  "table": {
+   "caption": "Typer af AI-skriveassistenter og hvad du betaler for",
+   "head": [
+    "Type",
+    "Eksempler",
+    "Hvad du typisk betaler for"
+   ],
+   "rows": [
+    [
+     "Gratis chatbot",
+     "ChatGPT, Gemini, Copilot",
+     "Intet, men med grænser for brug og modeller"
+    ],
+    [
+     "Betalt chatbot",
+     "ChatGPT, Gemini, Claude",
+     "Flere beskeder, nyere modeller og større filer"
+    ],
+    [
+     "AI i kontorpakken",
+     "Copilot i Microsoft 365, Gemini i Google Workspace",
+     "AI direkte i Word, Outlook, Gmail og Google Docs"
+    ],
+    [
+     "Sprogværktøj",
+     "Grammarly, DeepL Write",
+     "Retning og omformulering af tekst"
+    ],
+    [
+     "Chrome-udvidelse til skrivning",
+     "ChatBot Skriv",
+     "Tekst skrevet direkte ind, hvor du arbejder i browseren"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: den gratis version af ChatGPT, Gemini eller Copilot, hvis du kun skriver en gang imellem og ikke har noget imod at kopiere teksten selv.",
+   "Bedst til dig, hvis arbejdsplads allerede betaler for Microsoft 365 eller Google Workspace: undersøg om AI er inkluderet, før du køber noget ekstra. Her er ChatBot Skriv ofte ikke nødvendig.",
+   "Bedst til dig, der skriver meget i browseren og arbejder ud fra filer: ChatBot Skriv, der skriver teksten direkte ind i Google Docs, mails og webformularer uden binding."
+  ],
+  "faq": [
+   {
+    "q": "Findes der en gratis AI-skriveassistent på dansk?",
+    "a": "Ja. De gratis versioner af ChatGPT, Gemini og Copilot kan alle skrive og rette tekst på dansk. De har grænser for, hvor meget du kan bruge dem, men til almindelig brug er de ofte nok."
+   },
+   {
+    "q": "Skal jeg binde mig til et abonnement?",
+    "a": "Ikke nødvendigvis. Mange abonnementer kan opsiges hver måned. Læs betingelserne, før du køber, og vælg gerne et værktøj uden binding, så du kan stoppe, hvis du ikke får det brugt."
+   },
+   {
+    "q": "Hvorfor giver guiden ikke konkrete priser?",
+    "a": "Priserne på AI-værktøjer ændrer sig ofte og afhænger af land, plan og tilbud. Det sikreste er at tjekke prisen direkte hos udbyderen, lige før du vælger."
+   }
+  ]
  }
 ]
