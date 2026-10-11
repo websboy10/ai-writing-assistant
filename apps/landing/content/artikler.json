@@ -1482,5 +1482,84 @@
     "a": "Priserne på AI-værktøjer ændrer sig ofte og afhænger af land, plan og tilbud. Det sikreste er at tjekke prisen direkte hos udbyderen, lige før du vælger."
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-en-produktbeskrivelse-til-en-webshop-med-ai",
+  "questionId": "hvordan-skriver-man-en-produktbeskrivelse-til-en-webshop-med-ai",
+  "topic": "arbejde",
+  "datePublished": "2026-10-11",
+  "h1": "Hvordan skriver man en produktbeskrivelse til en webshop med AI?",
+  "metaTitle": "Produktbeskrivelse til webshop med AI | ChatBot Skriv",
+  "metaDescription": "Sådan skriver du en produktbeskrivelse til din webshop med AI: hvad du skal give den, en enkel opskrift, og hvordan du undgår tekster, der lyder ens og forkerte.",
+  "answer": "Giv AI'en de rigtige fakta om produktet, fx mål, materiale og hvem det er til, og bed om en kort tekst i din butiks tone. Bed om fordele frem for tomme ord, og tjek altid, at alt passer med produktet, før du udgiver. ChatGPT, Gemini og webshoppens egen AI kan alle hjælpe. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "En god produktbeskrivelse fortæller kunden, hvad varen er, hvad den kan, og hvorfor den passer til netop dem. Det lyder enkelt, men har du mange varer, bliver det hurtigt tungt at skrive en ny tekst til hver eneste. Her kan AI spare dig for meget tid, især til første udkast.\n\nAI'en ved dog intet om dit produkt, ud over hvad du fortæller den. Giver du den kun et produktnavn, gætter den, og så får du en pæn, men intetsigende tekst, der i værste fald lover noget, varen ikke kan. Denne guide viser, hvad du skal give AI'en, og hvordan du får en tekst, du kan stå inde for.",
+  "examples": {
+   "heading": "Det skal AI'en vide om produktet",
+   "items": [
+    "Hvad produktet er, og hvem det er til",
+    "Mål, materiale, farver og andre fakta fra leverandøren",
+    "De tre vigtigste fordele for kunden",
+    "Den tone din butik bruger, fx venlig, rolig eller faglig",
+    "Hvor lang teksten skal være, og om den skal have punkter"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Start med fakta, ikke med et produktnavn",
+    "body": "Den bedste produktbeskrivelse bygger på rigtige oplysninger. Saml det, du har: leverandørens datablad, mål, materiale, vaskeanvisning og det, kunderne typisk spørger om. Skriv det ind i din besked, eller vedhæft dokumentet, hvis dit værktøj kan læse filer.\n\nFortæl derefter, hvem produktet er til, og hvilket problem det løser. En vandflaske til børn skal beskrives anderledes end en til løbere. Jo mere konkret du er, jo mindre skal AI'en gætte. Et godt råd er at bede den om kun at bruge de oplysninger, du har givet, så den ikke selv finder på egenskaber, varen ikke har."
+   },
+   {
+    "heading": "En enkel opskrift på teksten",
+    "body": "Bed AI'en om en kort indledning, der siger, hvad produktet er, og hvem det passer til. Derefter et par sætninger om de vigtigste fordele, gerne skrevet som noget kunden får ud af det, ikke kun som tekniske egenskaber. Til sidst kan fakta som mål og materiale stå i en kort liste, så de er lette at finde.\n\nAngiv tonen og længden. Mange butikker har gavn af korte tekster, som kunden kan læse på få sekunder. Har du skrevet en tekst, du er glad for, så vis den som eksempel og bed AI'en om at skrive i samme stil. Det giver en mere ensartet butik."
+   },
+   {
+    "heading": "Tjek teksten, før den kommer ud",
+    "body": "Læs altid teksten igennem, før du udgiver den. Passer mål, materialer og løfter med produktet? AI'en kan godt skrive noget, der lyder rigtigt, men ikke er det, og en forkert oplysning kan give returvarer og utilfredse kunder. Fjern også overdrevne ord som \"unik\" og \"revolutionerende\", hvis du ikke kan stå inde for dem.\n\nUndgå at bruge den samme tekst til mange varer, og undgå at kopiere leverandørens tekst ordret. Begge dele gør din butik mindre personlig. Har du mange produkter, kan det betale sig at lave en fast besked, du genbruger, hvor du blot skifter fakta ud fra vare til vare."
+   }
+  ],
+  "table": {
+   "caption": "Måder at skrive produktbeskrivelser med AI",
+   "head": [
+    "Værktøj",
+    "Fordel",
+    "Vær opmærksom på"
+   ],
+   "rows": [
+    [
+     "Gratis chatbot som ChatGPT, Gemini eller Copilot",
+     "Godt til udkast og nemt at komme i gang med",
+     "Du kopierer selv teksten over i webshoppen"
+    ],
+    [
+     "Webshoppens indbyggede AI, fx i Shopify",
+     "Skriver direkte ved produktet",
+     "Findes ikke i alle systemer og planer"
+    ],
+    [
+     "ChatBot Skriv i Chrome",
+     "Skriver teksten direkte ind i feltet i browseren og kan læse leverandørens PDF, også scannet",
+     "Kræver et abonnement eller et månedspas"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste med få varer: den gratis version af ChatGPT, Gemini eller Copilot, hvor du kopierer den færdige tekst ind i webshoppen selv.",
+   "Bedst til dig, hvis dit webshopsystem allerede har AI indbygget: brug den først. Her er ChatBot Skriv ofte ikke nødvendig.",
+   "Bedst til dig, der skriver mange tekster ud fra datablade og PDF-filer: ChatBot Skriv, der læser filerne og skriver teksten direkte ind i feltet i browseren."
+  ],
+  "faq": [
+   {
+    "q": "Må jeg bruge leverandørens produkttekst?",
+    "a": "Det afhænger af aftalen med leverandøren. Under alle omstændigheder står din butik stærkere med sin egen tekst. Brug gerne leverandørens fakta som grundlag, og lad AI'en hjælpe dig med at skrive en ny tekst i din egen tone."
+   },
+   {
+    "q": "Hvor lang skal en produktbeskrivelse være?",
+    "a": "Der er ingen fast regel. Simple varer klarer sig ofte med et par korte afsnit og en liste med fakta. Dyrere eller mere tekniske varer kan have brug for mere forklaring. Skriv så kunden kan finde svaret hurtigt."
+   },
+   {
+    "q": "Kan AI skrive produktbeskrivelser på dansk?",
+    "a": "Ja. De store chatbots skriver godt dansk, men læs teksten igennem for ord og vendinger, der lyder oversat. Ret dem, så teksten lyder som resten af din butik."
+   }
+  ]
  }
 ]
