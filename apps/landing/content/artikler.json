@@ -1561,5 +1561,94 @@
     "a": "Ja. De store chatbots skriver godt dansk, men læs teksten igennem for ord og vendinger, der lyder oversat. Ret dem, så teksten lyder som resten af din butik."
    }
   ]
+ },
+ {
+  "slug": "hvad-er-det-bedste-alternativ-til-grammarly-paa-dansk",
+  "questionId": "hvad-er-det-bedste-alternativ-til-grammarly-paa-dansk",
+  "topic": "ai-dansk",
+  "datePublished": "2026-10-12",
+  "h1": "Hvad er det bedste alternativ til Grammarly på dansk?",
+  "metaTitle": "Alternativ til Grammarly på dansk | ChatBot Skriv",
+  "metaDescription": "Grammarly retter ikke dansk. Her er de bedste alternativer: stavekontrol i Word og Google Docs, LanguageTool, Grammateket og AI som ChatGPT, Gemini og Copilot.",
+  "answer": "Grammarly retter ikke dansk, så der findes ikke ét dansk Grammarly. For de fleste er det bedste alternativ stavekontrollen i Word eller Google Docs, suppleret med LanguageTool eller Grammateket, der retter dansk løbende. Skal sætninger strammes op, er ChatGPT, Gemini eller Copilot gode til at rette og forklare. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "Grammarly er populært til engelsk, fordi det understreger fejl, mens du skriver, og foreslår bedre formuleringer. Men dansk er ikke blandt de sprog, Grammarly retter. Skriver du på dansk, skal du derfor finde et andet værktøj, og det rigtige valg afhænger af, hvad du egentlig savner.\n\nVil du have fejl markeret i teksten, mens du skriver, er en løbende stavekontrol det nærmeste, du kommer. Vil du have hjælp til at gøre en tekst klarere, kortere eller mere venlig i tonen, er en AI-chatbot ofte bedre. Denne guide gennemgår de mest brugte muligheder på dansk, hvad de er gode til, og hvornår du kan nøjes med det, du allerede har.",
+  "examples": {
+   "heading": "Spørg dig selv, hvad du savner fra Grammarly",
+   "items": [
+    "Røde streger under stavefejl, mens du skriver",
+    "Hjælp til kommaer, nutids-r og ord som \"nogen\" og \"nogle\"",
+    "Forslag til kortere og klarere sætninger",
+    "En anden tone, fx mere venlig eller mere formel",
+    "Hjælp til at skrive et helt udkast ud fra noter eller en fil"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Løbende stavekontrol: det nærmeste et dansk Grammarly",
+    "body": "Word har dansk stave- og grammatikkontrol indbygget, og Google Docs stavekontrollerer på dansk, når dokumentets sprog står til dansk. Det er gratis, hvis du allerede bruger programmerne, og det fanger de fleste tastefejl.\n\nVil du have mere end det, understøtter LanguageTool dansk og kan køre som udvidelse i browseren, så den også tjekker tekst i mails og webformularer. Til Google Docs findes Grammateket, en dansk tilføjelse, der blandt andet ser på nutids-r, sammensatte ord og kommaer. Fælles for dem er, at de markerer fejl i teksten, mens du skriver. Til gengæld ser de mest på det enkelte ord og den enkelte sætning, ikke på om teksten som helhed er klar."
+   },
+   {
+    "heading": "AI-chatbots: når teksten skal være bedre, ikke kun korrekt",
+    "body": "Grammarly gør mere end at rette stavning. Det foreslår også kortere sætninger og en anden tone. Den del klarer en AI-chatbot som ChatGPT, Gemini eller Copilot godt på dansk. Sæt teksten ind, og skriv fx: \"Ret fejl og gør teksten lidt kortere. Bevar min tone, og vis mig til sidst en liste over, hvad du har ændret.\"\n\nForskellen er, at en chatbot ikke understreger fejl, mens du skriver. Du skal selv kopiere teksten ind og den rettede version tilbage. Den kan også ændre mere, end du bad om, så læs efter, især navne, tal og fagord. De gratis udgaver er rigeligt til de fleste, der retter en tekst en gang imellem."
+   },
+   {
+    "heading": "Når du skriver meget i browseren",
+    "body": "Skriver du mange tekster i Google Docs, mails eller webformularer, kan det blive tungt at kopiere frem og tilbage mellem en chatbot og dit dokument. Her er ChatBot Skriv et alternativ. Det er en Chrome-udvidelse med en assistent i kanten af siden, hvor du beder om at få teksten rettet, forkortet eller skrevet om, og så skriver den resultatet direkte ind, hvor din markør står.\n\nDu kan også vedhæfte filer, fx noter eller en scannet PDF, og få et udkast skrevet ud fra dem. ChatBot Skriv understreger dog ikke fejl, mens du skriver, som Grammarly gør. Savner du netop det, er en løbende stavekontrol det rigtige valg, og de to kan sagtens bruges sammen."
+   }
+  ],
+  "table": {
+   "caption": "Alternativer til Grammarly på dansk",
+   "head": [
+    "Værktøj",
+    "Godt til",
+    "Vær opmærksom på"
+   ],
+   "rows": [
+    [
+     "Stavekontrol i Word eller Google Docs",
+     "Tastefejl og stavning, mens du skriver",
+     "Fanger sjældent rigtige ord brugt forkert"
+    ],
+    [
+     "LanguageTool",
+     "Løbende kontrol af dansk, også i browseren",
+     "Ser mest på den enkelte sætning"
+    ],
+    [
+     "Grammateket i Google Docs",
+     "Danske fejl som nutids-r, sammensatte ord og kommaer",
+     "Virker kun i Google Docs"
+    ],
+    [
+     "ChatGPT, Gemini eller Copilot",
+     "Klarere sætninger, tone og forklaring af fejl",
+     "Du kopierer selv frem og tilbage, og den kan ændre for meget"
+    ],
+    [
+     "ChatBot Skriv i Chrome",
+     "Retter og skriver teksten direkte ind i Google Docs, mails og formularer",
+     "Understreger ikke fejl undervejs"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: stavekontrollen i Word eller Google Docs, suppleret med en gratis chatbot, når en sætning skal strammes op.",
+   "Bedst til dig, der vil have fejl markeret løbende som i Grammarly: LanguageTool eller Grammateket. Her er ChatBot Skriv ikke det rigtige valg.",
+   "Bedst til dig, der skriver meget i Google Docs, mail og webformularer: ChatBot Skriv, der retter teksten og skriver den direkte ind, hvor du arbejder."
+  ],
+  "faq": [
+   {
+    "q": "Kan Grammarly rette dansk?",
+    "a": "Nej. Dansk er ikke blandt de sprog, Grammarly retter. Til dansk kan du bruge stavekontrollen i Word eller Google Docs, LanguageTool, Grammateket eller en AI-chatbot."
+   },
+   {
+    "q": "Findes der et gratis alternativ til Grammarly på dansk?",
+    "a": "Ja. Stavekontrollen i Word og Google Docs er med, når du bruger programmerne, og LanguageTool og de store chatbots har gratis udgaver. For de fleste er det nok til at fange fejl og stramme en tekst op."
+   },
+   {
+    "q": "Er ChatGPT bedre end en stavekontrol?",
+    "a": "De er gode til hver sin ting. En stavekontrol markerer fejl, mens du skriver. ChatGPT er bedre til at gøre sætninger klarere og forklare, hvorfor noget er forkert, men du skal selv læse efter, hvad den har ændret."
+   }
+  ]
  }
 ]
