@@ -1650,5 +1650,89 @@
     "a": "De er gode til hver sin ting. En stavekontrol markerer fejl, mens du skriver. ChatGPT er bedre til at gøre sætninger klarere og forklare, hvorfor noget er forkert, men du skal selv læse efter, hvad den har ændret."
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-en-god-mail-med-ai",
+  "questionId": "hvordan-skriver-man-en-god-mail-med-ai",
+  "topic": "mail",
+  "datePublished": "2026-10-13",
+  "h1": "Hvordan skriver man en god mail med AI?",
+  "metaTitle": "Sådan skriver du en god mail med AI | ChatBot Skriv",
+  "metaDescription": "Sådan får du AI til at skrive en god mail: fortæl hvem den er til, hvad du vil opnå og hvilken tone du ønsker. Med eksempler på ChatGPT, Gemini og Copilot.",
+  "answer": "Fortæl AI'en hvem mailen er til, hvad du vil opnå, hvilken tone du ønsker, og hvor lang den må være. Sæt gerne den mail, du svarer på, ind som baggrund. Læs altid udkastet igennem, ret navne, datoer og løfter, og gør det til dit eget, før du sender. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "AI er god til mails, fordi de fleste mails følger et kendt mønster: en hilsen, et ærinde, et ønske om svar og en venlig afslutning. Det svære er sjældent selve sætningerne, men at få sagt det rigtige i den rigtige tone uden at bruge et kvarter på det. Her kan en AI-assistent som ChatGPT, Gemini eller Copilot spare dig for meget tid.\n\nMen en AI ved ikke, hvem du skriver til, hvad der allerede er aftalt, eller hvor formel tonen plejer at være. Giver du den for lidt at gå ud fra, får du en pæn, men upersonlig mail, som modtageren straks kan se er skrevet af en maskine. Denne guide viser, hvad du skal fortælle AI'en, og hvilke værktøjer der passer til hvilke situationer.",
+  "examples": {
+   "heading": "Fem oplysninger, der gør AI-mailen bedre",
+   "items": [
+    "Hvem modtageren er, og hvor godt I kender hinanden",
+    "Hvad mailen skal opnå, fx et møde, et svar eller en aftale",
+    "Tonen, fx venlig og uformel eller kort og formel",
+    "Hvor lang mailen må være",
+    "Den mail eller de noter, du svarer ud fra"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Skriv en prompt, der ligner en opgave til en kollega",
+    "body": "Forestil dig, at du bad en kollega skrive mailen for dig. Du ville fortælle, hvem den skal til, hvad sagen er, og hvad du gerne vil have ud af den. Det samme virker over for en AI. Skriv fx: \"Skriv en kort og venlig mail til en kunde, der har spurgt til levering. Fortæl, at varen sendes på fredag, og undskyld kort for ventetiden. Du-form, ingen lange indledninger.\"\n\nSvarer du på en mail, så sæt den ind under din prompt. Så kan AI'en svare på det, der faktisk står, og du undgår, at den finder på detaljer. Bed gerne om to versioner med forskellig tone, og vælg den, der lyder mest som dig."
+   },
+   {
+    "heading": "Læs efter, og gør mailen til din egen",
+    "body": "Et AI-udkast er et godt udgangspunkt, men det er dig, der står som afsender. Tjek altid navne, datoer, priser og løfter, for en AI kan finde på en detalje, der lyder rigtig, men ikke er det. Se også efter vendinger, du aldrig selv ville bruge, fx overdrevent høflige indledninger eller for mange udråbstegn.\n\nKort er som regel bedre. Bed AI'en om at fjerne det, der ikke er nødvendigt, hvis udkastet er for langt. Og vær varsom med personoplysninger: sæt ikke cpr-numre, helbredsoplysninger eller andet følsomt ind i en gratis chatbot uden at vide, hvordan dine data bruges. Brug hellere initialer eller lad detaljen stå åben, og udfyld den selv bagefter."
+   },
+   {
+    "heading": "Vælg et værktøj, der passer til, hvor du skriver",
+    "body": "Skriver du en mail en gang imellem, er en gratis chatbot som ChatGPT, Gemini eller Copilot rigeligt. Du skriver din prompt, kopierer svaret og sætter det ind i din mail. Bruger du Gmail med Gemini eller Outlook med Copilot, kan du få hjælp direkte i mailprogrammet, hvis din konto har adgang til det.\n\nSkriver du mange mails og andre tekster i browseren, kan det blive tungt at kopiere frem og tilbage. Her er ChatBot Skriv et alternativ. Det er en Chrome-udvidelse med en assistent i kanten af siden, der skriver mailen direkte ind, hvor din markør står, enten med det samme eller i et roligt skrivetempo, som du kan sætte på pause og stoppe. Du kan også vedhæfte filer, fx et referat, og vælge kort, middel eller lang."
+   }
+  ],
+  "table": {
+   "caption": "Værktøjer til at skrive mails med AI",
+   "head": [
+    "Værktøj",
+    "Godt til",
+    "Vær opmærksom på"
+   ],
+   "rows": [
+    [
+     "ChatGPT, Gemini eller Copilot i browseren",
+     "Gratis hjælp til en mail en gang imellem",
+     "Du kopierer selv teksten over i din mail"
+    ],
+    [
+     "Gemini i Gmail",
+     "Udkast direkte i Gmail",
+     "Kræver, at din konto har adgang til funktionen"
+    ],
+    [
+     "Copilot i Outlook",
+     "Udkast og svar direkte i Outlook",
+     "Kræver, at din konto har adgang til funktionen"
+    ],
+    [
+     "ChatBot Skriv i Chrome",
+     "Skriver mailen direkte ind i webmail, Google Docs og formularer, også ud fra vedhæftede filer",
+     "Virker i Chrome, ikke i et mailprogram på computeren"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: en gratis chatbot som ChatGPT, Gemini eller Copilot, når du skriver en vigtig mail en gang imellem.",
+   "Bedst til dig, der skriver i Outlook på computeren eller kun i Gmail: den AI, der er bygget ind i dit mailprogram. Her er ChatBot Skriv ikke det rigtige valg.",
+   "Bedst til dig, der skriver mange mails og tekster i browseren: ChatBot Skriv, der skriver mailen direkte ind, hvor du arbejder."
+  ],
+  "faq": [
+   {
+    "q": "Kan modtageren se, at mailen er skrevet med AI?",
+    "a": "Ikke ud fra selve mailen, men en upersonlig tone og standardvendinger kan afsløre den. Giv AI'en konkrete oplysninger, og ret udkastet til, så det lyder som dig."
+   },
+   {
+    "q": "Må jeg sætte en kundes mail ind i ChatGPT?",
+    "a": "Det afhænger af indholdet og din arbejdsplads' regler. Fjern navne og følsomme oplysninger, hvis du er i tvivl, og tjek hvordan værktøjet bruger dine data."
+   },
+   {
+    "q": "Hvad er den bedste prompt til en mail?",
+    "a": "Nævn modtageren, formålet, tonen og længden, og sæt den mail ind, du svarer på. Fx: \"Skriv et kort, venligt svar til en kunde, der spørger til levering. Varen sendes fredag.\""
+   }
+  ]
  }
 ]
