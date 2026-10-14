@@ -1734,5 +1734,89 @@
     "a": "Nævn modtageren, formålet, tonen og længden, og sæt den mail ind, du svarer på. Fx: \"Skriv et kort, venligt svar til en kunde, der spørger til levering. Varen sendes fredag.\""
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-en-anmeldelse-af-en-medarbejder",
+  "questionId": "hvordan-skriver-man-en-anmeldelse-af-en-medarbejder",
+  "topic": "arbejde",
+  "datePublished": "2026-10-14",
+  "h1": "Hvordan skriver man en anmeldelse af en medarbejder?",
+  "metaTitle": "Sådan skriver du en medarbejderanmeldelse | ChatBot Skriv",
+  "metaDescription": "Sådan skriver du en fair og konkret anmeldelse af en medarbejder: byg den på eksempler, beskriv adfærd og resultater, og aftal næste skridt. Også med AI.",
+  "answer": "Byg anmeldelsen på konkrete eksempler fra perioden, ikke på et samlet indtryk. Beskriv hvad medarbejderen har gjort og opnået, hvad der går godt, og hvad der kan blive bedre, og slut med klare aftaler for næste periode. AI kan skrive udkastet ud fra dine noter, men vurderingen skal være din. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "En anmeldelse af en medarbejder, også kaldet en medarbejdervurdering eller en opsummering efter en MUS-samtale, er en af de tekster, der betyder mest for den, der læser den. Den bliver læst grundigt, gemt og ofte taget frem igen ved næste samtale, ved lønforhandling eller hvis der opstår uenighed. Derfor skal den være fair, konkret og til at genkende for medarbejderen.\n\nMange ledere og HR-folk skriver mange af den slags tekster på kort tid, og det er her, AI kan hjælpe. En AI-assistent som ChatGPT, Gemini, Copilot eller ChatBot Skriv kan forme dine noter til et sammenhængende udkast. Men den kender ikke medarbejderen. Denne guide viser, hvordan du bygger anmeldelsen op, og hvordan du bruger AI uden at miste det personlige og det præcise.",
+  "examples": {
+   "heading": "Fem ting, en god medarbejderanmeldelse indeholder",
+   "items": [
+    "Et kort overblik over perioden og de vigtigste opgaver",
+    "Konkrete eksempler på det, der er gået godt",
+    "Et eller to områder at udvikle, beskrevet roligt og sagligt",
+    "Status på de mål, I aftalte sidst",
+    "Klare aftaler og mål for den næste periode"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Byg anmeldelsen på eksempler, ikke på indtryk",
+    "body": "Den mest almindelige fejl er en anmeldelse fuld af ord som \"engageret\", \"dygtig\" og \"god kollega\", der kunne passe på hvem som helst. Skriv i stedet, hvad medarbejderen konkret har gjort. Fx: \"Overtog kundeprojektet i marts og fik det leveret til tiden, selvom to kolleger var syge.\"\n\nSaml dine noter løbende gennem perioden, så du ikke kun husker de seneste uger. Beskriv adfærd og resultater frem for personlighed. \"Kommer ofte for sent til morgenmødet\" er til at handle på, mens \"virker uengageret\" mest skaber forsvar. Brug samme struktur for alle medarbejdere, så vurderingerne bliver sammenlignelige og retfærdige."
+   },
+   {
+    "heading": "Sådan skriver du om det, der skal blive bedre",
+    "body": "Kritikken er den del, de fleste ledere synes er sværest at formulere. Hold den saglig og fremadrettet: beskriv situationen, hvad der skete, og hvad du gerne vil se fremover. Fx: \"I to af de seneste projekter kom statusrapporterne senere end aftalt. Fremover vil jeg gerne have dem hver fredag.\"\n\nNævn hellere et eller to vigtige punkter end en lang liste. Sørg for, at intet i anmeldelsen kommer som en overraskelse, for det svære bør være talt igennem i samtalen først. Slut gerne afsnittet med, hvilken støtte medarbejderen kan få, fx sparring, et kursus eller færre opgaver i en periode."
+   },
+   {
+    "heading": "Brug AI til udkastet, men behold vurderingen selv",
+    "body": "AI er god til at forvandle stikord og samtalenoter til et sammenhængende udkast i en venlig og professionel tone. Giv den dine noter, de aftalte mål og den tone, du ønsker, og bed om et afsnit ad gangen. Læs derefter efter: passer hvert udsagn, og vil medarbejderen genkende det?\n\nPersondata kræver omtanke. Brug initialer frem for fulde navne i en gratis chatbot, og sæt aldrig helbredsoplysninger eller andet følsomt ind uden at kende værktøjets vilkår og din arbejdsplads' regler. Skriver du i Google Docs, kan ChatBot Skriv læse dine vedhæftede noter, også scannede, og skrive udkastet direkte ind i dokumentet i et tempo, du kan læse med på og stoppe."
+   }
+  ],
+  "table": {
+   "caption": "Værktøjer til at skrive en medarbejderanmeldelse med AI",
+   "head": [
+    "Værktøj",
+    "Godt til",
+    "Vær opmærksom på"
+   ],
+   "rows": [
+    [
+     "ChatGPT, Gemini eller Copilot i browseren",
+     "Gratis hjælp til at formulere et enkelt afsnit eller en hel anmeldelse",
+     "Du kopierer selv teksten over i dokumentet, og du skal tænke over, hvilke data du sætter ind"
+    ],
+    [
+     "Gemini i Google Docs",
+     "Udkast direkte i Google Docs",
+     "Kræver, at din konto har adgang til funktionen"
+    ],
+    [
+     "Copilot i Word",
+     "Udkast direkte i Word",
+     "Kræver, at din konto har adgang til funktionen"
+    ],
+    [
+     "ChatBot Skriv i Chrome",
+     "Skriver udkastet direkte ind i Google Docs og webformularer ud fra vedhæftede noter, også scannede",
+     "Virker i Chrome, ikke i Word på computeren"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: en gratis chatbot som ChatGPT, Gemini eller Copilot, når du skriver en enkelt anmeldelse og selv kopierer teksten over.",
+   "Bedst til dig, der skriver anmeldelserne i Word eller i et HR-system med indbygget AI: det værktøj, der allerede er en del af systemet. Her er ChatBot Skriv ikke det rigtige valg.",
+   "Bedst til dig, der skriver mange anmeldelser i Google Docs eller webformularer ud fra noter: ChatBot Skriv, der skriver udkastet direkte ind, hvor du arbejder."
+  ],
+  "faq": [
+   {
+    "q": "Hvor lang skal en anmeldelse af en medarbejder være?",
+    "a": "Så kort, at den bliver læst, og så lang, at den er konkret. For de fleste er en side nok: et overblik, nogle eksempler, et eller to udviklingspunkter og aftaler for næste periode."
+   },
+   {
+    "q": "Må jeg bruge ChatGPT til at skrive en medarbejdervurdering?",
+    "a": "Det afhænger af din arbejdsplads' regler. Brug initialer frem for navne, udelad følsomme oplysninger, og læs altid udkastet igennem, så vurderingen er din egen."
+   },
+   {
+    "q": "Skal medarbejderen se anmeldelsen?",
+    "a": "Ja, som regel. Det er god praksis, at medarbejderen læser den og kan kommentere, og at intet i den kommer bag på vedkommende efter samtalen."
+   }
+  ]
  }
 ]
