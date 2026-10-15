@@ -1818,5 +1818,84 @@
     "a": "Ja, som regel. Det er god praksis, at medarbejderen læser den og kan kommentere, og at intet i den kommer bag på vedkommende efter samtalen."
    }
   ]
+ },
+ {
+  "slug": "hvad-er-en-god-prompt-til-at-skrive-en-tekst",
+  "questionId": "hvad-er-en-god-prompt-til-at-skrive-en-tekst",
+  "topic": "ai-dansk",
+  "datePublished": "2026-10-15",
+  "h1": "Hvad er en god prompt til at skrive en tekst?",
+  "metaTitle": "Sådan skriver du en god prompt til AI | ChatBot Skriv",
+  "metaDescription": "En god prompt fortæller AI'en formål, læser, tone, længde og fakta. Se en enkel skabelon og eksempler, så du får en bedre tekst fra ChatGPT eller andre.",
+  "answer": "En god prompt fortæller AI'en fem ting: hvad teksten skal bruges til, hvem der skal læse den, hvilken tone den skal have, hvor lang den skal være, og hvilke fakta den skal bygge på. Jo mere konkret du er, jo mindre skal du rette bagefter. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "En prompt er den besked, du giver en AI, når du beder den om at skrive noget. Skriver du bare \"skriv en mail til min chef\", får du en tekst, der kunne være sendt af hvem som helst. Skriver du, hvad mailen handler om, hvad du vil opnå, og hvordan den skal lyde, får du noget, der ligner dig og kan bruges næsten med det samme.\n\nDet gælder uanset om du bruger ChatGPT, Gemini, Copilot, Claude eller ChatBot Skriv. Værktøjerne er forskellige, men de har det til fælles, at de kun ved det, du fortæller dem. Denne guide giver dig en enkel skabelon, nogle eksempler og et par vaner, der gør teksterne bedre, også på dansk.",
+  "examples": {
+   "heading": "Fem ting, en god prompt til en tekst indeholder",
+   "items": [
+    "Formålet: hvad teksten skal bruges til, og hvad den skal opnå",
+    "Læseren: hvem der skal læse den, og hvad de allerede ved",
+    "Tonen: fx venlig og uformel, kort og saglig eller varm og personlig",
+    "Længden: fx fem linjer, tre afsnit eller en halv side",
+    "Fakta: de navne, datoer, tal og pointer, teksten skal bygge på"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "En enkel skabelon, du kan genbruge",
+    "body": "Du behøver ikke kunne nogen særlige tricks. Skriv prompten, som du ville forklare opgaven til en ny kollega. En skabelon, der virker til de fleste tekster, ser sådan ud: \"Skriv en [teksttype] til [læser]. Formålet er at [mål]. Tonen skal være [tone]. Længden skal være [længde]. Brug disse oplysninger: [fakta].\"\n\nEt eksempel: \"Skriv en mail til vores kunde Jens, som har ventet to uger på en levering. Formålet er at undskylde og give en ny dato. Tonen skal være venlig og ærlig, uden at lyde som en standardmail. Højst otte linjer. Den nye leveringsdato er fredag i næste uge.\" Den prompt giver et langt bedre udkast end \"skriv en undskyldning til en kunde\"."
+   },
+   {
+    "heading": "Giv AI'en dit eget materiale",
+    "body": "Den største forskel på en flad og en brugbar tekst er det materiale, AI'en får at arbejde med. Sæt dine noter, et tidligere brev, en stillingsannonce eller et referat ind i samtalen, og bed om at bygge teksten på det. Så skal AI'en ikke gætte, og risikoen for opdigtede detaljer bliver mindre.\n\nVil du have, at teksten lyder som dig, så vis den et eksempel på noget, du selv har skrevet, og bed den skrive i samme stil. Tænk dog over, hvad du deler: udelad følsomme oplysninger om andre, og følg din arbejdsplads' regler. I ChatBot Skriv kan du vedhæfte PDF, Word og billeder, også scannede dokumenter, og vælge kort, middel eller lang, før du sender."
+   },
+   {
+    "heading": "Ret i samtalen i stedet for at starte forfra",
+    "body": "Det første svar er sjældent det endelige. I stedet for at skrive en ny prompt fra bunden kan du bede om konkrete ændringer: \"Gør den kortere\", \"Fjern de første to sætninger\", \"Skriv mindre formelt\" eller \"Brug du i stedet for De\". Små, præcise rettelser virker bedre end at sige \"gør den bedre\".\n\nLæs altid teksten igennem, før du bruger den. Tjek fakta, navne og datoer, og ret de formuleringer, der ikke lyder som dig. Bed gerne AI'en om at stille dig spørgsmål, hvis noget mangler, fx: \"Spørg mig om det, du har brug for at vide, før du skriver.\" Så får du ofte et bedre udkast i første forsøg."
+   }
+  ],
+  "table": {
+   "caption": "Svag og stærk prompt side om side",
+   "head": [
+    "Opgave",
+    "Svag prompt",
+    "Stærk prompt"
+   ],
+   "rows": [
+    [
+     "Mail til en kunde",
+     "Skriv et svar til en sur kunde",
+     "Skriv et kort, venligt svar til en kunde, hvis pakke er forsinket. Undskyld, giv den nye dato og tilbyd fri fragt næste gang. Højst seks linjer."
+    ],
+    [
+     "Opslag på LinkedIn",
+     "Skriv et opslag om vores nye kollega",
+     "Skriv et opslag på LinkedIn, der byder vores nye projektleder Sara velkommen. Nævn hendes erfaring med byggeprojekter. Personlig tone, tre korte afsnit."
+    ],
+    [
+     "Afsnit i en rapport",
+     "Skriv om resultaterne",
+     "Skriv et afsnit til ledelsen ud fra de vedhæftede noter. Fremhæv de tre vigtigste resultater og ét problem. Saglig tone, cirka en halv side."
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: en gratis chatbot som ChatGPT, Gemini eller Copilot, når du vil øve dig i at skrive gode prompts og selv kopierer teksten over.",
+   "Bedst til dig, der kun skriver i Word eller i et system med indbygget AI: det værktøj, du allerede har. Her er ChatBot Skriv ikke det rigtige valg.",
+   "Bedst til dig, der skriver i Google Docs, mails og webformularer ud fra egne filer: ChatBot Skriv, hvor du vælger længden, vedhæfter materialet og får teksten skrevet direkte ind."
+  ],
+  "faq": [
+   {
+    "q": "Skal jeg skrive prompten på dansk eller engelsk?",
+    "a": "Skriv den på det sprog, teksten skal være på. Vil du have en dansk tekst, så skriv prompten på dansk, og bed eventuelt om naturligt, mundret dansk."
+   },
+   {
+    "q": "Hvor lang skal en god prompt være?",
+    "a": "Så lang, at den indeholder formål, læser, tone, længde og fakta. For de fleste tekster er det nogle få sætninger. Mere materiale hjælper, så længe det er relevant."
+   },
+   {
+    "q": "Hvorfor lyder AI-teksten ikke som mig?",
+    "a": "Fordi AI'en ikke kender din stil. Giv den et eksempel på noget, du selv har skrevet, bed den skrive i samme tone, og ret de sætninger, du aldrig selv ville bruge."
+   }
+  ]
  }
 ]
