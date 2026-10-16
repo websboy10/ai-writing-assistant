@@ -1897,5 +1897,84 @@
     "a": "Fordi AI'en ikke kender din stil. Giv den et eksempel på noget, du selv har skrevet, bed den skrive i samme tone, og ret de sætninger, du aldrig selv ville bruge."
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-en-opsigelse",
+  "questionId": "hvordan-skriver-man-en-opsigelse",
+  "topic": "mail",
+  "datePublished": "2026-10-16",
+  "h1": "Hvordan skriver man en opsigelse?",
+  "metaTitle": "Sådan skriver du en opsigelse af dit job | ChatBot Skriv",
+  "metaDescription": "En god opsigelse er kort, skriftlig og klar: hvem, hvad, fra hvornår og sidste arbejdsdag. Se hvad den skal indeholde, en skabelon og hvordan AI kan hjælpe.",
+  "answer": "Skriv opsigelsen kort og sagligt: din chefs navn, en tydelig sætning om at du opsiger din stilling, datoen for hvornår den gælder fra, din forventede sidste arbejdsdag og en kort tak. Begrundelse er ikke nødvendig. Send den skriftligt, fx på mail, og bed om en bekræftelse. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "At sige op er ofte sværere at skrive end man tror. Man vil gerne være ordentlig over for chefen og kollegerne, men man vil også være helt klar, så der ikke opstår tvivl om, hvornår ansættelsen slutter. Den gode nyhed er, at en opsigelse ikke behøver at være lang. Det vigtigste er, at den er skriftlig, tydelig og har de rigtige datoer.\n\nDenne guide viser, hvad en opsigelse skal indeholde, hvordan du finder dit opsigelsesvarsel, og hvordan du kan bruge AI som ChatGPT, Gemini, Copilot eller ChatBot Skriv til at få et udkast hurtigt. Det handler om opsigelse af dit eget job, men rådene om at være kort og skriftlig gælder også, når du opsiger et abonnement eller en lejekontrakt.",
+  "examples": {
+   "heading": "Fem ting, en opsigelse bør indeholde",
+   "items": [
+    "Modtager: din nærmeste leder eller HR, med navn",
+    "En klar sætning: \"Hermed opsiger jeg min stilling som ...\"",
+    "Datoen for opsigelsen og hvornår ansættelsen slutter",
+    "Din forventede sidste arbejdsdag og eventuelle spørgsmål om ferie",
+    "En kort, venlig tak og dit navn"
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Hold den kort, klar og skriftlig",
+    "body": "En opsigelse er et praktisk dokument, ikke et farvel-brev. Tre til seks linjer er nok. Skriv tydeligt, at du opsiger din stilling, og hvornår ansættelsen ophører, så der ikke er plads til fortolkning. Du behøver ikke forklare hvorfor. Vil du gerne give en grund, så hold den positiv og kort, fx at du har fået en ny stilling.\n\nSend opsigelsen skriftligt, typisk som mail eller et underskrevet brev, og bed om en kort bekræftelse på, at den er modtaget. Så har både du og arbejdspladsen dokumentation for datoen. Har du talt med din chef først, hvilket ofte er en god idé, kan du skrive, at opsigelsen bekræfter jeres samtale."
+   },
+   {
+    "heading": "Find dit opsigelsesvarsel, før du skriver",
+    "body": "Datoen i opsigelsen afhænger af dit opsigelsesvarsel, og det står i din ansættelseskontrakt. Er du funktionær, gælder funktionærloven, og er du dækket af en overenskomst, kan den have sine egne regler. Varslet regnes ofte til udgangen af en måned, så den dag, du sender opsigelsen, kan have betydning.\n\nEr du i tvivl, så spørg din fagforening eller HR, før du sender. Skriv hellere \"min ansættelse ophører efter mit opsigelsesvarsel, som jeg forstår er den ...\" end en dato, du ikke er sikker på. Tænk også over ferie, afspadsering og aflevering af udstyr, og nævn kort, at du gerne vil aftale en god overlevering af dine opgaver."
+   },
+   {
+    "heading": "Sådan kan AI hjælpe med opsigelsen",
+    "body": "En AI-assistent er god til netop den slags korte, formelle tekster. Skriv en prompt som: \"Skriv en kort og venlig opsigelse til min chef Mette. Jeg opsiger min stilling som projektkoordinator. Min sidste arbejdsdag er den sidste dag i næste måned. Tak for et godt samarbejde. Højst seks linjer.\" Så får du et udkast på få sekunder.\n\nEn gratis chatbot som ChatGPT, Gemini eller Copilot klarer opgaven fint, og så kopierer du selv teksten over i mailen. Med ChatBot Skriv vælger du længden kort og får teksten skrevet direkte ind i mailen eller Google Docs. Uanset værktøj skal du selv tjekke navne, stilling og datoer, før du trykker send."
+   }
+  ],
+  "table": {
+   "caption": "Opsigelse på mail eller som brev",
+   "head": [
+    "Valg",
+    "Hvornår det passer",
+    "Husk"
+   ],
+   "rows": [
+    [
+     "Mail til chefen",
+     "Den mest almindelige måde på de fleste arbejdspladser",
+     "Bed om en bekræftelse på, at mailen er modtaget"
+    ],
+    [
+     "Underskrevet brev",
+     "Hvis kontrakten kræver det, eller arbejdspladsen er vant til papir",
+     "Aflever det personligt eller send det, så du kan dokumentere datoen"
+    ],
+    [
+     "Formular i HR-system",
+     "Hvis arbejdspladsen bruger et system til opsigelser",
+     "Gem en kopi eller et skærmbillede af det, du har sendt"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: en gratis chatbot som ChatGPT, Gemini eller Copilot, fordi en opsigelse er en kort tekst, man sjældent skriver, og som er hurtig at kopiere over.",
+   "Bedst til dig, der er i tvivl om varsel eller rettigheder: din fagforening eller HR. Her er hverken ChatBot Skriv eller andre AI-værktøjer det rigtige sted at få svar.",
+   "Bedst til dig, der ofte skriver mails og dokumenter i browseren: ChatBot Skriv, der skriver den korte opsigelse direkte ind i mailen eller Google Docs."
+  ],
+  "faq": [
+   {
+    "q": "Skal jeg skrive, hvorfor jeg siger op?",
+    "a": "Nej, det er ikke nødvendigt. Vil du gerne give en grund, så hold den kort og positiv, fx at du har fået en ny stilling eller vil prøve noget nyt."
+   },
+   {
+    "q": "Kan jeg sige op på mail?",
+    "a": "Ja, på de fleste arbejdspladser er en mail fint. Tjek din kontrakt, om der står noget om formen, og bed om en bekræftelse, så du kan dokumentere, hvornår opsigelsen blev modtaget."
+   },
+   {
+    "q": "Kan jeg bruge AI til at skrive min opsigelse?",
+    "a": "Ja. Giv AI'en din chefs navn, din stilling, datoen og den tone, du ønsker, og bed om en kort tekst. Læs den igennem og ret navne og datoer, før du sender den."
+   }
+  ]
  }
 ]
