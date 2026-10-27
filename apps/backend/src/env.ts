@@ -140,6 +140,12 @@ export const env = {
    * still has to sign in with their own password through the normal auth
    * routes, and the per-account throttle in routes/auth.ts still applies.
    */
+  /**
+   * The War Room's service token for the admin API (routes/admin.ts). A
+   * machine has no password to sign in with, so this one bearer secret stands
+   * in for an admin's sign-in. Unset = the path is closed, never open.
+   */
+  warroomToken: process.env.WARROOM_CBS_TOKEN ?? '',
   adminEmails: (process.env.ADMIN_EMAILS ?? '')
     .split(',')
     .map((e) => e.trim().toLowerCase())

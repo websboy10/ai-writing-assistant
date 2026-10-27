@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type Stripe from 'stripe';
 import { env } from '../env.js';
@@ -34,6 +35,13 @@ import { DASHBOARD_HTML } from './dashboard-page.js';
  */
 export function adminRoutes(app: FastifyInstance): void {
   async function requireAdmin(req: FastifyRequest, reply: FastifyReply): Promise<AuthedUser | null> {
+    // The War Room (sehit's command centre) calls these same handlers server to
+    // server with one bearer secret; it never reaches the browser. Compared as
+    // hashes so the check takes the same time whatever the length.
+    const bearer = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
+    if (env.warroomToken && bearer && timingSafeEqual(sha(bearer), sha(env.warroomToken))) {
+      return { id: 'warroom', email: 'warroom', token: '' };
+    }
     const user = await verifyUser(req.headers.authorization);
     if (!user) {
       reply.code(401).send({ error: 'Log ind først', code: 'unauthenticated' });
@@ -154,10 +162,144 @@ export function adminRoutes(app: FastifyInstance): void {
     return { referral: { enabled, discountPercent, yearlyCap } };
   });
 
+  /**
+   * One row per account, our own included and flagged. Counts and dates only:
+   * never a conversation title or a message (PRIVACY.md).
+   */
+  app.get<{ Querystring: { q?: string; limit?: string } }>('/api/admin/users', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    if (!(await enforce(req, reply, 'admin', user.id, [{ limit: 240, seconds: HOUR }]))) return reply;
+    const q = (req.query.q ?? '').trim().slice(0, 100);
+    return { users: await anonRpc<unknown[]>('admin_users', { p_q: q || null, p_limit: Number(req.query.limit) || 200 }) };
+  });
+
+  /** Left out of every number (on) or counted again (off). */
+  app.post<{ Body: { email?: unknown; internal?: unknown; note?: unknown } }>('/api/admin/internal', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    const { email, internal, note } = req.body ?? {};
+    if (typeof email !== 'string' || !email.includes('@') || typeof internal !== 'boolean') {
+      return reply.code(400).send({ error: 'email og internal (true/false) skal med', code: 'bad_request' });
+    }
+    await anonRpc('admin_set_internal', { p_email: email, p_internal: internal, p_note: typeof note === 'string' ? note : null });
+    await capture(user.id, 'admin_internal_changed', { internal });
+    return { email: email.trim().toLowerCase(), internal };
+  });
+
+  /** Free access for N days on top of whatever runs now; 0 ends it. */
+  app.post<{ Body: { userId?: unknown; days?: unknown } }>('/api/admin/access', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    const { userId, days } = req.body ?? {};
+    if (typeof userId !== 'string' || !isUuid(userId) || typeof days !== 'number' || !Number.isInteger(days) || days < 0 || days > 3650) {
+      return reply.code(400).send({ error: 'userId og dage (0-3650) skal med', code: 'bad_request' });
+    }
+    const accessUntil = await anonRpc<string>('admin_grant_access', { p_user_id: userId, p_days: days });
+    await capture(user.id, 'admin_access_granted', { days });
+    return { userId, accessUntil };
+  });
+
+  app.post<{ Body: { userId?: unknown; dailyLimit?: unknown } }>('/api/admin/limit', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    const { userId, dailyLimit } = req.body ?? {};
+    if (typeof userId !== 'string' || !isUuid(userId) || typeof dailyLimit !== 'number' || !Number.isInteger(dailyLimit)
+      || dailyLimit < 1 || dailyLimit > 100_000) {
+      return reply.code(400).send({ error: 'userId og en grænse på 1-100000 skal med', code: 'bad_request' });
+    }
+    await anonRpc('admin_set_daily_limit', { p_user_id: userId, p_limit: dailyLimit });
+    await capture(user.id, 'admin_limit_changed', { dailyLimit });
+    return { userId, dailyLimit };
+  });
+
+  /**
+   * Every charge and subscription with who it belongs to, so a refund or a
+   * cancellation can name its target. Our own accounts are included and
+   * flagged, like the user list.
+   */
+  app.get('/api/admin/payments', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    if (!(await enforce(req, reply, 'admin', user.id, [{ limit: 240, seconds: HOUR }]))) return reply;
+    const internal = await anonRpc<Internal>('admin_internal');
+    const ours = new Set(internal.internal_ids);
+    const [charges, subs] = await Promise.all([
+      stripe.charges.list({ limit: 100 }),
+      stripe.subscriptions.list({ status: 'all', limit: 100, expand: ['data.customer'] }),
+    ]);
+    const emailOf = (c: unknown) =>
+      c && typeof c === 'object' && 'email' in c ? ((c as { email: string | null }).email ?? null) : null;
+    return {
+      truncated: charges.has_more || subs.has_more,
+      charges: charges.data.map((c) => ({
+        id: c.id,
+        at: new Date(c.created * 1000).toISOString(),
+        dkk: c.amount / 100,
+        refunded_dkk: c.amount_refunded / 100,
+        status: c.status,
+        email: c.billing_details?.email ?? c.receipt_email ?? null,
+        user_id: c.metadata?.user_id ?? null,
+        internal: !!c.metadata?.user_id && ours.has(c.metadata.user_id),
+        description: c.description,
+      })),
+      subscriptions: subs.data.map((s) => ({
+        id: s.id,
+        status: s.status,
+        email: emailOf(s.customer),
+        user_id: s.metadata?.user_id ?? null,
+        created: new Date(s.created * 1000).toISOString(),
+        cancel_at_period_end: s.cancel_at_period_end,
+        period_end: s.items.data[0]?.current_period_end
+          ? new Date(s.items.data[0].current_period_end * 1000).toISOString() : null,
+        dkk: (s.items.data[0]?.price.unit_amount ?? 0) / 100,
+      })),
+    };
+  });
+
+  /**
+   * Money back. Full unless an amount is given. The charge.refunded webhook
+   * then takes back any invitation reward, exactly as a refund from the Stripe
+   * dashboard would.
+   */
+  app.post<{ Body: { chargeId?: unknown; amountDkk?: unknown } }>('/api/admin/refund', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    const { chargeId, amountDkk } = req.body ?? {};
+    if (typeof chargeId !== 'string' || !/^(ch|py)_[A-Za-z0-9]+$/.test(chargeId)
+      || (amountDkk !== undefined && (typeof amountDkk !== 'number' || !(amountDkk > 0)))) {
+      return reply.code(400).send({ error: 'chargeId (og evt. et beløb over 0) skal med', code: 'bad_request' });
+    }
+    const refund = await stripe.refunds.create({
+      charge: chargeId,
+      ...(amountDkk !== undefined ? { amount: Math.round((amountDkk as number) * 100) } : {}),
+      metadata: { by: user.email },
+    });
+    await capture(user.id, 'admin_refund', { dkk: refund.amount / 100 });
+    return { refundId: refund.id, status: refund.status, dkk: refund.amount / 100 };
+  });
+
+  /** Stop a subscription: at the end of the paid period (default) or now. */
+  app.post<{ Body: { subscriptionId?: unknown; now?: unknown } }>('/api/admin/cancel', async (req, reply) => {
+    const user = await requireAdmin(req, reply);
+    if (!user) return reply;
+    const { subscriptionId, now } = req.body ?? {};
+    if (typeof subscriptionId !== 'string' || !/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) {
+      return reply.code(400).send({ error: 'subscriptionId skal med', code: 'bad_request' });
+    }
+    const sub = now === true
+      ? await stripe.subscriptions.cancel(subscriptionId)
+      : await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+    await capture(user.id, 'admin_subscription_cancelled', { now: now === true });
+    return { subscriptionId, status: sub.status, cancelAtPeriodEnd: sub.cancel_at_period_end };
+  });
+
   app.get('/dashboard', async (_req, reply) => {
     reply.type('text/html').send(DASHBOARD_HTML);
   });
 }
+
+const sha = (v: string) => createHash('sha256').update(v).digest();
 
 interface ConfigRow {
   hard_paywall: boolean;
