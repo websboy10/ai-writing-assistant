@@ -1976,5 +1976,89 @@
     "a": "Ja. Giv AI'en din chefs navn, din stilling, datoen og den tone, du ønsker, og bed om en kort tekst. Læs den igennem og ret navne og datoer, før du sender den."
    }
   ]
+ },
+ {
+  "slug": "hvordan-faar-man-ai-til-at-skrive-kortere",
+  "questionId": "hvordan-faar-man-ai-til-at-skrive-kortere",
+  "topic": "ai-dansk",
+  "datePublished": "2026-11-09",
+  "h1": "Hvordan får man AI til at skrive kortere?",
+  "metaTitle": "Sådan får du AI til at skrive kortere | ChatBot Skriv",
+  "metaDescription": "AI skriver ofte for langt. Se hvordan du med en klar længde, en målgruppe og et format får korte, præcise tekster fra ChatGPT, Gemini, Copilot og andre værktøjer.",
+  "answer": "Sig præcist, hvor kort teksten skal være, fx højst tre sætninger eller omkring 50 ord, og fortæl hvem den er til og hvad den skal bruges til. Bed om at springe indledning og opsummering over, og vis gerne et kort eksempel. Er svaret stadig for langt, så bed om en strammere version. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "De fleste, der har brugt en AI-assistent, kender det: Man beder om en kort besked og får fem afsnit med indledning, punktliste og en venlig opsummering til sidst. Det skyldes ikke, at AI ikke kan skrive kort. Den ved bare ikke, hvad du mener med kort, og fylder hullerne ud med høflighed og gentagelser.\n\nDenne guide viser, hvordan du formulerer din bestilling, så du får en kort og præcis tekst i første forsøg, og hvad du gør, når svaret alligevel bliver for langt. Rådene virker i ChatGPT, Gemini, Copilot og ChatBot Skriv, fordi det handler om, hvordan du spørger, mere end om hvilket værktøj du bruger.",
+  "examples": {
+   "heading": "Fem formuleringer, der giver kortere svar",
+   "items": [
+    "\"Svar i højst tre sætninger.\"",
+    "\"Skriv omkring 50 ord, ikke mere.\"",
+    "\"Ingen indledning og ingen opsummering til sidst.\"",
+    "\"Skriv det som en kort mail til en travl kollega.\"",
+    "\"Gør teksten halvt så lang, men behold de vigtigste fakta.\""
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Giv en konkret længde i stedet for ordet kort",
+    "body": "Ordet kort betyder forskellige ting for forskellige mennesker, og for en AI betyder det ofte bare lidt kortere end normalt. Skriv i stedet en grænse, AI'en kan holde sig til: et antal sætninger, et cirka antal ord eller en form som én linje, tre punkter eller et afsnit. Sætninger og punkter er ofte lettere at styre end ord, fordi de er nemme at tælle.\n\nSig også, hvad der skal ud. AI har en vane med at starte med \"Selvfølgelig, her er ...\" og slutte med en opsummering eller et tilbud om mere hjælp. Skriv direkte, at du ikke vil have indledning, opsummering eller forklaringer, kun selve teksten."
+   },
+   {
+    "heading": "Fortæl hvem teksten er til og hvor den skal bruges",
+    "body": "En AI skriver længere, når den er i tvivl, fordi den prøver at dække alle muligheder. Jo mere den ved om situationen, desto mindre fyld har den brug for. Skriv derfor, hvem der skal læse teksten, og hvor den skal stå: en sms til en kunde, et svar i en chat, en kort mail til chefen eller en tekst til et felt i en formular.\n\nEt eksempel: \"Skriv en kort mail til en kunde, der har spurgt om leveringstid. Varen sendes i morgen. Venlig tone, højst fire linjer.\" Her ved AI'en både hvem, hvad og hvor meget. Har du selv en kort tekst, du kan lide, så indsæt den som eksempel og bed om samme længde og stil."
+   },
+   {
+    "heading": "Når svaret stadig er for langt",
+    "body": "Selv med en god prompt kan svaret blive for langt. Så er det ofte hurtigere at bede om en ny version end at rette selv. Skriv fx \"Gør det halvt så langt\", \"Fjern alt, der ikke er nødvendigt\" eller \"Behold kun de tre vigtigste pointer\". Du kan også indsætte en lang tekst, du har i forvejen, og bede om en kortere udgave.\n\nI ChatGPT, Gemini og Copilot skriver du længden i prompten hver gang eller gemmer den i dine indstillinger, hvis værktøjet har det. I ChatBot Skriv vælger du kort, middel eller lang, før du sender, så du ikke skal huske at skrive det. Uanset værktøj bør du læse teksten igennem og stryge det sidste overflødige selv."
+   }
+  ],
+  "table": {
+   "caption": "Typiske grunde til for lange AI-svar og hvad du kan skrive",
+   "head": [
+    "Problem",
+    "Hvad du kan skrive",
+    "Hvorfor det virker"
+   ],
+   "rows": [
+    [
+     "Svaret er generelt for langt",
+     "\"Højst tre sætninger\"",
+     "En konkret grænse er lettere at holde end ordet kort"
+    ],
+    [
+     "Lang indledning og afslutning",
+     "\"Kun selve teksten, ingen indledning\"",
+     "AI'en springer høflighedsfraserne over"
+    ],
+    [
+     "Mange forklaringer og forbehold",
+     "\"Skriv til en travl læser, der kender emnet\"",
+     "AI'en antager mindre og forklarer mindre"
+    ],
+    [
+     "Gentagelser af samme pointe",
+     "\"Behold kun de tre vigtigste pointer\"",
+     "AI'en må vælge og prioritere"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: en gratis chatbot som ChatGPT, Gemini eller Copilot med en tydelig længde i prompten, fx højst tre sætninger. Det virker fint, hvis du kun af og til har brug for en kort tekst.",
+   "Bedst til dig, der ofte skriver korte mails og svar i browseren: ChatBot Skriv, hvor du vælger længden kort før du sender, og teksten bliver skrevet direkte ind, hvor din markør står.",
+   "Bedst til dig, der kun vil forkorte en tekst, du allerede har skrevet, og ikke bruger AI andre steder: her er det ikke nødvendigt med en Chrome-udvidelse, og en gratis chatbot eller din egen sletteknap er nok."
+  ],
+  "faq": [
+   {
+    "q": "Hvorfor skriver AI så langt?",
+    "a": "AI-modeller er trænet til at være grundige og hjælpsomme, så de dækker gerne flere muligheder, når de er i tvivl. Når du giver en konkret længde, en målgruppe og et formål, har den mindre grund til at fylde ud."
+   },
+   {
+    "q": "Hvad er bedst: antal ord eller antal sætninger?",
+    "a": "Antal sætninger eller punkter er ofte lettere for AI'en at ramme præcist. Et cirka antal ord virker også, men regn med, at resultatet kan ligge lidt over eller under."
+   },
+   {
+    "q": "Kan AI forkorte en tekst, jeg allerede har skrevet?",
+    "a": "Ja. Indsæt teksten og skriv fx \"Gør den halvt så lang, men behold alle datoer og navne\". Læs den nye version igennem, så du er sikker på, at intet vigtigt er forsvundet."
+   }
+  ]
  }
 ]
