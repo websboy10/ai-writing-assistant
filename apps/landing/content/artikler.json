@@ -2060,5 +2060,89 @@
     "a": "Ja. Indsæt teksten og skriv fx \"Gør den halvt så lang, men behold alle datoer og navne\". Læs den nye version igennem, så du er sikker på, at intet vigtigt er forsvundet."
    }
   ]
+ },
+ {
+  "slug": "hvordan-svarer-man-en-utilfreds-kunde-paa-mail",
+  "questionId": "hvordan-svarer-man-en-utilfreds-kunde-paa-mail",
+  "topic": "kundeservice",
+  "datePublished": "2026-11-10",
+  "h1": "Hvordan svarer man en utilfreds kunde på mail?",
+  "metaTitle": "Sådan svarer du en utilfreds kunde på mail",
+  "metaDescription": "Svar en utilfreds kunde hurtigt, roligt og konkret. Se opbygningen af et godt svar, fraser du kan bruge, og hvordan AI kan hjælpe med et udkast til mailen.",
+  "answer": "Svar hurtigt, gerne samme dag. Tak for henvendelsen, vis at du har forstået problemet, og giv en ærlig undskyldning uden \"men\". Fortæl derefter konkret, hvad du gør, og hvornår kunden hører fra dig igen. Hold tonen rolig og mailen kort, og forsvar dig ikke. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "En vred mail fra en kunde kan være svær at svare på. Man har lyst til at forklare, hvorfor det ikke er ens egen skyld, eller man skriver et svar så forsigtigt, at kunden ikke får noget konkret ud af det. Begge dele gør som regel kunden mere utilfreds.\n\nDenne guide viser, hvordan et godt svar er bygget op, hvilke formuleringer der virker, og hvilke du bør undgå. Til sidst ser vi på, hvordan en AI-assistent som ChatGPT, Gemini, Copilot eller ChatBot Skriv kan hjælpe dig med et første udkast, og hvorfor du altid selv skal læse det igennem, før du trykker send.",
+  "examples": {
+   "heading": "Fem formuleringer, der virker i et svar til en utilfreds kunde",
+   "items": [
+    "\"Tak fordi du skriver til os og fortæller, hvad der er gået galt.\"",
+    "\"Jeg kan godt forstå, at du er skuffet over, at pakken ikke kom til tiden.\"",
+    "\"Det er vores fejl, og det beklager jeg.\"",
+    "\"Jeg har sendt en ny vare i dag, og du får et sporingsnummer i en separat mail.\"",
+    "\"Skriv endelig direkte til mig, hvis der er mere, jeg kan hjælpe med.\""
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Sådan er et godt svar bygget op",
+    "body": "Et godt svar har fire dele. Først en kort tak for henvendelsen, så kunden ved, at mailen er læst. Dernæst en sætning, der viser, at du har forstået problemet, gerne med kundens egne ord. Så en ærlig undskyldning, hvis I har begået en fejl, eller en beklagelse af situationen, hvis I ikke har. Til sidst det vigtigste: hvad du konkret gør nu, og hvornår kunden hører fra dig igen.\n\nSvar så hurtigt som muligt. Kan du ikke løse sagen med det samme, så skriv alligevel samme dag og fortæl, at du undersøger det, og hvornår du vender tilbage. Kunder bliver ofte mere irriterede over tavshed end over selve fejlen."
+   },
+   {
+    "heading": "Det skal du undgå",
+    "body": "Skriv ikke \"vi beklager, men ...\". Ordet men tager undskyldningen tilbage og får svaret til at lyde som et forsvar. Undgå også lange forklaringer om interne procedurer, travlhed eller leverandører. Kunden vil have en løsning, ikke en redegørelse.\n\nSvar ikke i affekt. Er mailen grov eller uretfærdig, så vent lidt, læs den igen og svar på sagen frem for på tonen. Lov heller ikke noget, du ikke kan holde, fx en levering i morgen, hvis du ikke er sikker. Og hold mailen kort: et par korte afsnit er nok. Er sagen kompliceret, kan det være bedre at tilbyde et opkald end at skrive en lang mail."
+   },
+   {
+    "heading": "Sådan kan AI hjælpe med svaret",
+    "body": "En AI-assistent er god til at give dig et roligt, høfligt første udkast, især når du selv er frustreret. Giv den kundens mail, hvad der faktisk er sket, og hvad du kan tilbyde. Skriv fx: \"Skriv et kort, venligt svar på dansk. Vi har sendt den forkerte størrelse. Vi sender den rigtige i dag og betaler returfragten. Ingen lange forklaringer.\"\n\nDu kan bruge ChatGPT, Gemini eller Copilot og kopiere svaret over i din mail. Med ChatBot Skriv åbner du assistenten i kanten af din webmail, vælger længden kort og får svaret skrevet direkte ind i mailen. Uanset værktøj skal du tjekke navne, datoer og løfter, før du sender. Og del kun de personoplysninger, der er nødvendige for svaret."
+   }
+  ],
+  "table": {
+   "caption": "Formuleringer i et kundesvar: hvad du kan skrive i stedet",
+   "head": [
+    "Undgå",
+    "Skriv hellere",
+    "Hvorfor"
+   ],
+   "rows": [
+    [
+     "\"Vi beklager, men vi har haft travlt.\"",
+     "\"Det beklager jeg. Jeg har sendt varen i dag.\"",
+     "Undskyldningen står alene, og løsningen kommer med det samme"
+    ],
+    [
+     "\"Det står i vores betingelser.\"",
+     "\"Jeg kan godt forstå, at det var uklart. Sådan fungerer det ...\"",
+     "Kunden føler sig hørt i stedet for afvist"
+    ],
+    [
+     "\"Vi kigger på det.\"",
+     "\"Jeg vender tilbage senest i morgen.\"",
+     "Et konkret tidspunkt skaber ro"
+    ],
+    [
+     "\"Du må have misforstået.\"",
+     "\"Lad mig lige forklare, hvad der skete.\"",
+     "Rolig tone uden at give kunden skylden"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: skriv selv svaret ud fra de fire dele i denne guide, eller få et udkast fra en gratis chatbot som ChatGPT, Gemini eller Copilot, og ret det til, før du sender.",
+   "Bedst til dig, der svarer på mange kundemails i browseren: ChatBot Skriv, hvor du vælger en kort længde og får svaret skrevet direkte ind i mailen, uden at kopiere frem og tilbage.",
+   "Bedst til større kundeserviceteams med fælles indbakke og faste skabeloner: her er et egentligt kundeservicesystem det rigtige valg, og ChatBot Skriv er ikke nødvendig."
+  ],
+  "faq": [
+   {
+    "q": "Hvor hurtigt skal man svare en utilfreds kunde?",
+    "a": "Så hurtigt som muligt, helst samme dag. Kan du ikke løse problemet med det samme, så send et kort svar om, at du undersøger sagen, og hvornår kunden hører fra dig."
+   },
+   {
+    "q": "Skal man altid sige undskyld?",
+    "a": "Hvis I har begået en fejl, ja, og uden forbehold. Har I ikke gjort noget forkert, kan du i stedet beklage situationen og vise, at du forstår kundens frustration, og så forklare roligt, hvad du kan gøre."
+   },
+   {
+    "q": "Er det i orden at bruge AI til at svare kunder?",
+    "a": "Ja, som hjælp til et udkast. Men du har ansvaret for svaret, så læs det igennem, tjek fakta og løfter, og tilpas tonen, så den lyder som dig og din virksomhed."
+   }
+  ]
  }
 ]
