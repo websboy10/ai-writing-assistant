@@ -2144,5 +2144,89 @@
     "a": "Ja, som hjælp til et udkast. Men du har ansvaret for svaret, så læs det igennem, tjek fakta og løfter, og tilpas tonen, så den lyder som dig og din virksomhed."
    }
   ]
+ },
+ {
+  "slug": "hvordan-skriver-man-en-klage-der-bliver-taget-alvorligt",
+  "questionId": "hvordan-skriver-man-en-klage-der-bliver-taget-alvorligt",
+  "topic": "mail",
+  "datePublished": "2026-11-11",
+  "h1": "Hvordan skriver man en klage, der bliver taget alvorligt?",
+  "metaTitle": "Sådan skriver du en klage, der bliver taget alvorligt",
+  "metaDescription": "Skriv en klage, der er kort, saglig og konkret. Se opbygningen, formuleringer du kan bruge, hvad du skal undgå, og hvordan AI kan hjælpe med et udkast.",
+  "answer": "Skriv kort, sagligt og konkret. Beskriv hvad der skete, hvornår, og med hvilket ordrenummer eller hvilken aftale. Vedlæg dokumentation, sig præcis hvilken løsning du ønsker, og giv en rimelig frist for svar. Hold tonen rolig, også når du er vred. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "De fleste klager bliver skrevet, mens man er sur. Det er forståeligt, men det giver ofte lange mails fyldt med følelser, hvor modtageren skal lede efter, hvad sagen egentlig drejer sig om, og hvad man vil have. Sådan en klage er nem at svare udenom.\n\nDenne guide viser, hvordan en klage er bygget op, så den bliver læst, forstået og behandlet. Du får formuleringer, du kan bruge, en liste over det, du bør undgå, og et bud på, hvordan en AI-assistent som ChatGPT, Gemini, Copilot eller ChatBot Skriv kan hjælpe dig med at få et roligt og klart udkast.",
+  "examples": {
+   "heading": "Fem formuleringer, der gør en klage tydelig",
+   "items": [
+    "\"Jeg skriver for at klage over ordre nr. 12345, som jeg modtog den 3. november.\"",
+    "\"Varen virkede ikke, da jeg tog den i brug. Billeder af fejlen er vedhæftet.\"",
+    "\"Jeg ønsker, at varen bliver repareret eller ombyttet.\"",
+    "\"Jeg ser frem til jeres svar senest den 25. november.\"",
+    "\"Hører jeg ikke fra jer, vil jeg overveje at gå videre med sagen.\""
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Sådan er en god klage bygget op",
+    "body": "En klage, der bliver taget alvorligt, svarer på fire spørgsmål. Hvad drejer det sig om? Skriv ordrenummer, kundenummer, dato eller aftale i første linje. Hvad gik galt? Beskriv det sagligt og i rækkefølge, uden at overdrive. Hvad kan du dokumentere? Vedhæft kvittering, billeder eller tidligere mails. Hvad vil du have? Skriv præcis, hvilken løsning du ønsker, fx reparation, ombytning, kreditering eller en undskyldning.\n\nSlut med en rimelig frist for svar og dine kontaktoplysninger. Send klagen skriftligt, så du har den dokumenteret, og gem en kopi. Er sagen vigtig, kan det betale sig at sende den til den rigtige afdeling eller person i stedet for en generel indbakke."
+   },
+   {
+    "heading": "Det skal du undgå",
+    "body": "Skriv ikke i affekt. Skældsord, store bogstaver og mange udråbstegn gør det nemmere for modtageren at afvise dig som urimelig. Lad mailen ligge lidt, og læs den igennem med friske øjne, før du sender.\n\nUndgå også at fortælle hele historien. Modtageren har brug for fakta, ikke for alle dine overvejelser undervejs. Truer du med noget, fx at gå til en klageinstans eller anmelde virksomheden offentligt, så skriv det roligt og kun hvis du mener det. Og glem ikke at skrive, hvad du vil have. Mange klager slutter uden et konkret ønske, og så ender sagen ofte med en standardbeklagelse."
+   },
+   {
+    "heading": "Sådan kan AI hjælpe med klagen",
+    "body": "En AI-assistent er god til at gøre en vred tekst rolig og saglig. Skriv dine stikord, også de sure, og bed om en kort, høflig klage på dansk. Fx: \"Skriv en saglig klage. Ordre 12345. Kaffemaskinen lækker efter to uger. Billeder vedhæftet. Jeg ønsker en ny maskine. Svar inden for en uge.\"\n\nDu kan bruge ChatGPT, Gemini eller Copilot og kopiere teksten over i din mail eller klageformular. Med ChatBot Skriv åbner du assistenten i kanten af siden, kan vedhæfte fx en kvittering som PDF eller billede, og får klagen skrevet direkte ind i mailen eller webformularen. Uanset værktøj skal du selv tjekke datoer, numre og krav, før du sender."
+   }
+  ],
+  "table": {
+   "caption": "Formuleringer i en klage: hvad du kan skrive i stedet",
+   "head": [
+    "Undgå",
+    "Skriv hellere",
+    "Hvorfor"
+   ],
+   "rows": [
+    [
+     "\"Det her er helt uacceptabelt!!!\"",
+     "\"Jeg er ikke tilfreds med, at varen gik i stykker efter to uger.\"",
+     "Sagen står klart uden at tonen tager over"
+    ],
+    [
+     "\"I må gøre noget ved det.\"",
+     "\"Jeg ønsker, at varen bliver ombyttet.\"",
+     "Modtageren ved præcis, hvad du beder om"
+    ],
+    [
+     "\"Jeg har ringet flere gange.\"",
+     "\"Jeg ringede den 4. og 6. november og fik ikke svar.\"",
+     "Datoer gør klagen konkret og troværdig"
+    ],
+    [
+     "\"Svar hurtigst muligt.\"",
+     "\"Jeg ser frem til jeres svar senest den 25. november.\"",
+     "En dato gør det nemt at følge op"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: skriv selv klagen ud fra de fire spørgsmål i denne guide, eller få et udkast fra en gratis chatbot som ChatGPT, Gemini eller Copilot, og ret det til, før du sender.",
+   "Bedst til dig, der vil skrive klagen direkte i mailen eller klageformularen i browseren: ChatBot Skriv, hvor du kan vedhæfte kvitteringen og få teksten skrevet ind dér, hvor du skal sende den.",
+   "Bedst til sager om større beløb eller retslige tvister: her bør du søge råd hos en klageinstans, en forbrugerorganisation eller en advokat, og ChatBot Skriv kan højst hjælpe med formuleringen."
+  ],
+  "faq": [
+   {
+    "q": "Skal en klage sendes på mail eller i en formular?",
+    "a": "Begge dele er fint, så længe den er skriftlig. Bruger du en formular, så tag en kopi af teksten eller et skærmbillede, så du kan dokumentere, hvad du skrev og hvornår."
+   },
+   {
+    "q": "Hvor lang skal en klage være?",
+    "a": "Så kort som muligt. Et par korte afsnit med fakta, dokumentation og dit konkrete ønske er som regel nok. Jo kortere klagen er, jo nemmere er den at behandle."
+   },
+   {
+    "q": "Hvad gør jeg, hvis jeg ikke får svar?",
+    "a": "Send en kort påmindelse, når fristen er gået, og henvis til din første klage med dato. Får du stadig ikke svar, kan du undersøge, om der findes en klageinstans for området."
+   }
+  ]
  }
 ]
