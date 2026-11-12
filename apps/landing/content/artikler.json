@@ -2228,5 +2228,94 @@
     "a": "Send en kort påmindelse, når fristen er gået, og henvis til din første klage med dato. Får du stadig ikke svar, kan du undersøge, om der findes en klageinstans for området."
    }
   ]
+ },
+ {
+  "slug": "hvordan-svarer-man-paa-en-mail-fra-en-kunde-hurtigt-og-venligt",
+  "questionId": "hvordan-svarer-man-paa-en-mail-fra-en-kunde-hurtigt-og-venligt",
+  "topic": "kundeservice",
+  "datePublished": "2026-11-12",
+  "h1": "Hvordan svarer man på en mail fra en kunde hurtigt og venligt?",
+  "metaTitle": "Sådan svarer du en kunde på mail hurtigt og venligt",
+  "metaDescription": "Svar kunden hurtigt og venligt uden at gå på kompromis med indholdet. Se opbygningen, fem formuleringer, faste svarskabeloner og hvordan AI kan hjælpe.",
+  "answer": "Svar så hurtigt du kan, og bekræft i det mindste, at du har fået mailen, hvis du ikke har svaret klar. Brug kundens navn, svar direkte på det, der bliver spurgt om, i første afsnit, og fortæl hvad der sker nu. Hold mailen kort og tonen venlig. ChatBot Skriv er en dansk Chrome-udvidelse, der skriver teksten direkte ind i Google Docs, mails og webformularer.",
+  "intro": "De fleste kundemails er ikke klager. Det er spørgsmål om en levering, en ændring af en booking, en faktura eller et produkt. Kunden vil bare have et klart svar, og jo hurtigere det kommer, jo bedre bliver oplevelsen. Alligevel ender mange svar med at blive enten for korte og kolde eller for lange og formelle.\n\nDenne guide viser, hvordan du skriver et svar, der er både hurtigt og venligt. Du får en enkel opbygning, formuleringer du kan genbruge, et overblik over faste svarskabeloner, og et bud på, hvordan en AI-assistent som ChatGPT, Gemini, Copilot eller ChatBot Skriv kan spare dig tid. Er kunden utilfreds, har vi en særskilt guide til det.",
+  "examples": {
+   "heading": "Fem formuleringer, der gør et kundesvar hurtigt og venligt",
+   "items": [
+    "\"Hej Anna, tak for din mail.\"",
+    "\"Kort fortalt: ja, du kan godt bytte varen inden for returfristen.\"",
+    "\"Jeg har ændret din booking til torsdag kl. 10, og du får en ny bekræftelse om lidt.\"",
+    "\"Jeg har ikke svaret endnu, men jeg vender tilbage senest i morgen.\"",
+    "\"Skriv endelig igen, hvis der er mere, jeg kan hjælpe med.\""
+   ]
+  },
+  "sections": [
+   {
+    "heading": "Sådan er et godt kundesvar bygget op",
+    "body": "Start med en venlig hilsen og kundens navn. Svar derefter på selve spørgsmålet i første eller anden sætning, så kunden ikke skal lede efter det. Har kunden stillet flere spørgsmål, så svar på dem i samme rækkefølge, gerne i korte afsnit.\n\nFortæl bagefter, hvad der sker nu: hvad du har gjort, hvad kunden selv skal gøre, og hvornår der sker noget. Slut med en kort, venlig afslutning og dit navn. Et personligt navn under mailen gør svaret varmere end en anonym afsender. Læs til sidst mailen igennem med kundens øjne: er der noget, de stadig vil spørge om?"
+   },
+   {
+    "heading": "Hurtigt uden at blive kort for hovedet",
+    "body": "Hurtighed handler mest om at reagere tidligt. Har du ikke svaret klar, så send et kort svar med det samme, hvor du bekræfter, at du har fået mailen, og siger hvornår kunden hører fra dig. Det giver ro og færre opfølgende mails.\n\nFaste svar sparer også tid. Skriv skabeloner til de spørgsmål, der går igen, fx levering, retur og ændringer, men tilpas altid starten og det konkrete svar til den enkelte kunde. En skabelon, der tydeligt ikke har læst mailen, virker kold. Venlighed kræver ikke mange ord: tak for henvendelsen, et klart svar og en åben dør til sidst er som regel nok."
+   },
+   {
+    "heading": "Sådan kan AI hjælpe med kundesvaret",
+    "body": "En AI-assistent er god til at gøre stikord til et færdigt, venligt svar. Skriv fx: \"Svar venligt og kort på dansk. Kunden spørger, om ordren kan nå frem før fredag. Den er afsendt i dag og forventes fremme torsdag.\" Mange mailsystemer og helpdesk-værktøjer har også selv indbygget AI eller faste svar.\n\nDu kan bruge ChatGPT, Gemini eller Copilot og kopiere svaret over i mailen. Med ChatBot Skriv åbner du assistenten i kanten af siden, vælger kort længde og får svaret skrevet direkte ind i mailen eller kundeservicesystemet i browseren. Uanset værktøj skal du selv tjekke datoer, priser og løfter, før du sender."
+   }
+  ],
+  "table": {
+   "caption": "Typiske kundemails og hvad svaret skal indeholde",
+   "head": [
+    "Kunden skriver om",
+    "Svaret skal indeholde",
+    "Godt at huske"
+   ],
+   "rows": [
+    [
+     "Levering",
+     "Status på ordren og hvornår den forventes fremme",
+     "Send sporingslink, hvis I har et"
+    ],
+    [
+     "Retur eller bytte",
+     "Om det kan lade sig gøre, og hvordan kunden gør",
+     "Skriv trinene i rækkefølge"
+    ],
+    [
+     "Ændring af booking",
+     "Bekræftelse af den nye tid eller aftale",
+     "Gentag dato og tidspunkt tydeligt"
+    ],
+    [
+     "Spørgsmål om et produkt",
+     "Et direkte svar og evt. et link til mere",
+     "Sig det ærligt, hvis produktet ikke passer"
+    ],
+    [
+     "Faktura eller betaling",
+     "Hvad beløbet dækker, og hvad der sker nu",
+     "Henvis til fakturanummer"
+    ]
+   ]
+  },
+  "bestFor": [
+   "Bedst til de fleste: en enkel opbygning og et par faste skabeloner, som du tilpasser hver gang. Har du brug for et udkast, kan en gratis chatbot som ChatGPT, Gemini eller Copilot klare det.",
+   "Bedst til dig, der svarer på mange mails i browseren: ChatBot Skriv, hvor du vælger en kort længde og får svaret skrevet direkte ind i mailen eller kundeservicesystemet.",
+   "Bedst til større kundeserviceteams: her giver et rigtigt helpdesk-system med fælles indbakke og faste svar mest, og ChatBot Skriv er ikke en erstatning for det."
+  ],
+  "faq": [
+   {
+    "q": "Hvor hurtigt skal man svare en kunde på mail?",
+    "a": "Så hurtigt du kan, og gerne samme dag. Kan du ikke svare fuldt ud, så send en kort bekræftelse med det samme og skriv, hvornår kunden kan forvente et rigtigt svar."
+   },
+   {
+    "q": "Skal man skrive du eller De til en kunde?",
+    "a": "I de fleste danske virksomheder er du helt normalt og virker venligt. Skriver kunden selv De, eller er branchen meget formel, kan du følge kundens tone."
+   },
+   {
+    "q": "Er det i orden at bruge AI til kundesvar?",
+    "a": "Ja, som hjælp til udkast. Læs altid svaret igennem, før du sender, og indtast kun de persondata, der er nødvendige. Du står selv inde for det, der står i mailen."
+   }
+  ]
  }
 ]
